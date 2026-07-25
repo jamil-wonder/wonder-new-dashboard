@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdfcf8;
+  --foreground: #23211b;
+  --forest-green: #15463b;
+  --cream-bg: #fdfcf8;
+  --border-sand: #ece3d1;
+  --accent-green: #1e7d4f;
+  --gold-accent: #d6a23a;
+  --subtle-text: #6f6757;
+  --muted-text: #8a8273;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-hanken), 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+}
+
+.font-spectral {
+  font-family: var(--font-spectral), 'Spectral', Georgia, serif !important;
+}
+
+.font-mono-spline {
+  font-family: var(--font-spline), 'Spline Sans Mono', monospace !important;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.lift:hover {
+  box-shadow: 0 12px 28px rgba(40, 46, 40, 0.12) !important;
+  transform: translateY(-2px);
+}
+
+.ul:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pb:hover {
+  filter: brightness(1.08);
+  cursor: pointer;
+}
+
+.ob:hover {
+  background-color: #f1ece1 !important;
+  cursor: pointer;
+}
+
+.nav-tab:hover {
+  background-color: #f6f3ec !important;
+  cursor: pointer;
+}
+
+.row-hover:hover {
+  background-color: #f8f6f0 !important;
+  cursor: pointer;
+  border-color: #dcd4c3 !important;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-input-border {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #ece3d1;
+  border-radius: 14px;
+  z-index: 1;
+}
+
+.shimmer-input-border::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  background: linear-gradient(90deg, #15463b 0%, #a8d860 25%, #15463b 50%, #a8d860 75%, #15463b 100%);
+  background-size: 200% 100%;
+  animation: shimmer 5s linear infinite;
+  border-radius: 16px;
+  z-index: -1;
+  opacity: 0.35;
+}
