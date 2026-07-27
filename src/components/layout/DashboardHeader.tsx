@@ -23,7 +23,7 @@ export default function DashboardHeader() {
                 <path d="M12 1 C12.6 6.7 17.3 11.4 23 12 C17.3 12.6 12.6 17.3 12 23 C11.4 17.3 6.7 12.6 1 12 C6.7 11.4 11.4 6.7 12 1 Z"></path>
               </svg>
               <span className="font-spectral text-[25px] font-semibold tracking-tight text-[#15463b]">
-                Wenderscore
+                Wonderscore
               </span>
             </Link>
 
