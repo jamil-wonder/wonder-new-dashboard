@@ -13,10 +13,14 @@ import { useOverviewData } from "../../hooks/useOverviewData";
 export default function OverviewPage() {
   const { activeBusiness } = useBusiness();
   const overviewData = useOverviewData(activeBusiness?.url || "");
+  const enrichedData = {
+    ...overviewData,
+    location: overviewData.location || activeBusiness?.location || "",
+  };
 
   return (
     <div className="space-y-5 pb-10">
-      <HeroSection data={overviewData} />
+      <HeroSection data={enrichedData} />
       <SprintSection data={overviewData} businessName={activeBusiness?.name} />
 
       {/* Three Column Row */}

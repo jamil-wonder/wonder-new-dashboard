@@ -51,6 +51,7 @@ export interface OverviewData {
   userRankOrdinal: string;
   nearestAboveName: string | null;
   nearestAboveGap: number | null;
+  location?: string;
 
   // Audit areas
   auditAreas: { id: string; label: string; score: number; iconName: string; barColor: string; statusText: string; statusColor: string; statusBg: string }[];
@@ -207,6 +208,7 @@ export function useOverviewData(url: string): OverviewData {
       userRankOrdinal,
       nearestAboveName,
       nearestAboveGap,
+      location: scanData?.location || undefined,
       auditAreas,
       aiInsights,
       modelMentions,

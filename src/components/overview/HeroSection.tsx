@@ -42,14 +42,14 @@ function ChangeRow({ icon, bg, color, title, sub }: { icon: string; bg: string; 
   );
 }
 
-function TrendChart({ points }: { points: { score: number; timestamp: string }[] }) {
+function TrendChart({ points }: { points: { score: number; timestamp: string; week_id?: string }[] }) {
   const latest = points.length > 0 ? points[points.length - 1].score : 0;
-  const hasData = points.length >= 2;
+  const hasData = points.length >= 1;
 
   if (!hasData) {
     return (
       <div className="flex-1 flex items-center justify-center text-[12px] text-[#a8b8a0] text-center px-2">
-        Run the Analyser to build your trend history.
+        Run the Analyser to build your weekly trend history.
       </div>
     );
   }
@@ -93,41 +93,88 @@ export default function HeroSection({ data }: { data: OverviewData }) {
 
   const delta = previousScore !== null ? score - previousScore : null;
 
-  // Build the "changes" items from real data
+  // Build dynamic card items from live data
   const changes: { icon: string; bg: string; color: string; title: string; sub: string }[] = [];
 
-  if (delta !== null && Math.abs(delta) > 0) {
-    changes.push(
-      delta > 0
-        ? { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: `Score improved by ${delta} points`, sub: `Now at ${score}/100` }
-        : { icon: "▼", bg: "#fbe9e3", color: "#d9694a", title: `Score dropped by ${Math.abs(delta)} points`, sub: `Now at ${score}/100` }
-    );
-  }
+  const locText = data.location ? ` in ${data.location}` : "";
 
-  // Best performing AI model
-  const bestModel = [...modelMentions].sort((a, b) => b.mentioned - a.mentioned)[0];
-  if (bestModel && bestModel.mentioned > 0) {
+  // 1. Competitor / Rank Card
+  if (competitors.length > 0) {
+    const userComp = competitors.find(c => c.isUser);
+    const userScore = userComp ? userComp.score : score;
+
+    if (userRank > 1) {
+      const aheadComp = competitors[userRank - 2]; // Competitor directly above
+      const gap = aheadComp ? aheadComp.score - userScore : null;
+      changes.push({
+        icon: "▲",
+        bg: "#e7f4ea",
+        color: "#1e7d4f",
+        title: aheadComp ? `Ahead of ${aheadComp.name}` : `Ahead of competitors`,
+        sub: `Ranked ${data.userRankOrdinal}${locText}${gap !== null && gap > 0 ? ` · ${gap} pts behind #${userRank - 1}` : ""}`,
+      });
+    } else {
+      changes.push({
+        icon: "▲",
+        bg: "#e7f4ea",
+        color: "#1e7d4f",
+        title: "Market Leader",
+        sub: `Ranked 1st${locText} · Top visibility score (${userScore}/100)`,
+      });
+    }
+  } else {
     changes.push({
-      icon: "▲", bg: "#e7f4ea", color: "#1e7d4f",
-      title: `${bestModel.model} mentions you`,
-      sub: `Appearing in ${bestModel.mentioned}/${totalQueries || 20} queries`,
+      icon: "▲",
+      bg: "#e7f4ea",
+      color: "#1e7d4f",
+      title: "Market position",
+      sub: `Run Analyser to compute rank${locText}`,
     });
   }
 
-  // Competitor context
-  if (competitors.length > 0 && userRank > 1) {
-    const prev = competitors[userRank - 2];
-    if (prev) {
-      changes.push({ icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: `Ahead of ${prev.name}`, sub: `You're ranked ${userRank === 2 ? "2nd" : `${userRank}th`}` });
-    }
+  // 2. AI Engine Mentions Card (Live from Queries)
+  const totalMentionedQueries = totalQueries > 0
+    ? modelMentions.reduce((max, m) => Math.max(max, m.mentioned), 0)
+    : 0;
+
+  const topModel = [...modelMentions].sort((a, b) => b.mentioned - a.mentioned)[0];
+
+  if (totalQueries > 0) {
+    changes.push({
+      icon: "▲",
+      bg: "#e7f4ea",
+      color: "#1e7d4f",
+      title: topModel && topModel.mentioned > 0 ? `${topModel.model} mention` : "AI Query mentions",
+      sub: `Appearing in ${totalMentionedQueries} of ${totalQueries} audited search queries`,
+    });
+  } else {
+    changes.push({
+      icon: "▲",
+      bg: "#e7f4ea",
+      color: "#1e7d4f",
+      title: "AI Search engine mentions",
+      sub: `Run Query tab to audit mentions across ChatGPT, Claude, Perplexity & Gemini`,
+    });
   }
 
-  // Fallback if no query data yet
-  if (changes.length === 0) {
-    changes.push(
-      { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: "Run Analyser first", sub: "Your score trend will appear here" },
-      { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: "Run Queries for AI mentions", sub: "Mention data shown once queries run" },
-    );
+  // 3. New Competitor or Trend / Insight Card
+  const trailingComp = competitors.length > 1 ? competitors[competitors.length - 1] : null;
+  if (trailingComp && !trailingComp.isUser) {
+    changes.push({
+      icon: "▲",
+      bg: "#e7f4ea",
+      color: "#1e7d4f",
+      title: `Ahead of ${trailingComp.name}`,
+      sub: `Indexed ahead of competitor profiles${locText}`,
+    });
+  } else {
+    changes.push({
+      icon: "▲",
+      bg: "#e7f4ea",
+      color: "#1e7d4f",
+      title: "Visibility index",
+      sub: score > 0 ? `Scored ${score}/100 across 6 audit categories` : `Run Analyser to compute category breakdown`,
+    });
   }
 
   // Headline text
