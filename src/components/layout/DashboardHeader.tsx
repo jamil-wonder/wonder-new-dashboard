@@ -83,36 +83,33 @@ export default function DashboardHeader() {
               </span>
             </Link>
 
-            {/* Active Business Info & Dynamic Score Trend */}
-            <div className="hidden lg:block shrink-0 pl-3.5 border-l border-[#efe7d6]">
-              <div className="text-[15.5px] font-medium text-[#23211b] leading-snug">
+            {/* Active Business Info & Dynamic Score Trend — Expanded Layout */}
+            <div className="hidden lg:block flex-1 min-w-0 pl-3.5 border-l border-[#efe7d6]">
+              <div className="text-[15.5px] font-semibold text-[#23211b] leading-snug truncate">
                 {activeBusiness.name}
               </div>
-              <div className="text-[12px] text-[#9b927f] leading-tight mb-1">
-                <div>{activeBusiness.category}</div>
-                <div>{activeBusiness.location}</div>
+              <div className="text-[12px] text-[#9b927f] leading-tight mb-1 truncate">
+                <span>{activeBusiness.category}</span>
+                <span className="mx-1 text-[#d8cfbd]">·</span>
+                <span>{activeBusiness.location}</span>
               </div>
 
-              {/* Trend badge — only shown after at least one scan */}
-              {!hasScanned && scoreDisplay === null ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#9b927f] bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-0.5 rounded-full">
-                  <Activity className="w-3 h-3 text-[#b3a98f]" />
-                  Not yet scanned
+              {/* Dynamic Score Status Pill */}
+              {scoreDisplay === null ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-0.5 rounded-full">
+                  — Not Scanned
                 </span>
-              ) : direction === "up" ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2.5 py-0.5 rounded-full">
-                  <TrendingUp className="w-3 h-3 text-[#15803d]" />
-                  Score Up
+              ) : scoreDisplay >= 80 ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#1e7d4f] px-2.5 py-0.5 rounded-full">
+                  ▲ High Score
                 </span>
-              ) : direction === "down" ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#b91c1c] bg-[#fee2e2] border border-[#fca5a5] px-2.5 py-0.5 rounded-full">
-                  <TrendingDown className="w-3 h-3 text-[#b91c1c]" />
-                  Score Down
+              ) : scoreDisplay >= 50 ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#9a6a12] px-2.5 py-0.5 rounded-full">
+                  — Score Steady
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#6f6757] bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-0.5 rounded-full">
-                  <Activity className="w-3 h-3 text-[#8a8273]" />
-                  Score Steady
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#b1442a] px-2.5 py-0.5 rounded-full">
+                  ▼ Low Score
                 </span>
               )}
             </div>
@@ -126,7 +123,7 @@ export default function DashboardHeader() {
                     <circle
                       cx="33" cy="33" r={r}
                       fill="none"
-                      stroke={delta !== null && delta < 0 ? "#b91c1c" : "#1a5c44"}
+                      stroke="#1a5c44"
                       strokeWidth="6"
                       strokeLinecap="round"
                       strokeDasharray={`${ringFill} ${circ}`}
@@ -150,28 +147,21 @@ export default function DashboardHeader() {
 
               <div>
                 <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f]">
-                  Score
+                  Wonder Score
                 </div>
                 {scoreDisplay !== null ? (
                   <>
-                    <div className={`num text-[13.5px] font-medium mt-0.5 ${
-                      delta !== null && delta > 0 ? "text-[#15803d]" :
-                      delta !== null && delta < 0 ? "text-[#b91c1c]" :
-                      "text-[#6f6757]"
-                    }`}>
-                      {delta !== null && delta > 0 ? `+${delta} points` :
-                       delta !== null && delta < 0 ? `${delta} points` :
-                       delta === 0 ? "Steady score" :
-                       `${scoreDisplay}/100`}
+                    <div className="num text-[13.5px] font-semibold mt-0.5 text-[#15463b]">
+                      {scoreDisplay >= 90 ? "Grade A+" : scoreDisplay >= 80 ? "Grade A" : scoreDisplay >= 70 ? "Grade B+" : "Grade B"}
                     </div>
                     <div className="text-[11px] text-[#9b927f]">
-                      {delta !== null ? "vs last scan" : "first scan"}
+                      {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">No scan yet</div>
-                    <div className="text-[11px] text-[#b3a98f]">run analyser</div>
+                    <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet analysed</div>
+                    <div className="text-[11px] text-[#b3a98f]">Click Analyser to crawl</div>
                   </>
                 )}
               </div>
@@ -180,7 +170,7 @@ export default function DashboardHeader() {
             {/* Plan Card */}
             <Link
               href="/plan"
-              className="ob hidden lg:flex items-center gap-3 shrink-0 bg-[#f6f3ec] border border-[#ece3d1] rounded-[13px] px-3.5 py-2.5 w-[160px] h-[74px] ml-4 text-none hover:bg-[#eee9de] transition-colors"
+              className="ob hidden lg:flex items-center gap-3 shrink-0 bg-[#f6f3ec] border border-[#ece3d1] rounded-[13px] px-3.5 py-2.5 w-[160px] h-[74px] text-none hover:bg-[#eee9de] transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-[#e7f4ea] flex items-center justify-center shrink-0 text-[#1a5c44]">
                 <Image

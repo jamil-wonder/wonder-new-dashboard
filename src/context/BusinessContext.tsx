@@ -87,7 +87,7 @@ const DEFAULT_BUSINESSES: Business[] = [
     category: "Restaurant & Hotel",
     location: "Camber, Rye, UK",
     logoUrl: "https://bunny-wp-pullzone-fg2nucp9oh.b-cdn.net/wp-content/uploads/2022/04/gallivant-logo-yoga.svg",
-    completeness: 91,
+    completeness: 0,
     initial: "T",
     isUserEdited: true,
     description: "Boutique coastal hotel and Michelin Key restaurant in Camber Sands near Rye.",
@@ -105,7 +105,7 @@ const DEFAULT_BUSINESSES: Business[] = [
     category: "Professional Services",
     location: "Bristol, UK",
     logoUrl: "",
-    completeness: 78,
+    completeness: 0,
     initial: "M",
     isUserEdited: true,
     description: "Premier corporate advisory firm in Bristol helping clients solve complex operational structures.",
@@ -123,7 +123,7 @@ const DEFAULT_BUSINESSES: Business[] = [
     category: "Restaurant",
     location: "Central London, UK",
     logoUrl: "",
-    completeness: 88,
+    completeness: 0,
     initial: "C",
     isUserEdited: true,
     description: "Fine dining restaurant in Belgravia, London.",
@@ -207,7 +207,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
               ? b.completeness
               : typeof b.phase1_score === "number" && b.phase1_score > 0
               ? b.phase1_score
-              : (defaultMatch?.completeness || 91);
+              : 0;
 
           return {
             id: String(b.id || b._id || b.domain || displayName),
