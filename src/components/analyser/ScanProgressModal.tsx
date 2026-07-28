@@ -1,84 +1,103 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Minimize2, Loader2, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { WonderscoreLogo } from "../ui/WonderscoreSpinner";
 
 interface ScanProgressModalProps {
   isOpen: boolean;
+  isComplete?: boolean;
   onClose: () => void;
-  onComplete: () => void;
+  onComplete?: () => void;
+  title?: string;
+  loadingTextOverride?: string;
+  processed?: number;
+  total?: number;
 }
 
-export default function ScanProgressModal({ isOpen, onClose, onComplete }: ScanProgressModalProps) {
+export default function ScanProgressModal({
+  isOpen,
+  isComplete,
+  onClose,
+  onComplete,
+  title = "Live Sitemap Audit Crawl",
+  loadingTextOverride,
+  processed,
+  total,
+}: ScanProgressModalProps) {
   const [progress, setProgress] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset state when opening
+  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setProgress(0);
+      setProgress(5);
       setIsDismissed(false);
+    } else {
+      setProgress(0);
     }
   }, [isOpen]);
 
-  // Simulate scanning progress
+  // Smoothly increment progress or sync with processed / total ratio (capped at 95% until isComplete)
   useEffect(() => {
     if (!isOpen) return;
 
-    const interval = setInterval(() => {
+    if (typeof processed === "number" && typeof total === "number" && total > 0) {
+      const realPct = Math.round((processed / total) * 100);
+      const targetPct = isComplete ? 100 : Math.min(95, Math.max(5, realPct));
+      setProgress(targetPct);
+      return;
+    }
+
+    progressTimerRef.current = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
+        if (isComplete) {
           return 100;
         }
-        // Increment scanning progress
-        const increment = prev < 40 ? 4 + Math.random() * 4 : 1.5 + Math.random() * 2;
-        return Math.min(100, prev + increment);
+        if (prev >= 92) {
+          return 92;
+        }
+        const increment = prev < 40 ? 3 + Math.random() * 3 : 1 + Math.random() * 1.5;
+        return Math.min(92, prev + increment);
       });
-    }, 200);
+    }, 250);
 
-    return () => clearInterval(interval);
-  }, [isOpen]);
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    };
+  }, [isOpen, isComplete, processed, total]);
 
-  const hasCompletedRef = React.useRef(false);
-
-  // Reset completion ref when modal opens
+  // When API explicitly marks isComplete = true, fill bar to 100% and auto-close after 1000ms
   useEffect(() => {
-    if (isOpen) {
-      hasCompletedRef.current = false;
-    }
-  }, [isOpen]);
-
-  // Trigger completion callback when hitting 100%
-  useEffect(() => {
-    if (progress >= 100 && !hasCompletedRef.current) {
-      hasCompletedRef.current = true;
-      const timer = setTimeout(() => {
-        onComplete();
+    if (isComplete && isOpen) {
+      setProgress(100);
+      const closeTimer = setTimeout(() => {
+        if (onComplete) onComplete();
         onClose();
       }, 1000);
-      return () => clearTimeout(timer);
+      return () => clearTimeout(closeTimer);
     }
-  }, [progress, onComplete, onClose]);
+  }, [isComplete, isOpen, onClose, onComplete]);
 
   if (!isOpen) return null;
 
   const getLoadingText = () => {
-    if (progress >= 100) return "Crawl completed successfully!";
-    if (progress >= 90) return "Compiling final score report...";
-    if (progress >= 80) return "Analyzing competitor rankings...";
-    if (progress >= 70) return "Scraping LocalBusiness schemas...";
-    if (progress >= 55) return "Verifying NAP details consistency...";
-    if (progress >= 40) return "Crawling sitemap & robots.txt rules...";
-    if (progress >= 25) return "Reading canonical tags & meta headers...";
-    if (progress >= 10) return "Connecting secure crawler bot...";
-    return "Initializing sitemap audit crawl...";
+    if (loadingTextOverride) return loadingTextOverride;
+    if (isComplete || progress >= 100) return "Analysis & mention checks completed!";
+    if (progress >= 90) return "Verifying mentions, rankings & model citations...";
+    if (progress >= 75) return "Analyzing competitor search position ranks...";
+    if (progress >= 60) return "Evaluating cited domain sources & references...";
+    if (progress >= 45) return "Verifying entity brand consistency...";
+    if (progress >= 30) return "Dispatching search prompts to AI models...";
+    if (progress >= 15) return "Connecting multi-provider AI engine...";
+    return "Initializing AI search analysis...";
   };
 
   const loadingText = getLoadingText();
 
-  // Minimized pill layout in the bottom right corner
+  // Minimized pill layout in bottom right
   if (isDismissed) {
     return (
       <AnimatePresence>
@@ -95,9 +114,17 @@ export default function ScanProgressModal({ isOpen, onClose, onComplete }: ScanP
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#a8d860]"></span>
             </span>
             <div className="text-[12.5px] font-semibold tracking-wide">
-              Scanning Sitemap: {Math.round(progress)}%
+              {typeof processed === "number" && typeof total === "number"
+                ? `Analyzing prompts: ${processed}/${total}`
+                : `Progress: ${Math.round(progress)}%`}
             </div>
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#a8d860]" />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+              className="shrink-0"
+            >
+              <WonderscoreLogo size={18} color="#a8d860" />
+            </motion.div>
           </div>
         </motion.div>
       </AnimatePresence>
@@ -123,33 +150,45 @@ export default function ScanProgressModal({ isOpen, onClose, onComplete }: ScanP
         transition={{ type: "spring", damping: 26, stiffness: 190 }}
         className="relative w-full max-w-md bg-[#fdfcf8] border border-[#ece3d1] rounded-2xl p-6 md:p-8 shadow-[0_16px_48px_rgba(60,48,28,0.12)] overflow-hidden z-10"
       >
-        {/* Subtle Decorative forest glow */}
-        <div className="absolute -top-20 -left-20 w-40 h-40 bg-[#15463b]/5 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-[#a8d860]/5 rounded-full blur-2xl pointer-events-none" />
-
         <div className="flex flex-col relative z-10">
           {/* Header */}
           <div className="flex items-center justify-between w-full mb-6">
-            <h3 className="text-[19px] font-semibold text-[#15463b] font-spectral leading-tight">
-              Sitemap Audit Crawl
-            </h3>
+            <div className="flex items-center gap-2.5">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                className="shrink-0"
+              >
+                <WonderscoreLogo size={22} color="#15463b" />
+              </motion.div>
+              <h3 className="text-[19px] font-semibold text-[#15463b] font-spectral leading-tight">
+                {title}
+              </h3>
+            </div>
             <button
               onClick={() => setIsDismissed(true)}
-              className="flex items-center gap-1 text-[11.5px] font-bold text-[#6f6757] hover:text-[#15463b] bg-[#f5f0e6] hover:bg-[#ebdcc5]/60 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-[11.5px] font-bold text-[#6f6757] hover:text-[#15463b] bg-[#f5f0e6] hover:bg-[#ebdcc5]/60 px-3 py-1.5 rounded-lg transition-colors cursor-pointer border-none"
             >
               <Minimize2 className="w-3 h-3" />
               <span>Minimize</span>
             </button>
           </div>
 
-          {/* Label + Progress % */}
+          {/* Label + Progress % / Counter */}
           <div className="flex items-start justify-between mb-3.5 min-h-[44px] gap-3">
             <span className="text-[#6f6757] text-[13.5px] font-medium leading-relaxed">
               {loadingText}
             </span>
-            <span className="text-[28px] font-spectral font-bold text-[#15463b] leading-none shrink-0">
-              {Math.round(progress)}%
-            </span>
+            <div className="flex flex-col items-end shrink-0">
+              <span className="text-[28px] font-spectral font-bold text-[#15463b] leading-none">
+                {Math.round(progress)}%
+              </span>
+              {typeof processed === "number" && typeof total === "number" && (
+                <span className="text-[11px] font-mono font-bold text-[#8a8273] mt-1">
+                  {processed}/{total} prompts
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Bar track */}
@@ -162,9 +201,9 @@ export default function ScanProgressModal({ isOpen, onClose, onComplete }: ScanP
           </div>
 
           <div className="flex justify-between w-full mt-2.5 text-[9px] font-bold text-[#9b927f] uppercase tracking-wider font-mono-spline">
-            <span>Crawl Progress</span>
+            <span>Live AI Job Engine</span>
             <span className="text-[#15463b]">
-              {progress >= 100 ? "Complete" : "Crawling"}
+              {isComplete ? "Complete" : "Verifying Mentions..."}
             </span>
           </div>
         </div>

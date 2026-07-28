@@ -1,33 +1,48 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
 export default function AccountInfoPanel() {
+  const { user, updateProfile } = useUser();
   const { showToast } = useToast();
-  const [name, setName] = useState("Marcus Reed");
-  const [email, setEmail] = useState("marcus@meridian.co");
+  const [name, setName] = useState(user?.full_name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setName(user?.full_name || "");
+    setEmail(user?.email || "");
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+
+    try {
+      setIsSaving(true);
+      await updateProfile({ full_name: name, email });
+      showToast("Account information saved successfully!", "success");
+    } catch {
+      showToast("Failed to update account information", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-5">
+    <form onSubmit={handleSave} className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-5">
       <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Account Information</h3>
       
-      {/* Avatar Uploader */}
+      {/* Avatar Display */}
       <div className="flex items-center gap-4 py-2 border-b border-[#efe7d6]">
-        <div className="relative w-14 h-14 rounded-full overflow-hidden border border-[#ece3d1]">
-          <Image
-            src="/icons/sidebar/user.png"
-            fill
-            alt="User Avatar"
-            className="object-cover"
-          />
+        <div className="w-14 h-14 rounded-full bg-[#15463b] text-white flex items-center justify-center font-spectral text-[24px] font-bold border border-[#ece3d1]">
+          {name.charAt(0).toUpperCase() || "U"}
         </div>
         <div>
-          <button className="ob text-[12px] font-semibold bg-white border border-[#d8cfbd] px-3 py-1.5 rounded-md">
-            Upload new avatar
-          </button>
-          <p className="text-[11.5px] text-[#9b927f] mt-1">JPG or PNG under 2MB</p>
+          <span className="text-[14px] font-bold text-[#23211b] block">{name || "Marcus Reed"}</span>
+          <span className="text-[12px] text-[#9b927f]">{email || "marcus@meridian.co"}</span>
         </div>
       </div>
 
@@ -41,7 +56,8 @@ export default function AccountInfoPanel() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full text-[14px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b]"
+            required
+            className="w-full text-[14px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
           />
         </div>
         <div>
@@ -52,19 +68,21 @@ export default function AccountInfoPanel() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full text-[14px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b]"
+            required
+            className="w-full text-[14px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
           />
         </div>
       </div>
 
       <div className="pt-1.5">
         <button
-          onClick={() => showToast("Account information saved successfully!")}
-          className="pb bg-[#15463b] text-white text-[13px] font-semibold px-5.5 py-2.5 rounded-lg border-none"
+          type="submit"
+          disabled={isSaving}
+          className="pb bg-[#15463b] text-white text-[13px] font-semibold px-5.5 py-2.5 rounded-lg border-none hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-50"
         >
-          Save changes
+          {isSaving ? "Saving..." : "Save changes"}
         </button>
       </div>
-    </div>
+    </form>
   );
 }

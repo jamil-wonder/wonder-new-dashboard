@@ -2,32 +2,32 @@ import { SearchQueryItem, BlogArticleItem, CompetitorRankItem, AuditAreaItem } f
 
 export const MOCK_QUERIES: SearchQueryItem[] = [
   // BRANDED (1-5)
-  { id: 1, type: "branded", label: "Branded", query: "What corporate advisory services does Meridian & Co. offer in Bristol?", status: "Mentioned", rank: 1, sources: ["meridian.co", "bristol247.com"], score: "4/4" },
-  { id: 2, type: "branded", label: "Branded", query: "Does Meridian & Co. offer weekend corporate restructuring in Bristol?", status: "Mentioned", rank: 1, sources: ["meridian.co", "google.com"], score: "3/4" },
-  { id: 3, type: "branded", label: "Branded", query: "Is Meridian & Co. a reputable corporate advisory firm in the UK?", status: "Mentioned", rank: 2, sources: ["meridian.co", "google.com"], score: "2/4" },
-  { id: 4, type: "branded", label: "Branded", query: "Meridian & Co. Bristol office location, phone, and pricing", status: "Mentioned", rank: 1, sources: ["meridian.co", "bristol247.com"], score: "3/4" },
-  { id: 5, type: "branded", label: "Branded", query: "How long has Meridian & Co. been operating in Bristol?", status: "Mentioned", rank: 3, sources: ["meridian.co", "trustpilot.com"], score: "3/4" },
+  { id: 1, type: "branded", label: "Branded", query: "What corporate advisory services does Meridian & Co. offer in Bristol?", status: "Mentioned", rank: 1, matchType: "site_matched", sources: ["meridian.co", "bristol247.com"], score: "4/4" },
+  { id: 2, type: "branded", label: "Branded", query: "Does Meridian & Co. offer weekend corporate restructuring in Bristol?", status: "Mentioned", rank: 1, matchType: "site_matched", sources: ["meridian.co", "google.com"], score: "3/4" },
+  { id: 3, type: "branded", label: "Branded", query: "Is Meridian & Co. a reputable corporate advisory firm in the UK?", status: "Mentioned", rank: 2, matchType: "partial", sources: ["meridian.co", "google.com"], score: "2/4" },
+  { id: 4, type: "branded", label: "Branded", query: "Meridian & Co. Bristol office location, phone, and pricing", status: "Mentioned", rank: 1, matchType: "site_matched", sources: ["meridian.co", "bristol247.com"], score: "3/4" },
+  { id: 5, type: "branded", label: "Branded", query: "How long has Meridian & Co. been operating in Bristol?", status: "Mentioned", rank: 3, matchType: "partial", sources: ["meridian.co", "trustpilot.com"], score: "3/4" },
 
   // NON-BRANDED (6-10)
-  { id: 6, type: "non-branded", label: "Non-Branded", query: "What is the best corporate consulting provider in Bristol?", status: "Mentioned", rank: 2, sources: ["bristol247.com", "yelp.com"], score: "2/4" },
-  { id: 7, type: "non-branded", label: "Non-Branded", query: "Top professional services advisory firms in Bristol 2026", status: "Mentioned", rank: 3, sources: ["google.com", "meridian.co"], score: "2/4" },
-  { id: 8, type: "non-branded", label: "Non-Branded", query: "Business restructuring experts in South West England", status: "Not Mentioned", rank: null, sources: ["castleford.co.uk"], score: "1/4" },
-  { id: 9, type: "non-branded", label: "Non-Branded", query: "Who are the leading corporate advisory options in Bristol?", status: "Mentioned", rank: 2, sources: ["bristol247.com"], score: "2/4" },
-  { id: 10, type: "non-branded", label: "Non-Branded", query: "Corporate advisory firms with verified UK credentials", status: "Not Mentioned", rank: null, sources: ["brightwell.co.uk"], score: "1/4" },
+  { id: 6, type: "non-branded", label: "Non-Branded", query: "What is the best corporate consulting provider in Bristol?", status: "Mentioned", rank: 2, matchType: "partial", sources: ["bristol247.com", "yelp.com"], score: "2/4" },
+  { id: 7, type: "non-branded", label: "Non-Branded", query: "Top professional services advisory firms in Bristol 2026", status: "Mentioned", rank: 3, matchType: "partial", sources: ["google.com", "meridian.co"], score: "2/4" },
+  { id: 8, type: "non-branded", label: "Non-Branded", query: "Business restructuring experts in South West England", status: "Not Mentioned", rank: null, matchType: "no_match", sources: ["castleford.co.uk"], score: "1/4" },
+  { id: 9, type: "non-branded", label: "Non-Branded", query: "Who are the leading corporate advisory options in Bristol?", status: "Mentioned", rank: 2, matchType: "partial", sources: ["bristol247.com"], score: "2/4" },
+  { id: 10, type: "non-branded", label: "Non-Branded", query: "Corporate advisory firms with verified UK credentials", status: "Not Mentioned", rank: null, matchType: "no_match", sources: ["brightwell.co.uk"], score: "1/4" },
 
   // LOCAL SEO (11-15)
-  { id: 11, type: "local-seo", label: "Local SEO", query: "Consulting firms in Bristol city centre with strong reviews", status: "Mentioned", rank: 1, sources: ["meridian.co", "google.com", "yelp.com"], score: "3/4" },
-  { id: 12, type: "local-seo", label: "Local SEO", query: "Business advisors near Bristol city centre", status: "Mentioned", rank: 2, sources: ["meridian.co", "bristol247.com"], score: "2/4" },
-  { id: 13, type: "local-seo", label: "Local SEO", query: "Best rated professional services in BS1 postal code", status: "Mentioned", rank: 2, sources: ["meridian.co"], score: "2/4" },
-  { id: 14, type: "local-seo", label: "Local SEO", query: "Which advisory firms are Google-verified in Bristol?", status: "Mentioned", rank: 1, sources: ["meridian.co", "google.com"], score: "3/4" },
-  { id: 15, type: "local-seo", label: "Local SEO", query: "Local business consultants open weekends in Bristol", status: "Not Mentioned", rank: null, sources: ["oakline.co.uk"], score: "1/4" },
+  { id: 11, type: "local-seo", label: "Local SEO", query: "Consulting firms in Bristol city centre with strong reviews", status: "Mentioned", rank: 1, matchType: "site_matched", sources: ["meridian.co", "google.com", "yelp.com"], score: "3/4" },
+  { id: 12, type: "local-seo", label: "Local SEO", query: "Business advisors near Bristol city centre", status: "Mentioned", rank: 2, matchType: "partial", sources: ["meridian.co", "bristol247.com"], score: "2/4" },
+  { id: 13, type: "local-seo", label: "Local SEO", query: "Best rated professional services in BS1 postal code", status: "Mentioned", rank: 2, matchType: "site_matched", sources: ["meridian.co"], score: "2/4" },
+  { id: 14, type: "local-seo", label: "Local SEO", query: "Which advisory firms are Google-verified in Bristol?", status: "Mentioned", rank: 1, matchType: "site_matched", sources: ["meridian.co", "google.com"], score: "3/4" },
+  { id: 15, type: "local-seo", label: "Local SEO", query: "Local business consultants open weekends in Bristol", status: "Not Mentioned", rank: null, matchType: "no_match", sources: ["oakline.co.uk"], score: "1/4" },
 
   // BROAD SEO RADIUS (16-20)
-  { id: 16, type: "broad-seo", label: "Broad SEO", query: "What are the best professional services options around Shoreditch?", status: "Not Mentioned", rank: null, sources: [], score: "0/4" },
-  { id: 17, type: "broad-seo", label: "Broad SEO", query: "Do Southwark businesses recommend Bristol corporate consultants?", status: "Mentioned", rank: 4, sources: ["meridian.co"], score: "1/4" },
-  { id: 18, type: "broad-seo", label: "Broad SEO", query: "Advisory firms serving the M4 corridor and Bath region?", status: "Mentioned", rank: 3, sources: ["trustpilot.com"], score: "1/4" },
-  { id: 19, type: "broad-seo", label: "Broad SEO", query: "Professional consultants serving Swindon and South West?", status: "Not Mentioned", rank: null, sources: ["castleford.co.uk"], score: "1/4" },
-  { id: 20, type: "broad-seo", label: "Broad SEO", query: "Trusted advisors across Cardiff, Newport and Bristol radius?", status: "Mentioned", rank: 3, sources: ["meridian.co"], score: "1/4" },
+  { id: 16, type: "broad-seo", label: "Broad SEO", query: "What are the best professional services options around Shoreditch?", status: "Not Mentioned", rank: null, matchType: "no_match", sources: [], score: "0/4" },
+  { id: 17, type: "broad-seo", label: "Broad SEO", query: "Do Southwark businesses recommend Bristol corporate consultants?", status: "Mentioned", rank: 4, matchType: "partial", sources: ["meridian.co"], score: "1/4" },
+  { id: 18, type: "broad-seo", label: "Broad SEO", query: "Advisory firms serving the M4 corridor and Bath region?", status: "Mentioned", rank: 3, matchType: "partial", sources: ["trustpilot.com"], score: "1/4" },
+  { id: 19, type: "broad-seo", label: "Broad SEO", query: "Professional consultants serving Swindon and South West?", status: "Not Mentioned", rank: null, matchType: "no_match", sources: ["castleford.co.uk"], score: "1/4" },
+  { id: 20, type: "broad-seo", label: "Broad SEO", query: "Trusted advisors across Cardiff, Newport and Bristol radius?", status: "Mentioned", rank: 3, matchType: "partial", sources: ["meridian.co"], score: "1/4" },
 ];
 
 export const MOCK_COMPETITORS: CompetitorRankItem[] = [

@@ -1,9 +1,151 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown } from "lucide-react";
+import { OverviewData } from "../../hooks/useOverviewData";
 
-export default function HeroSection() {
+function ScoreRing({ score }: { score: number }) {
+  const r = 33;
+  const circ = 2 * Math.PI * r;
+  const fill = (score / 100) * circ;
+  const isUp = true;
+  return (
+    <div className="relative w-[80px] h-[80px] shrink-0">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
+        <circle
+          cx="40" cy="40" r={r} fill="none" stroke="#a8d860" strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${fill} ${circ}`}
+          transform="rotate(-90 40 40)"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <TrendingUp className="w-6 h-6 text-[#a8d860]" />
+      </div>
+    </div>
+  );
+}
+
+function ChangeRow({ icon, bg, color, title, sub }: { icon: string; bg: string; color: string; title: string; sub: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 font-bold text-[14px]"
+        style={{ background: bg, color }}>
+        {icon}
+      </div>
+      <div>
+        <div className="text-[14px] font-bold text-[#23211b]">{title}</div>
+        <div className="text-[12.5px] text-[#8a8273]">{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+function TrendChart({ points }: { points: { score: number; timestamp: string }[] }) {
+  const latest = points.length > 0 ? points[points.length - 1].score : 0;
+  const hasData = points.length >= 2;
+
+  if (!hasData) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-[12px] text-[#a8b8a0] text-center px-2">
+        Run the Analyser to build your trend history.
+      </div>
+    );
+  }
+
+  const w = 400, h = 200, padL = 38, padR = 6, padT = 20, padB = 20;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const scores = points.map(p => p.score);
+  const minS = Math.max(0, Math.min(...scores) - 5);
+  const maxS = Math.min(100, Math.max(...scores) + 5);
+  const range = maxS - minS || 1;
+
+  const toX = (i: number) => padL + (i / (points.length - 1)) * plotW;
+  const toY = (s: number) => padT + plotH - ((s - minS) / range) * plotH;
+
+  const pts = points.map((p, i) => `${toX(i)},${toY(p.score)}`).join(" ");
+  const polyPts = pts + ` ${toX(points.length - 1)},${padT + plotH} ${padL},${padT + plotH}`;
+
+  const ticks = [minS, Math.round((minS + maxS) / 2), maxS];
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full" preserveAspectRatio="none">
+      {ticks.map(t => (
+        <g key={t}>
+          <line x1={padL} y1={toY(t)} x2={w - padR} y2={toY(t)} stroke="#efe7d6" strokeWidth="1" />
+          <text x={padL - 4} y={toY(t) + 4} textAnchor="end" fontSize="9" fill="#b3a98f">{t}</text>
+        </g>
+      ))}
+      <polygon points={polyPts} fill="rgba(30,125,79,0.08)" />
+      <polyline points={pts} fill="none" stroke="#1e7d4f" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={toX(i)} cy={toY(p.score)} r={i === points.length - 1 ? 5 : 3.2}
+          fill={i === points.length - 1 ? "#1e7d4f" : "#fff"} stroke="#1e7d4f" strokeWidth="2" />
+      ))}
+    </svg>
+  );
+}
+
+export default function HeroSection({ data }: { data: OverviewData }) {
+  const { score, grade, visibilityText, previousScore, scanPoints, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries } = data;
+
+  const delta = previousScore !== null ? score - previousScore : null;
+
+  // Build the "changes" items from real data
+  const changes: { icon: string; bg: string; color: string; title: string; sub: string }[] = [];
+
+  if (delta !== null && Math.abs(delta) > 0) {
+    changes.push(
+      delta > 0
+        ? { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: `Score improved by ${delta} points`, sub: `Now at ${score}/100` }
+        : { icon: "▼", bg: "#fbe9e3", color: "#d9694a", title: `Score dropped by ${Math.abs(delta)} points`, sub: `Now at ${score}/100` }
+    );
+  }
+
+  // Best performing AI model
+  const bestModel = [...modelMentions].sort((a, b) => b.mentioned - a.mentioned)[0];
+  if (bestModel && bestModel.mentioned > 0) {
+    changes.push({
+      icon: "▲", bg: "#e7f4ea", color: "#1e7d4f",
+      title: `${bestModel.model} mentions you`,
+      sub: `Appearing in ${bestModel.mentioned}/${totalQueries || 20} queries`,
+    });
+  }
+
+  // Competitor context
+  if (competitors.length > 0 && userRank > 1) {
+    const prev = competitors[userRank - 2];
+    if (prev) {
+      changes.push({ icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: `Ahead of ${prev.name}`, sub: `You're ranked ${userRank === 2 ? "2nd" : `${userRank}th`}` });
+    }
+  }
+
+  // Fallback if no query data yet
+  if (changes.length === 0) {
+    changes.push(
+      { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: "Run Analyser first", sub: "Your score trend will appear here" },
+      { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: "Run Queries for AI mentions", sub: "Mention data shown once queries run" },
+    );
+  }
+
+  // Headline text
+  let headline = score > 0 ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.` : "Run your first scan.";
+  let subtext = nearestAboveName && nearestAboveGap !== null
+    ? `You're just ${nearestAboveGap} points behind ${nearestAboveName}. A focused week could close the gap.`
+    : score > 0
+    ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`
+    : "Open the Analyser tab to crawl your site and get your score.";
+
+  const gradeBadgeLabel = grade === "A+" ? "Grade A+ · High Visibility"
+    : grade === "A" ? "Grade A · Good Visibility"
+    : grade === "B+" ? "Grade B+ · Growing Visibility"
+    : grade === "B" ? "Grade B · Moderate Visibility"
+    : "Grade C · Low Visibility";
+
+  const ringFill = score;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)_400px] gap-[22px] items-stretch">
 
@@ -18,37 +160,35 @@ export default function HeroSection() {
             Your Wonder Score
           </div>
 
-          {/* Score + ring */}
           <div className="flex items-center justify-between gap-2 mt-3.5">
             <div className="flex items-baseline gap-0.5">
-              <span className="num font-spectral font-semibold text-[72px] leading-none text-white">78</span>
+              <span className="num font-spectral font-semibold text-[72px] leading-none text-white">
+                {score > 0 ? score : "—"}
+              </span>
               <span className="num font-spectral text-[17px] text-[#7fae97]">/100</span>
             </div>
+            <ScoreRing score={ringFill} />
+          </div>
 
-            {/* Ring with up arrow in center */}
-            <div className="relative w-[80px] h-[80px] shrink-0">
-              <svg width="80" height="80" viewBox="0 0 80 80" className="block">
-                <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
-                <circle cx="40" cy="40" r="33" fill="none" stroke="#a8d860" strokeWidth="8"
-                  strokeLinecap="round" strokeDasharray="161.7 207.3" transform="rotate(-90 40 40)" />
-              </svg>
-              {/* Trend arrow in center of ring */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-[#a8d860]" />
-              </div>
+          {delta !== null && (
+            <div className="mt-2">
+              <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#3a2e08] bg-[#f0d878] px-3 py-1 rounded-full">
+                {delta > 0 ? "▲" : delta < 0 ? "▼" : "→"} {Math.abs(delta)} points vs last scan
+              </span>
             </div>
-          </div>
-
-          <div className="mt-2">
-            <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#3a2e08] bg-[#f0d878] px-3 py-1 rounded-full">
-              ▲ 4 points this week
-            </span>
-          </div>
+          )}
+          {score === 0 && (
+            <div className="mt-2">
+              <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[#a8c4ae] bg-white/10 px-3 py-1 rounded-full">
+                No scan yet
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-white/15 pt-3.5 mt-4">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#86b89f]">Grade B+</div>
-          <div className="font-spectral text-[22px] font-medium text-white mt-1">Good visibility</div>
+          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#86b89f]">Grade {grade}</div>
+          <div className="font-spectral text-[22px] font-medium text-white mt-1">{visibilityText}</div>
         </div>
       </motion.div>
 
@@ -60,33 +200,20 @@ export default function HeroSection() {
         className="flex flex-col justify-center px-1 py-1"
       >
         <h1 className="font-spectral text-[32px] font-medium tracking-tight leading-tight text-[#23211b]">
-          You're up to second.
+          {headline}
         </h1>
         <p className="text-[14.5px] text-[#6f6757] mt-2.5 leading-relaxed max-w-[380px]">
-          Great work! You've passed Brightwell and are just 3 points behind Castleford Group.
+          {subtext}
         </p>
 
         <div className="flex flex-col gap-3.5 mt-5">
-          {[
-            { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: "Passed Brightwell", sub: "Moved from 3rd to 2nd" },
-            { icon: "▲", bg: "#e7f4ea", color: "#1e7d4f", title: "New ChatGPT mention", sub: "Now appearing in 11 questions" },
-            { icon: "▼", bg: "#fbe9e3", color: "#d9694a", title: "Vantage entered rankings", sub: "New competitor in 5th" },
-          ].map(({ icon, bg, color, title, sub }) => (
-            <div key={title} className="flex items-center gap-3">
-              <div className="w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 font-bold text-[14px]"
-                style={{ background: bg, color }}>
-                {icon}
-              </div>
-              <div>
-                <div className="text-[14px] font-bold text-[#23211b]">{title}</div>
-                <div className="text-[12.5px] text-[#8a8273]">{sub}</div>
-              </div>
-            </div>
+          {changes.slice(0, 3).map((c, i) => (
+            <ChangeRow key={i} {...c} />
           ))}
         </div>
       </motion.div>
 
-      {/* ── 12-Week Trend Chart Card ── */}
+      {/* ── Scan History Trend Chart ── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -94,53 +221,21 @@ export default function HeroSection() {
         className="bg-white border border-[#ece3d1] rounded-[14px] p-[20px_22px_16px] flex flex-col"
       >
         <div className="flex items-start justify-between mb-1">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">12 week trend</div>
-          <div className="num font-spectral text-[30px] font-semibold text-[#1e7d4f] leading-none">78</div>
+          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">
+            Scan history trend
+          </div>
+          {score > 0 && (
+            <div className="num font-spectral text-[30px] font-semibold text-[#1e7d4f] leading-none">{score}</div>
+          )}
         </div>
-
-        {/* Taller graph — fills the card */}
-        <div className="flex-1">
-          <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
-            <g stroke="#efe7d6" strokeWidth="1">
-              <line x1="38" y1="20"  x2="394" y2="20"  />
-              <line x1="38" y1="55"  x2="394" y2="55"  />
-              <line x1="38" y1="90"  x2="394" y2="90"  />
-              <line x1="38" y1="125" x2="394" y2="125" />
-              <line x1="38" y1="158" x2="394" y2="158" />
-            </g>
-            <g className="font-mono-spline text-[9px] fill-[#b3a98f]">
-              <text x="30" y="23"  textAnchor="end">100</text>
-              <text x="30" y="58"  textAnchor="end">75</text>
-              <text x="30" y="93"  textAnchor="end">50</text>
-              <text x="30" y="128" textAnchor="end">25</text>
-              <text x="30" y="161" textAnchor="end">0</text>
-            </g>
-            <polygon
-              points="48,127 79,120 110,113 141,105 172,95 203,86 234,77 265,69 296,62 327,56 358,53 388,49 388,158 48,158"
-              fill="rgba(30,125,79,0.08)"
-            />
-            <polyline
-              points="48,127 79,120 110,113 141,105 172,95 203,86 234,77 265,69 296,62 327,56 358,53 388,49"
-              fill="none" stroke="#1e7d4f" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-            />
-            <g fill="#ffffff" stroke="#1e7d4f" strokeWidth="2">
-              <circle cx="48"  cy="127" r="3.2" /><circle cx="79"  cy="120" r="3.2" />
-              <circle cx="110" cy="113" r="3.2" /><circle cx="141" cy="105" r="3.2" />
-              <circle cx="172" cy="95"  r="3.2" /><circle cx="203" cy="86"  r="3.2" />
-              <circle cx="234" cy="77"  r="3.2" /><circle cx="265" cy="69"  r="3.2" />
-              <circle cx="296" cy="62"  r="3.2" /><circle cx="327" cy="56"  r="3.2" />
-              <circle cx="358" cy="53"  r="3.2" />
-            </g>
-            <circle cx="388" cy="49" r="5" fill="#1e7d4f" />
-            <g className="font-mono-spline text-[9px] fill-[#b3a98f]">
-              <text x="48"  y="178" textAnchor="middle">31 Mar</text>
-              <text x="141" y="178" textAnchor="middle">28 Apr</text>
-              <text x="234" y="178" textAnchor="middle">26 May</text>
-              <text x="327" y="178" textAnchor="middle">9 Jun</text>
-              <text x="388" y="178" textAnchor="end">22 Jun</text>
-            </g>
-          </svg>
+        <div className="flex-1 min-h-[140px]">
+          <TrendChart points={scanPoints} />
         </div>
+        {scanPoints.length > 0 && (
+          <div className="text-[10px] text-[#b3a98f] mt-1">
+            {scanPoints.length} scan{scanPoints.length !== 1 ? "s" : ""} recorded
+          </div>
+        )}
       </motion.div>
 
     </div>

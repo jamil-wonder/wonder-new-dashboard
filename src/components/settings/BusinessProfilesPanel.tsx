@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Edit, CheckCircle2, X } from "lucide-react";
+import { Plus, Trash2, Edit, Building2, Tag, MapPin, Globe, CheckCircle2, X } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import type { Business } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
+import { fetchApi } from "../../lib/api";
 
-const DEFAULT_QG = { branded: 5, nonBranded: 0, localSeo: 15, broadSeo: 0 };
+const DEFAULT_QG = { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 };
 type QG = typeof DEFAULT_QG;
 
 function TagList({ items, onRemove }: { items: string[]; onRemove: (v: string) => void }) {
@@ -36,11 +37,19 @@ function QGSlider({ label, desc, value, onChange }: { label: string; desc: strin
   );
 }
 
+const AVATAR_COLORS = [
+  { bg: "bg-[#eef3f0]", text: "text-[#15463b]" },
+  { bg: "bg-[#f5f0e6]", text: "text-[#9a6a12]" },
+  { bg: "bg-[#efe9fb]", text: "text-[#5b4f86]" },
+  { bg: "bg-[#fdeef1]", text: "text-[#a86d7e]" },
+];
+
 export default function BusinessProfilesPanel() {
-  const { activeBusiness, businesses, setBusinesses, switchBusiness } = useBusiness();
+  const { activeBusiness, businesses, setBusinesses, switchBusiness, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form fields
   const [formName, setFormName] = useState("");
@@ -91,33 +100,81 @@ export default function BusinessProfilesPanel() {
     setIsEditing(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleDelete = async (id: string) => {
+    try {
+      await fetchApi(`/api/user/businesses/${id}`, { method: "DELETE" });
+      showToast("Business profile deleted successfully!", "info");
+      await refetchBusinesses();
+    } catch {
+      setBusinesses((prev) => prev.filter((b) => b.id !== id));
+      showToast("Business profile removed locally.", "info");
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formUrl.trim()) return;
-    const updated: Partial<Business> = {
-      name: formName, url: formUrl, category: formCategory, location: formLocation,
-      logoUrl: formLogoUrl, description: formDesc, aiDescription: formAiDesc,
-      services: formServices, targetAudience: formAudience,
-      competitors: formCompetitors, trackedPages: formPages, questionGeneration: formQG,
-      completeness: 100, initial: formName.charAt(0).toUpperCase(),
+
+    const formattedUrl = formUrl.trim().startsWith("http") ? formUrl.trim() : `https://${formUrl.trim()}`;
+    const servicesList = typeof formServices === "string" 
+      ? formServices.split(",").map((s) => s.trim()).filter(Boolean)
+      : formServices;
+
+    const payload = {
+      url: formattedUrl,
+      businessName: formName.trim(),
+      category: formCategory.trim(),
+      location: formLocation.trim(),
+      logoUrl: formLogoUrl.trim(),
+      businessDescription: formDesc.trim(),
+      aiDescription: formAiDesc.trim(),
+      services: servicesList,
+      targetAudience: formAudience.trim(),
+      questionGeneration: formQG,
+      competitors: formCompetitors,
+      trackedPages: formPages,
+      business_id: editId || undefined,
     };
-    if (editId) {
-      setBusinesses(businesses.map((p) => p.id === editId ? { ...p, ...updated } : p));
-      showToast("Business profile updated successfully!");
-    } else {
-      setBusinesses([...businesses, { id: `biz-${Date.now()}`, completeness: 65, ...updated } as Business]);
-      showToast("New business profile added!");
+
+    try {
+      setIsSubmitting(true);
+      await fetchApi("/api/user/businesses", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      showToast(editId ? "Business profile updated!" : "New business profile created!", "success");
+      await refetchBusinesses();
+    } catch (err) {
+      console.error("Save business error:", err);
+      const updated: Partial<Business> = {
+        name: formName.trim(), url: formattedUrl, category: formCategory, location: formLocation,
+        logoUrl: formLogoUrl, description: formDesc, aiDescription: formAiDesc,
+        services: formServices, targetAudience: formAudience,
+        competitors: formCompetitors, trackedPages: formPages, questionGeneration: formQG,
+        completeness: 88, initial: formName.trim().charAt(0).toUpperCase(),
+        isUserEdited: true,
+      };
+      if (editId) {
+        setBusinesses(businesses.map((p) => p.id === editId ? { ...p, ...updated } : p));
+        showToast("Business profile updated locally!", "success");
+      } else {
+        setBusinesses([...businesses, { id: `biz-${Date.now()}`, completeness: 75, ...updated } as Business]);
+        showToast("New business profile added locally!", "success");
+      }
+    } finally {
+      setIsSubmitting(false);
+      setIsEditing(false);
     }
-    setIsEditing(false);
   };
 
   // ── Edit / Add Form ──────────────────────────────────────────────────────────
   if (isEditing) {
     return (
-      <form onSubmit={handleSave} className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-6">
+      <form onSubmit={handleSave} className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-xs space-y-6">
         <div className="flex justify-between items-center border-b border-[#efe7d6] pb-4">
-          <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">{editId ? "Edit profile" : "New business profile"}</h3>
-          <button type="button" onClick={() => setIsEditing(false)} className="text-[13px] text-[#8a8273] hover:text-[#23211b]">Cancel</button>
+          <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">{editId ? "Edit Business Profile" : "New Business Profile"}</h3>
+          <button type="button" onClick={() => setIsEditing(false)} className="text-[13px] text-[#8a8273] hover:text-[#23211b] cursor-pointer">Cancel</button>
         </div>
 
         {/* Core Details */}
@@ -125,11 +182,11 @@ export default function BusinessProfilesPanel() {
           <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Core Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { label: "Business Name", val: formName, set: setFormName, ph: "Meridian & Co.", req: true },
-              { label: "Website URL", val: formUrl, set: setFormUrl, ph: "meridian.co", req: true },
-              { label: "Category", val: formCategory, set: setFormCategory, ph: "Professional Services" },
-              { label: "Location", val: formLocation, set: setFormLocation, ph: "Bristol, UK" },
-              { label: "Logo / Favicon URL", val: formLogoUrl, set: setFormLogoUrl, ph: "https://meridian.co/favicon.ico" },
+              { label: "Business Name", val: formName, set: setFormName, ph: "The Gallivant", req: true },
+              { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://thegallivant.co.uk/", req: true },
+              { label: "Category", val: formCategory, set: setFormCategory, ph: "Restaurant & Hotel" },
+              { label: "Location", val: formLocation, set: setFormLocation, ph: "Camber, Rye, UK" },
+              { label: "Logo / Favicon URL", val: formLogoUrl, set: setFormLogoUrl, ph: "https://thegallivant.co.uk/favicon.ico" },
             ].map(({ label, val, set, ph, req }) => (
               <div key={label}>
                 <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">{label}</label>
@@ -142,26 +199,26 @@ export default function BusinessProfilesPanel() {
 
         {/* AI Training */}
         <div className="space-y-3">
-          <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">AI Training</h4>
+          <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">AI Description &amp; Details</h4>
           <div>
             <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">Business description</label>
             <textarea value={formDesc} onChange={(e) => setFormDesc(e.target.value)} rows={3} placeholder="What does this business do?"
               className="w-full text-[13.5px] p-3 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none resize-none" />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">How AI should describe this business</label>
-            <textarea value={formAiDesc} onChange={(e) => setFormAiDesc(e.target.value)} rows={3} placeholder="Preferred plain-English description for AI recommendations."
+            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">AI Description</label>
+            <textarea value={formAiDesc} onChange={(e) => setFormAiDesc(e.target.value)} rows={3} placeholder="AI training prompt description..."
               className="w-full text-[13.5px] p-3 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none resize-none" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">Services</label>
-              <input value={formServices} onChange={(e) => setFormServices(e.target.value)} placeholder="Advisory, restructuring, compliance"
+              <input value={formServices} onChange={(e) => setFormServices(e.target.value)} placeholder="Dining, boutique hotel rooms"
                 className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none" />
             </div>
             <div>
               <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">Target audience</label>
-              <input value={formAudience} onChange={(e) => setFormAudience(e.target.value)} placeholder="Local executives, business owners"
+              <input value={formAudience} onChange={(e) => setFormAudience(e.target.value)} placeholder="Couples, food lovers, travelers"
                 className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none" />
             </div>
           </div>
@@ -170,13 +227,13 @@ export default function BusinessProfilesPanel() {
         {/* Question Generation */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Question Generation</h4>
+            <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Question Generation Ratios</h4>
             <span className={`text-[11.5px] font-bold px-2.5 py-1 rounded-lg ${qgTotal === 20 ? "bg-[#dcefe2] text-[#1e7d4f]" : "bg-[#f7e7c4] text-[#9a6a12]"}`}>
               {qgTotal}/20
             </span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <QGSlider label="Branded" desc="Uses the business name." value={formQG.branded} onChange={(v) => updateQG("branded", v)} />
+            <QGSlider label="Branded" desc="Uses business name." value={formQG.branded} onChange={(v) => updateQG("branded", v)} />
             <QGSlider label="Non-Branded" desc="Category searches." value={formQG.nonBranded} onChange={(v) => updateQG("nonBranded", v)} />
             <QGSlider label="Local SEO" desc="Location-focused." value={formQG.localSeo} onChange={(v) => updateQG("localSeo", v)} />
             <QGSlider label="Broad SEO" desc="Nearby-area searches." value={formQG.broadSeo} onChange={(v) => updateQG("broadSeo", v)} />
@@ -185,9 +242,8 @@ export default function BusinessProfilesPanel() {
 
         {/* Tracking Setup */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Competitors */}
           <div className="space-y-2">
-            <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Tracked competitors <span className="text-[12px] text-[#9b927f] font-normal">(up to 5)</span></h4>
+            <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Tracked Competitors</h4>
             <TagList items={formCompetitors} onRemove={(v) => setFormCompetitors(formCompetitors.filter((x) => x !== v))} />
             <div className="flex gap-2 mt-2">
               <input value={formCompInput} onChange={(e) => setFormCompInput(e.target.value)}
@@ -195,131 +251,187 @@ export default function BusinessProfilesPanel() {
                 placeholder="competitor.co.uk"
                 className="flex-1 text-[13px] p-2 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none" />
               <button type="button" onClick={() => addItem(formCompetitors, setFormCompetitors, formCompInput, setFormCompInput, 5)}
-                className="pb bg-[#15463b] text-white text-[12px] font-semibold px-3 py-2 rounded-lg border-none">
+                className="bg-[#15463b] text-white text-[12px] font-semibold px-3 py-2 rounded-lg border-none cursor-pointer">
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Tracked Pages */}
           <div className="space-y-2">
-            <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Tracked pages <span className="text-[12px] text-[#9b927f] font-normal">(up to 5)</span></h4>
+            <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Tracked Pages</h4>
             <TagList items={formPages} onRemove={(v) => setFormPages(formPages.filter((x) => x !== v))} />
             <div className="flex gap-2 mt-2">
               <input value={formPageInput} onChange={(e) => setFormPageInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addItem(formPages, setFormPages, formPageInput, setFormPageInput, 5))}
-                placeholder="/services"
+                placeholder="/menu"
                 className="flex-1 text-[13px] p-2 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none" />
               <button type="button" onClick={() => addItem(formPages, setFormPages, formPageInput, setFormPageInput, 5)}
-                className="pb bg-[#15463b] text-white text-[12px] font-semibold px-3 py-2 rounded-lg border-none">
+                className="bg-[#15463b] text-white text-[12px] font-semibold px-3 py-2 rounded-lg border-none cursor-pointer">
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
 
-        <button type="submit" className="pb bg-[#15463b] text-white text-[13px] font-semibold px-6 py-2.5 rounded-lg border-none">
-          Save business profile
-        </button>
+        <div className="pt-3 flex gap-3">
+          <button type="submit" disabled={isSubmitting} className="bg-[#15463b] text-white text-[13.5px] font-semibold px-6 py-2.5 rounded-xl border-none cursor-pointer disabled:opacity-50 hover:bg-[#1a5c44] transition-colors">
+            {isSubmitting ? "Saving..." : "Save Business Profile"}
+          </button>
+          <button type="button" onClick={() => setIsEditing(false)} className="bg-[#f5f0e6] text-[#6f6757] text-[13.5px] font-semibold px-5 py-2.5 rounded-xl border-none cursor-pointer hover:bg-[#ede5d4] transition-colors">
+            Cancel
+          </button>
+        </div>
       </form>
     );
   }
 
-  // ── Card Grid ───────────────────────────────────────────────────────────────
+  // ── Sleek, Minimal, Modern Card Grid ───────────────────────────────────────
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
+    <div className="bg-white border border-[#ece3d1] rounded-[22px] p-6 shadow-xs">
+      {/* Header Container */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-[#efe7d6] pb-5">
         <div>
-          <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Business Profiles</h3>
-          <p className="text-[12.5px] text-[#9b927f] mt-0.5">
-            Active: <span className="font-semibold text-[#1e7d4f]">{activeBusiness.name}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#e8f2ee] text-[#15463b] flex items-center justify-center">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <h3 className="font-spectral text-[22px] font-semibold text-[#15463b]">Business Profiles</h3>
+          </div>
+          <p className="text-[13px] text-[#8a8273] mt-1">
+            Manage your Wonderscore business profiles and keep your dashboard settings synchronized.
           </p>
         </div>
-        <button onClick={openAdd} disabled={businesses.length >= 3}
-          className="ob inline-flex items-center gap-1.5 border border-[#d8cfbd] bg-[#fdfcf8] text-[#15463b] text-[12.5px] font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40">
-          <Plus className="w-3.5 h-3.5" /> Add
-        </button>
+
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <span className="text-[12px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-3 py-1 rounded-full">
+            {businesses.length} / 3 SAVED
+          </span>
+          <button
+            onClick={openAdd}
+            disabled={businesses.length >= 3}
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#15463b] bg-[#fdfcf8] hover:bg-white hover:border-[#15463b] border border-[#e2d8c4] px-4 py-2 rounded-xl cursor-pointer transition-all disabled:opacity-40 shadow-xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Profile</span>
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {businesses.map((p) => {
+      {/* Grid of Minimal & Modern Business Profile Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+        {businesses.map((p, idx) => {
           const isActive = p.id === activeBusiness.id;
-          const pct = p.completeness;
-          const barColor = pct >= 75 ? "#1e7d4f" : pct >= 50 ? "#d6a23a" : "#c0513a";
+          const pct = p.completeness || 88;
+          const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+          const formattedUrl = p.url.startsWith("http") ? p.url : `https://${p.url}`;
 
           return (
-            <div key={p.id} className={`rounded-2xl p-5 flex flex-col gap-3.5 transition-all ${
-              isActive ? "bg-[#f4faf6] border-2 border-[#15463b]" : "bg-white border border-[#e4ddd0] hover:border-[#c8c0b0]"
-            }`}>
-
-              {/* Top: avatar · name · actions */}
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-spectral font-bold text-[17px] ${
-                  isActive ? "bg-[#15463b] text-white" : "bg-[#ede8de] text-[#7a7060]"
-                }`}>{p.initial}</div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-spectral font-semibold text-[15.5px] text-[#1c1a16] truncate leading-tight">{p.name}</span>
-                    {isActive && (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase text-[#1e7d4f] bg-[#dcefe2] px-1.5 py-0.5 rounded-full shrink-0">
-                        <CheckCircle2 className="w-2.5 h-2.5" /> Active
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[12px] text-[#1e7d4f] font-medium">{p.url}</span>
-                </div>
-
-                <div className="flex gap-1 shrink-0">
-                  {!isActive && (
-                    <button onClick={() => switchBusiness(p.id)}
-                      className="text-[11.5px] font-semibold text-white bg-[#15463b] border border-[#15463b] px-3 py-1 rounded-lg hover:bg-[#1a5c44] transition-colors">
-                      Activate
-                    </button>
-                  )}
-                  <button onClick={() => openEdit(p)} className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#ece3d1] bg-white text-[#9b927f] hover:text-[#15463b] transition-colors">
-                    <Edit className="w-3.5 h-3.5" />
-                  </button>
-                  {!isActive && (
-                    <button onClick={() => setBusinesses(businesses.filter((x) => x.id !== p.id))} className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#ece3d1] bg-white text-[#9b927f] hover:text-[#b1442a] transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Bio */}
-              <p className="text-[12.5px] text-[#6f6757] leading-relaxed line-clamp-2">
-                {p.description || "No description added yet."}
-              </p>
-
-              {/* Competitors */}
-              {p.competitors && p.competitors.length > 0 && (
-                <div>
-                  <p className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f] mb-1.5">Tracked competitors</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.competitors.map((c) => (
-                      <span key={c} className="text-[11.5px] font-medium text-[#3a352b] bg-[#f0ebe0] px-2 py-0.5 rounded-lg">{c}</span>
-                    ))}
-                  </div>
+            <div
+              key={p.id}
+              className={`relative rounded-2xl p-5 md:p-6 transition-all duration-200 flex flex-col justify-between ${
+                isActive
+                  ? "bg-white border-2 border-[#15463b] shadow-[0_8px_24px_rgba(21,70,59,0.08)]"
+                  : "bg-[#fdfcf8] border border-[#ece3d1] hover:border-[#d9cbaf] hover:shadow-xs"
+              }`}
+            >
+              {/* Sleek Top Badge for Active Card */}
+              {isActive && (
+                <div className="absolute -top-3 left-6 bg-[#15463b] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
+                  Active Profile
                 </div>
               )}
 
-              {/* Tags + progress */}
-              <div className="space-y-2.5 pt-1 border-t border-[#efe7d6]">
-                <div className="flex flex-wrap gap-1.5">
-                  <span className="text-[11.5px] font-medium text-[#5c4a1e] bg-[#f7e7c4] px-2.5 py-1 rounded-lg">{p.category}</span>
-                  <span className="text-[11.5px] font-medium text-[#3a5068] bg-[#ddeaf5] px-2.5 py-1 rounded-lg">{p.location}</span>
+              <div>
+                {/* Header: Initial Avatar, Name, URL & Actions */}
+                <div className="flex items-start justify-between gap-3 mb-4 pt-1">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center font-spectral font-bold text-[19px] border border-[#ece3d1]/60 shadow-2xs ${colorTheme.bg} ${colorTheme.text}`}
+                    >
+                      {p.initial || p.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-spectral text-[18px] font-semibold text-[#15463b] truncate leading-tight">
+                        {p.name}
+                      </h4>
+                      <a
+                        href={formattedUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[12.5px] text-[#6f6757] hover:text-[#15463b] font-normal truncate block mt-0.5"
+                      >
+                        {formattedUrl}
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!isActive && (
+                      <button
+                        onClick={() => switchBusiness(p.id)}
+                        className="text-[12px] font-medium text-white bg-[#15463b] hover:bg-[#10362d] px-3 py-1 rounded-lg transition-all cursor-pointer border-none shadow-xs"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="p-1.5 text-[#8a8273] hover:text-[#15463b] hover:bg-[#f5f0e6] rounded-lg transition-colors cursor-pointer border-none"
+                      title="Edit profile"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    {!isActive && (
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="p-1.5 text-[#8a8273] hover:text-[#b1442a] hover:bg-[#fdf2f0] rounded-lg transition-colors cursor-pointer border-none"
+                        title="Delete profile"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-[#9b927f] font-mono-spline uppercase tracking-wide">Profile completeness</span>
-                  <span className="font-bold" style={{ color: barColor }}>{pct}%</span>
+
+                {/* Metadata Chips (Category & Location) */}
+                <div className="flex items-center gap-2 flex-wrap mb-4 text-[12px]">
+                  <span className="inline-flex items-center gap-1.5 bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-1 rounded-lg text-[#3a352b] font-medium">
+                    <Tag className="w-3.5 h-3.5 text-[#15463b]" />
+                    {p.category || "General"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-1 rounded-lg text-[#3a352b] font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-[#15463b]" />
+                    {p.location || "UK"}
+                  </span>
                 </div>
-                <div className="h-[3px] w-full bg-[#eee9de] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
+
+                {/* Clean Completeness Progress Bar */}
+                <div className="bg-[#f9f7f2] border border-[#efe7d6] rounded-xl p-3 mb-4">
+                  <div className="flex items-center justify-between text-[11.5px] mb-1.5">
+                    <span className="font-mono-spline font-medium uppercase text-[#8a8273]">Profile Completeness</span>
+                    <span className="font-mono-spline font-bold text-[#15463b]">{pct}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-[#e5ddd0] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#15463b] rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Bottom AI Description Footer */}
+              <div className="pt-3 border-t border-[#efe7d6] text-[12px]">
+                <span className="font-mono-spline text-[9.5px] uppercase font-bold text-[#9b927f] block mb-1">
+                  AI Context Description
+                </span>
+                <p className="line-clamp-2 leading-relaxed text-[#554e41]">
+                  {p.aiDescription || p.description || "No custom AI prompt trained yet."}
+                </p>
+              </div>
             </div>
           );
         })}

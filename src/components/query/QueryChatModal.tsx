@@ -10,110 +10,299 @@ interface QueryChatModalProps {
   onClose: () => void;
 }
 
-const MODEL_CONFIG: Record<string, { name: string; icon: string; accent: string; bgClass: string }> = {
-  ChatGPT:    { name: "ChatGPT",    icon: "/icons/chatgpt.svg",    accent: "#1e7d4f", bgClass: "bg-[#f0faf4]" },
-  Claude:     { name: "Claude",     icon: "/icons/claude.svg",     accent: "#9a6a12", bgClass: "bg-[#fef9ec]" },
-  Perplexity: { name: "Perplexity", icon: "/icons/perplexity.svg", accent: "#1a4b9a", bgClass: "bg-[#f0f5ff]" },
-  Gemini:     { name: "Gemini",     icon: "/icons/gemini.svg",     accent: "#b1442a", bgClass: "bg-[#fdf5f3]" },
+const MODEL_CONFIG: Record<string, { name: string; icon: string }> = {
+  ChatGPT:    { name: "ChatGPT",    icon: "/icons/chatgpt.svg" },
+  Claude:     { name: "Claude",     icon: "/icons/claude.svg" },
+  Perplexity: { name: "Perplexity", icon: "/icons/perplexity.svg" },
+  Gemini:     { name: "Gemini",     icon: "/icons/gemini.svg" },
 };
+
+function normalizeDomain(value: string): string {
+  const raw = (value || "").trim().toLowerCase();
+  if (!raw) return "";
+  try {
+    const host = new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname;
+    return host.replace(/^www\./, "").replace(/[),.;:]+$/g, "");
+  } catch {
+    return raw.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].replace(/[),.;:]+$/g, "");
+  }
+}
+
+function parseDomainBullet(line: string): { domain: string; tail: string } | null {
+  const match = line.match(/^\s*-\s*([a-z0-9.-]+\.[a-z]{2,})(.*)$/i);
+  if (!match) return null;
+  return {
+    domain: normalizeDomain(match[1]),
+    tail: (match[2] || "").trim(),
+  };
+}
+
+function formatModelReplyText(
+  rawResponse?: string | null,
+  result?: any,
+): string {
+  const raw = (rawResponse || "").trim();
+  const cleanText = (text: string) =>
+    text
+      .replace(/\[(\d+)\]/g, "")
+      .replace(/\s+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+  const shorten = (text: string, max = 650) => {
+    const t = cleanText(text);
+    if (t.length <= max) return t;
+    return `${t.slice(0, max).trim()}...`;
+  };
+
+  const unfenced = (raw || "")
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  let parsed: any = null;
+  try {
+    parsed = JSON.parse(unfenced);
+  } catch {
+    parsed = null;
+  }
+
+  const naturalFields = ["answer", "final_answer", "summary", "concise_answer", "natural_answer", "response"];
+  let baseAnswer = raw;
+  if (parsed && typeof parsed === "object") {
+    for (const field of naturalFields) {
+      const value = parsed[field];
+      if (typeof value === "string" && value.trim()) {
+        baseAnswer = value.trim();
+        break;
+      }
+    }
+  }
+
+  if (!baseAnswer) {
+    baseAnswer = "I could not generate a full natural-language answer for this query yet.";
+  }
+
+  const parsedTarget = parsed && typeof parsed.target === "object" ? parsed.target : {};
+  const mentioned = typeof parsedTarget.mentioned === "boolean"
+    ? parsedTarget.mentioned
+    : Boolean(result?.status === "Mentioned");
+  const position = typeof parsedTarget.position === "number"
+    ? parsedTarget.position
+    : result?.rank ?? null;
+
+  const parsedReferences = Array.isArray(parsed?.references)
+    ? parsed.references.filter((v: any) => typeof v === "string" && v.trim())
+    : [];
+  const resultReferences = [
+    ...(result?.references || []),
+    ...(result?.sources || []),
+    ...((result?.sourceUrls || []).map((u: string) => normalizeDomain(u)).filter(Boolean) as string[]),
+  ];
+  const allReferences = Array.from(
+    new Set([...parsedReferences, ...resultReferences].map((d) => normalizeDomain(String(d))).filter(Boolean)),
+  ).slice(0, 6);
+
+  const parsedReasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning.trim() : "";
+  const reasoning = parsedReasoning || result?.reasoning || result?.evidence || "";
+
+  const mentionLine = mentioned
+    ? `- Status: Mentioned${position ? ` (approx rank #${position})` : ""}`
+    : "- Status: Not Mentioned in top returned results";
+
+  const whyLine = reasoning
+    ? `- Why: ${cleanText(reasoning)}`
+    : "- Why: Based on currently returned web evidence and ranking signals.";
+
+  const evidenceLines =
+    allReferences.length > 0
+      ? allReferences.map((d) => `- ${d}`)
+      : ["- No reliable third-party source domains were captured for this run."];
+
+  const sections = [
+    `${shorten(baseAnswer)}`,
+    `Mention Check\n${mentionLine}\n${whyLine}`,
+    `Where It Was Seen\n${evidenceLines.join("\n")}`,
+  ];
+
+  const siteObj = result?.targetSite || parsedTarget;
+  if (siteObj) {
+    const label =
+      siteObj.status === "matched"
+        ? "Site matched this prompt"
+        : siteObj.status === "partial"
+          ? "Partial matched this prompt"
+          : "Not matched for this prompt";
+    const siteLines = [
+      siteObj.sourceDomain ? `- ${siteObj.sourceDomain}` : "- thegallivant.co.uk",
+      siteObj.summary ? `- ${siteObj.summary}` : "",
+      ...(siteObj.matchedFacts || siteObj.matched_facts || []).slice(0, 3).map((fact: string) => `- Found: ${fact}`),
+      ...(siteObj.missingFacts || siteObj.missing_facts || []).slice(0, 3).map((fact: string) => `- Missing: ${fact}`),
+    ].filter(Boolean);
+    sections.push(`Your Site As Source\n- ${label}\n${siteLines.join("\n")}`);
+  }
+
+  return sections.join("\n\n");
+}
+
+function Favicon({ domain }: { domain: string }) {
+  const clean = normalizeDomain(domain);
+  if (!clean) return null;
+  return (
+    <img
+      src={`https://www.google.com/s2/favicons?domain=${clean}&sz=64`}
+      alt={clean}
+      className="w-4 h-4 rounded-sm object-contain shrink-0 border border-[#ece3d1] bg-white"
+      onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+    />
+  );
+}
 
 export default function QueryChatModal({ query, selectedModel, onClose }: QueryChatModalProps) {
   if (!query) return null;
 
   const cfg = MODEL_CONFIG[selectedModel] || MODEL_CONFIG.ChatGPT;
-  const isMentioned = query.status === "Mentioned";
+  const modelRes = query.resultsByModel?.[selectedModel] || {
+    status: query.status,
+    rank: query.rank,
+    sources: query.sources,
+    answerSnippet: query.answerSnippet,
+    reasoning: query.reasoning || query.evidence,
+    targetSite: query.targetSite,
+  };
+
+  const rawAnswer = modelRes.llmResponse || modelRes.answerSnippet || query.answerSnippet || "";
+  const formattedText = formatModelReplyText(rawAnswer, modelRes);
 
   return (
     <div
-      className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-5"
+      className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4 md:p-6"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_40px_rgba(21,70,59,0.2)] w-full max-w-[760px] max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[760px] max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 
-        {/* ── Modal Header ── */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#ece3d1] bg-[#fdfcf8]">
-          <div className="flex items-center gap-2.5">
-            {/* Actual model icon — clean, no background */}
-            <div className="w-7 h-7 shrink-0 flex items-center justify-center">
-              <Image src={cfg.icon} width={26} height={26} alt={cfg.name} className="object-contain" />
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#efe7d6] bg-[#fdfcf8]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl border border-[#ece3d1] bg-white flex items-center justify-center shadow-xs">
+              <Image src={cfg.icon} width={20} height={20} alt={cfg.name} className="object-contain" />
             </div>
-            {/* Tight stacked title — no extra gap */}
             <div className="flex flex-col leading-tight">
-              <span className="font-spectral text-[16px] font-semibold text-[#15463b]">
-                {cfg.name} Response Log
+              <span className="font-spectral text-[17px] font-semibold text-[#15463b]">
+                {cfg.name} Response
               </span>
-              <span className="text-[11px] text-[#9b927f] leading-tight">Generative AI Search Engine Log</span>
+              <span className="text-[11px] font-mono-spline text-[#9b927f]">Generative AI Search Engine Log</span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-[#9b927f] hover:text-[#23211b] transition-colors rounded-md hover:bg-[#f5f0e6]"
+            className="p-1.5 text-[#9b927f] hover:text-[#23211b] transition-colors rounded-lg hover:bg-[#f5f0e6] cursor-pointer"
           >
-            <X className="w-4.5 h-4.5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ── Chat Body ── */}
-        <div className="p-5 overflow-y-auto flex flex-col gap-4 bg-[#faf8f3] flex-1">
+        {/* Content Body */}
+        <div className="p-6 overflow-y-auto flex flex-col gap-5 bg-[#faf8f3] flex-1">
 
-          {/* User Query bubble — no "User Search Intent" label */}
+          {/* User Query Bubble */}
           <div className="flex justify-end">
-            <div className="bg-[#15463b] text-white px-4.5 py-3 rounded-[16px_16px_4px_16px] max-w-[82%] text-[14px] leading-relaxed shadow-sm">
+            <div className="bg-[#15463b] text-white px-5 py-3.5 rounded-[18px_18px_4px_18px] max-w-[85%] text-[14.5px] font-semibold leading-relaxed shadow-xs">
               &ldquo;{query.query}&rdquo;
             </div>
           </div>
 
-          {/* AI Response bubble */}
-          <div className="flex items-start gap-3">
-            {/* Model icon avatar */}
-            <div className="w-8 h-8 rounded-full bg-white border border-[#e5ddd0] flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-              <Image src={cfg.icon} width={18} height={18} alt={cfg.name} className="object-contain" />
+          {/* AI Response Card - Formatted matching Old Dashboard */}
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-full bg-white border border-[#e5ddd0] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+              <Image src={cfg.icon} width={20} height={20} alt={cfg.name} className="object-contain" />
             </div>
 
-            <div className="bg-white border border-[#ece3d1] px-4.5 py-4 rounded-[16px_16px_16px_4px] max-w-[88%] text-[13.5px] leading-relaxed text-[#23211b] shadow-sm flex-1">
-              {isMentioned ? (
-                <div>
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#1e7d4f] shrink-0" />
-                    <span className="font-bold text-[#1e7d4f] text-[13px]">
-                      Brand Mention Verified — Rank #{query.rank || 1}
-                    </span>
+            <div className="bg-white border border-[#ece3d1] p-5 md:p-6 rounded-[20px_20px_20px_4px] max-w-[88%] text-[13.5px] leading-relaxed text-[#23211b] shadow-xs flex-1 space-y-4">
+              {formattedText.split("\n\n").map((section, sectionIndex) => {
+                const lines = section.split("\n").filter(Boolean);
+                const hasTitle = lines.length > 1 && !lines[0].trim().startsWith("-");
+                const title = hasTitle ? lines[0] : "";
+                const bodyLines = hasTitle ? lines.slice(1) : lines;
+
+                return (
+                  <div key={`sec-${sectionIndex}`} className="space-y-2">
+                    {title && (
+                      <p className="font-mono-spline text-[10.5px] font-bold uppercase tracking-wider text-[#8a8273] border-b border-[#efe7d6] pb-1.5 mb-2">
+                        {title}
+                      </p>
+                    )}
+
+                    {bodyLines.map((line, lineIndex) => {
+                      const parsedDomain = parseDomainBullet(line);
+                      if (parsedDomain?.domain) {
+                        return (
+                          <div
+                            key={`line-${sectionIndex}-${lineIndex}`}
+                            className="flex items-center gap-2 text-[13px] font-medium text-[#2c2821] py-0.5"
+                          >
+                            <Favicon domain={parsedDomain.domain} />
+                            <span className="font-semibold text-[#15463b]">{parsedDomain.domain}</span>
+                            {parsedDomain.tail && <span className="text-[#8a8273] text-[12px]">{parsedDomain.tail}</span>}
+                          </div>
+                        );
+                      }
+
+                      if (line.trim().startsWith("-")) {
+                        const textValue = line.replace(/^\s*-\s*/, "").trim();
+                        const isFound = textValue.startsWith("Found:");
+                        const isMissing = textValue.startsWith("Missing:");
+                        const isStatus = textValue.startsWith("Status:");
+                        const isWhy = textValue.startsWith("Why:");
+
+                        return (
+                          <div
+                            key={`line-${sectionIndex}-${lineIndex}`}
+                            className="flex items-start gap-2 text-[13px] leading-relaxed text-[#3a352b]"
+                          >
+                            {isStatus ? (
+                              <span className="font-bold text-[#15463b]">
+                                {textValue.includes("Mentioned") && !textValue.includes("Not Mentioned") ? (
+                                  <span className="inline-flex items-center gap-1 text-[#1e7d4f] font-bold">
+                                    <CheckCircle2 className="w-4 h-4 inline" /> {textValue}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[#b1442a] font-bold">
+                                    <XCircle className="w-4 h-4 inline" /> {textValue}
+                                  </span>
+                                )}
+                              </span>
+                            ) : isWhy ? (
+                              <span>
+                                <strong className="text-[#15463b]">Why:</strong> {textValue.replace(/^Why:\s*/, "")}
+                              </span>
+                            ) : isFound ? (
+                              <span className="text-[#1e7d4f] font-medium">✓ {textValue}</span>
+                            ) : isMissing ? (
+                              <span className="text-[#b1442a] font-medium">✕ {textValue}</span>
+                            ) : (
+                              <>
+                                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#9b927f] shrink-0" />
+                                <span>{textValue}</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <p
+                          key={`line-${sectionIndex}-${lineIndex}`}
+                          className="text-[13.5px] leading-relaxed text-[#2c2821] whitespace-pre-wrap break-words font-medium"
+                        >
+                          {line}
+                        </p>
+                      );
+                    })}
                   </div>
-                  <p>
-                    Based on index scan of local advisory providers, <strong>Meridian &amp; Co.</strong> is listed as a top candidate for this request.
-                  </p>
-                  <div className={`mt-3 p-3 rounded-lg border border-[#d7edd9] ${cfg.bgClass}`}>
-                    <p className="text-[10.5px] font-bold uppercase text-[#8a8273] mb-1.5 tracking-wider">
-                      Key Extracted Insights
-                    </p>
-                    <ul className="list-disc pl-4 space-y-1 text-[12.5px]">
-                      <li>High NAP consistency matched across Google Business and UK Registry.</li>
-                      <li>Entity consensus rating: <strong>80/100 Strong</strong>.</li>
-                      <li>Cited domains: <code>{query.sources.join(", ") || "meridian.co"}</code>.</li>
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <XCircle className="w-4 h-4 text-[#b1442a] shrink-0" />
-                    <span className="font-bold text-[#b1442a] text-[13px]">
-                      No Mention Found
-                    </span>
-                  </div>
-                  <p>
-                    <strong>Meridian &amp; Co.</strong> was not included in {cfg.name}&apos;s top recommendations for this query.
-                  </p>
-                  <div className="mt-3 p-3 bg-[#fdf5f3] rounded-lg border border-[#f6dcd5]">
-                    <p className="text-[10.5px] font-bold uppercase text-[#b1442a] mb-1.5 tracking-wider">
-                      Optimization Opportunity
-                    </p>
-                    <p className="text-[12.5px] text-[#6f6757]">
-                      Competitor Castleford Group ranked higher due to structured JSON-LD schema. Add the LocalBusiness schema action to win this query slot.
-                    </p>
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
 

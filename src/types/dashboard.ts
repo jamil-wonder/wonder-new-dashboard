@@ -5,8 +5,25 @@ export interface SearchQueryItem {
   query: string;
   status: "Mentioned" | "Not Mentioned";
   rank: number | null;
+  matchType?: "site_matched" | "partial" | "no_match";
   sources: string[];
   score: string;
+  answerSnippet?: string;
+  evidence?: string;
+  reasoning?: string;
+  llmResponse?: string;
+  targetSite?: any;
+  resultsByModel?: Record<string, {
+    status: "Mentioned" | "Not Mentioned";
+    rank: number | null;
+    sources: string[];
+    answerSnippet?: string;
+    evidence?: string;
+    reasoning?: string;
+    llmResponse?: string;
+    targetSite?: any;
+    matchType?: "site_matched" | "partial" | "no_match";
+  }>;
 }
 
 export interface BlogArticleItem {

@@ -3,6 +3,7 @@ import { Hanken_Grotesk, Spectral, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import { BusinessProvider } from "../context/BusinessContext";
+import { UserProvider } from "../context/UserContext";
 import { ToastProvider } from "../context/ToastContext";
 
 const hanken = Hanken_Grotesk({
@@ -43,11 +44,13 @@ export default function RootLayout({
       className={`${hanken.variable} ${spectral.variable} ${spline.variable}`}
     >
       <body className="antialiased">
-        <BusinessProvider>
-          <ToastProvider>
-            <DashboardLayout>{children}</DashboardLayout>
-          </ToastProvider>
-        </BusinessProvider>
+        <UserProvider>
+          <BusinessProvider>
+            <ToastProvider>
+              <DashboardLayout>{children}</DashboardLayout>
+            </ToastProvider>
+          </BusinessProvider>
+        </UserProvider>
       </body>
     </html>
   );
