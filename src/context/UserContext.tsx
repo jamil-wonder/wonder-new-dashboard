@@ -37,9 +37,9 @@ export function useUser() {
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(DEFAULT_DEMO_USER);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fetchUserProfile = useCallback(async () => {
     const token = getAuthToken();
@@ -58,12 +58,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 avatar_url: parsed.avatar_url || "",
               });
               setIsAuthenticated(true);
+              setIsLoading(false);
               return;
             }
           } catch {}
         }
       }
-      setIsAuthenticated(true); // Keep demo user active by default
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsLoading(false);
       return;
     }
 
@@ -83,9 +86,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== "undefined") {
           localStorage.setItem("wonder_user", JSON.stringify(prof));
         }
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch {
-      setIsAuthenticated(true);
+      // Fallback: if token exists but offline, check local storage
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("wonder_user");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed.email) {
+              setUser(parsed);
+              setIsAuthenticated(true);
+              setIsLoading(false);
+              return;
+            }
+          } catch {}
+        }
+      }
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
