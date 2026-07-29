@@ -15,6 +15,7 @@ import { useToast } from "../../context/ToastContext";
 import { fetchApi } from "../../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+const ACTIVE_QUERY_JOB_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 function extractDomain(urlOrDomain: string): string {
   const raw = (urlOrDomain || "").trim().toLowerCase();
@@ -108,6 +109,31 @@ export default function QueryPage() {
     return `wonder_query_cache_${clean}`;
   }, []);
 
+  const getActiveJobKey = useCallback((targetUrl: string) => {
+    const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    return `wonder_query_active_job_${clean}`;
+  }, []);
+
+  const saveActiveJob = useCallback((jobId: string, processed = 0, total = queriesList.length) => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(getActiveJobKey(domain), JSON.stringify({
+        jobId,
+        url: domain,
+        processed,
+        total,
+        startedAt: Date.now(),
+      }));
+    } catch {}
+  }, [domain, getActiveJobKey, queriesList.length]);
+
+  const clearActiveJob = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(getActiveJobKey(domain));
+    } catch {}
+  }, [domain, getActiveJobKey]);
+
   // 1. Check 2-Hour TTL Cache
   const loadCachedQueries = useCallback((targetUrl: string) => {
     if (typeof window === "undefined") return null;
@@ -153,7 +179,7 @@ export default function QueryPage() {
     try {
       setIsLoadingQuestions(true);
       if (forceRefresh) {
-        showToast(`Generating fresh AI search prompts tailored for ${businessName}...`, "info");
+        showToast(`Generating fresh AI search prompts for ${businessName}. This can take 1-5 minutes.`, "info");
       }
 
       const cleanUrl = domain.startsWith("http") ? domain : `https://${domain}`;
@@ -407,6 +433,47 @@ export default function QueryPage() {
     });
   }, [domain, saveCachedQueries]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || queriesList.length === 0) return;
+    if (pollIntervalRef.current) return;
+
+    let parsed: any = null;
+    try {
+      const raw = localStorage.getItem(getActiveJobKey(domain));
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {}
+
+    if (!parsed?.jobId || Date.now() - Number(parsed.startedAt || 0) > ACTIVE_QUERY_JOB_MAX_AGE_MS) {
+      clearActiveJob();
+      return;
+    }
+
+    setIsScanning(true);
+    setIsScanComplete(false);
+    setProcessedCount(Number(parsed.processed || 0));
+    showToast("AI prompt analysis is still running. This can take 1-5 minutes, and progress will continue here.", "info");
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const statusRes = await fetchApi<any>(`/api/phase5/job-status/${parsed.jobId}`);
+        if (statusRes && typeof statusRes.processed === "number") {
+          setProcessedCount(statusRes.processed);
+          saveActiveJob(parsed.jobId, statusRes.processed, statusRes.total || queriesList.length);
+        }
+        if (statusRes?.results) {
+          applyJobResultsToQueries(statusRes.results);
+        }
+        if (statusRes && (statusRes.status === "completed" || statusRes.status === "failed" || statusRes.status === "cancelled")) {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          clearActiveJob();
+          setProcessedCount(statusRes.total || queriesList.length);
+          setIsScanComplete(true);
+        }
+      } catch {}
+    }, 1500);
+  }, [queriesList.length, domain, getActiveJobKey, clearActiveJob, showToast, saveActiveJob, applyJobResultsToQueries]);
+
   // 4. Live Audit Execution when user clicks "Run"
   const handleStartScan = useCallback(async () => {
     if (queriesList.length === 0) {
@@ -417,7 +484,7 @@ export default function QueryPage() {
     setIsScanning(true);
     setIsScanComplete(false);
     setProcessedCount(0);
-    showToast(`Starting live AI model audit for ${businessName} across ChatGPT, Perplexity, Claude & Gemini...`, "info");
+    showToast(`Starting AI prompt analysis for ${businessName}. This can take 1-5 minutes.`, "info");
 
     const cleanFullUrl = domain.startsWith("http") ? domain : `https://${domain}`;
 
@@ -440,6 +507,7 @@ export default function QueryPage() {
 
       if (res && res.job_id) {
         const jobId = res.job_id;
+        saveActiveJob(jobId, 0, queriesList.length);
 
         // 1. Primary SSE Stream for live progress updates
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -453,6 +521,7 @@ export default function QueryPage() {
             const statusData = JSON.parse(event.data || "{}");
             if (typeof statusData.processed === "number") {
               setProcessedCount(statusData.processed);
+              saveActiveJob(jobId, statusData.processed, queriesList.length);
             }
             if (statusData.results) {
               applyJobResultsToQueries(statusData.results);
@@ -461,6 +530,8 @@ export default function QueryPage() {
             if (statusData.status === "completed" || statusData.status === "failed" || statusData.status === "cancelled") {
               es.close();
               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              clearActiveJob();
               setProcessedCount(queriesList.length);
               setIsScanComplete(true);
             }
@@ -474,6 +545,7 @@ export default function QueryPage() {
             const statusRes = await fetchApi<any>(`/api/phase5/job-status/${jobId}`);
             if (statusRes && typeof statusRes.processed === "number") {
               setProcessedCount(statusRes.processed);
+              saveActiveJob(jobId, statusRes.processed, statusRes.total || queriesList.length);
             }
             if (statusRes && statusRes.results) {
               applyJobResultsToQueries(statusRes.results);
@@ -482,7 +554,9 @@ export default function QueryPage() {
             // ONLY stop when backend job status is terminal ("completed", "failed", "cancelled")
             if (statusRes && (statusRes.status === "completed" || statusRes.status === "failed" || statusRes.status === "cancelled")) {
               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
               if (eventSourceRef.current) eventSourceRef.current.close();
+              clearActiveJob();
               setProcessedCount(queriesList.length);
               setIsScanComplete(true);
             }
@@ -513,7 +587,7 @@ export default function QueryPage() {
         isComplete={isScanComplete}
         onClose={() => setIsScanning(false)}
         onComplete={handleScanComplete}
-        title="Multi-Provider AI Analysis"
+        title="AI Prompt Analysis"
         processed={processedCount}
         total={queriesList.length}
       />
@@ -542,9 +616,13 @@ export default function QueryPage() {
         {/* Dynamic Loading Spinner or Query Table */}
         {isLoadingQuestions ? (
           <div className="py-16 text-center flex flex-col items-center justify-center border border-dashed border-[#ece3d1] rounded-xl bg-[#fdfcf8] my-3">
-            <WonderscoreSpinner size={48} label={`Generating AI Search Prompts for ${businessName}...`} />
+            <WonderscoreSpinner
+              size={48}
+              label={`Generating AI search prompts for ${businessName}`}
+              note="This can take 1-5 minutes. You can move around the dashboard and come back."
+            />
             <p className="text-[13px] text-[#8a8273] max-w-[420px] mx-auto mt-2 font-normal">
-              Generating 20 branded, non-branded, and local SEO questions matching your business profile ratios.
+              Building 20 search questions from the saved business profile.
             </p>
           </div>
         ) : (

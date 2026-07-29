@@ -33,6 +33,8 @@ async function getValidMongoBusinessId(business: any): Promise<string | null> {
   return null;
 }
 
+const getWeeklyBlogTaskKey = (businessId: string) => `wonder_blog_weekly_active_${businessId}`;
+
 export default function BlogsPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
@@ -58,7 +60,15 @@ export default function BlogsPage() {
       }
 
       if (force) {
-        showToast(`Generating weekly AI SEO blogs for ${activeBusiness.name || "your business"}...`, "info");
+        showToast(`Generating weekly blog drafts for ${activeBusiness.name || "your business"}. This can take 1-5 minutes.`, "info");
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(getWeeklyBlogTaskKey(mongoId), JSON.stringify({
+          businessId: mongoId,
+          startedAt: Date.now(),
+          force,
+        }));
       }
 
       const res = await fetchApi<any>("/api/blogs/weekly/ensure", {
@@ -81,6 +91,12 @@ export default function BlogsPage() {
       console.error("Weekly blog generation error:", err);
       showToast("Weekly blog generation encountered an issue", "error");
     } finally {
+      if (typeof window !== "undefined") {
+        try {
+          const mongoId = targetMongoId || (activeBusiness?.id && /^[0-9a-fA-F]{24}$/.test(activeBusiness.id) ? activeBusiness.id : "");
+          if (mongoId) localStorage.removeItem(getWeeklyBlogTaskKey(mongoId));
+        } catch {}
+      }
       setIsGeneratingWeekly(false);
       setIsLoadingWeekly(false);
     }
@@ -118,6 +134,54 @@ export default function BlogsPage() {
   useEffect(() => {
     loadWeeklyBlogs();
   }, [loadWeeklyBlogs]);
+
+  useEffect(() => {
+    if (!activeBusiness) return;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
+    const resumeWeeklyGeneration = async () => {
+      const mongoId = await getValidMongoBusinessId(activeBusiness);
+      if (!mongoId || cancelled || typeof window === "undefined") return;
+
+      let activeTask: any = null;
+      try {
+        const raw = localStorage.getItem(getWeeklyBlogTaskKey(mongoId));
+        activeTask = raw ? JSON.parse(raw) : null;
+      } catch {}
+
+      if (!activeTask?.startedAt) return;
+      if (Date.now() - Number(activeTask.startedAt) > 20 * 60 * 1000) {
+        localStorage.removeItem(getWeeklyBlogTaskKey(mongoId));
+        return;
+      }
+
+      setIsGeneratingWeekly(true);
+      showToast("Weekly blog drafts are still being prepared. This can take 1-5 minutes.", "info");
+
+      const poll = async () => {
+        try {
+          const res = await fetchApi<any>(`/api/blogs/weekly?business_id=${encodeURIComponent(mongoId)}`);
+          if (res?.success && res.weekly?.drafts?.length) {
+            setWeeklyData(res.weekly);
+            localStorage.removeItem(getWeeklyBlogTaskKey(mongoId));
+            setIsGeneratingWeekly(false);
+            if (interval) clearInterval(interval);
+          }
+        } catch {}
+      };
+
+      await poll();
+      if (!cancelled) interval = setInterval(poll, 5000);
+    };
+
+    resumeWeeklyGeneration();
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [activeBusiness, showToast]);
 
   return (
     <div className="space-y-4 pb-10">

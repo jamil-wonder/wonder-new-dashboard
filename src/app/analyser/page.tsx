@@ -14,6 +14,7 @@ import { useToast } from "../../context/ToastContext";
 import { fetchApi, recordScanHistory } from "../../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 Hours TTL cache limit
+const ACTIVE_ANALYSER_MAX_AGE_MS = 15 * 60 * 1000;
 
 function getVisibilityInfo(score: number, gradeRaw?: string) {
   const grade = gradeRaw || (score >= 90 ? "A+" : score >= 80 ? "A" : score >= 70 ? "B+" : score >= 55 ? "B" : score >= 40 ? "C" : "F");
@@ -82,6 +83,11 @@ export default function AnalyserPage() {
     return `wonder_analyser_cache_${clean}`;
   }, []);
 
+  const getActiveAnalysisKey = useCallback((targetUrl: string) => {
+    const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    return `wonder_analyser_active_${clean}`;
+  }, []);
+
   // Check 2-Hour TTL cache before making API calls
   const loadCachedAnalysis = useCallback((targetUrl: string) => {
     if (typeof window === "undefined") return null;
@@ -113,6 +119,23 @@ export default function AnalyserPage() {
       localStorage.setItem(cacheKey, JSON.stringify(cacheData));
     } catch {}
   }, [getCacheKey]);
+
+  const markActiveAnalysis = useCallback((targetUrl: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(getActiveAnalysisKey(targetUrl), JSON.stringify({
+        url: targetUrl,
+        startedAt: Date.now(),
+      }));
+    } catch {}
+  }, [getActiveAnalysisKey]);
+
+  const clearActiveAnalysis = useCallback((targetUrl: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(getActiveAnalysisKey(targetUrl));
+    } catch {}
+  }, [getActiveAnalysisKey]);
 
   const activeBusinessRef = useRef(activeBusiness);
   const updateActiveBusinessRef = useRef(updateActiveBusiness);
@@ -149,8 +172,16 @@ export default function AnalyserPage() {
       if (isUserTriggered) {
         setIsScanning(true);
         setIsScanComplete(false);
-        showToast(`Starting AI brand analysis & sitemap crawl for ${domain}...`, "info");
+        markActiveAnalysis(domain);
+        showToast(`Starting website analysis for ${domain}. This can take 1-5 minutes.`, "info");
       } else {
+        try {
+          const raw = typeof window !== "undefined" ? localStorage.getItem(getActiveAnalysisKey(domain)) : null;
+          const activeRun = raw ? JSON.parse(raw) : null;
+          if (activeRun?.startedAt && Date.now() - Number(activeRun.startedAt) < ACTIVE_ANALYSER_MAX_AGE_MS) {
+            showToast("Website analysis is still running. This can take 1-5 minutes, and you can return here for results.", "info");
+          }
+        } catch {}
         setIsLoadingInitial(true);
       }
 
@@ -446,6 +477,7 @@ export default function AnalyserPage() {
         aiInsights: finalInsights,
         competitors: finalComps,
       });
+      clearActiveAnalysis(domain);
 
       if (isUserTriggered) {
         setIsScanComplete(true);
@@ -456,7 +488,7 @@ export default function AnalyserPage() {
     } finally {
       setIsLoadingInitial(false);
     }
-  }, [domain, businessName, category, location, showToast, loadCachedAnalysis, saveCachedAnalysis]);
+  }, [domain, businessName, category, location, showToast, loadCachedAnalysis, saveCachedAnalysis, markActiveAnalysis, clearActiveAnalysis, getActiveAnalysisKey]);
 
   // Execute analysis on mount or domain change
   useEffect(() => {
@@ -476,7 +508,11 @@ export default function AnalyserPage() {
   if (isLoadingInitial && !scanData) {
     return (
       <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
-        <WonderscoreSpinner size={48} label={`Detecting Brand & Analysing ${domain}...`} />
+        <WonderscoreSpinner
+          size={48}
+          label={`Analysing ${domain}`}
+          note="This can take 1-5 minutes. We are checking the website, AI visibility, and business signals."
+        />
       </div>
     );
   }
@@ -491,6 +527,7 @@ export default function AnalyserPage() {
         isOpen={isScanning}
         isComplete={isScanComplete}
         onClose={handleScanComplete}
+        title="Website Analysis"
       />
 
       {/* ── Header ─────────────────────────────────────────────────────── */}

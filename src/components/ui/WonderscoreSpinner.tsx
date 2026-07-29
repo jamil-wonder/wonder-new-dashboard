@@ -23,18 +23,28 @@ export function WonderscoreLogo({ size = 32, color = "#15463b", className = "" }
   );
 }
 
-export function WonderscoreSpinner({ size = 32, color = "#15463b", label }: WonderscoreSpinnerProps & { label?: string }) {
+export function WonderscoreSpinner({
+  size = 32,
+  color = "#15463b",
+  label,
+  note,
+}: WonderscoreSpinnerProps & { label?: string; note?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-8 gap-3">
+    <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
       <motion.div
         animate={{ rotate: 360 }}
-        transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
       >
         <WonderscoreLogo size={size} color={color} />
       </motion.div>
       {label && (
-        <span className="text-[13px] font-semibold text-[#8a8273] tracking-wide">
+        <span className="text-[13px] font-semibold text-[#15463b] tracking-wide">
           {label}
+        </span>
+      )}
+      {note && (
+        <span className="max-w-[360px] text-[12px] font-medium leading-relaxed text-[#8a8273]">
+          {note}
         </span>
       )}
     </div>

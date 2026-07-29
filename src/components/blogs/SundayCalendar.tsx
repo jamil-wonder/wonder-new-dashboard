@@ -210,9 +210,15 @@ export default function SundayCalendar({
       {/* Loading State */}
       {isLoading || isGenerating ? (
         <div className="py-16 text-center flex flex-col items-center justify-center border border-dashed border-[#ece3d1] rounded-md bg-[#fdfcf8] my-2">
-          <WonderscoreSpinner size={44} label={isGenerating ? "Generating Weekly AI SEO Blogs..." : "Loading Weekly Blogs..."} />
+          <WonderscoreSpinner
+            size={44}
+            label={isGenerating ? "Generating weekly blog drafts" : "Loading weekly blogs"}
+            note={isGenerating ? "This can take 1-5 minutes. You can move around the dashboard and come back." : undefined}
+          />
           <p className="text-[13px] text-[#8a8273] max-w-[420px] mx-auto mt-2 font-normal">
-            Creating structured, humanized SEO articles tailored to your brand voice and focus keywords.
+            {isGenerating
+              ? "Creating two drafts from the saved business profile, voice, and focus keywords."
+              : "Checking the saved weekly calendar."}
           </p>
         </div>
       ) : (

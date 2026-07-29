@@ -85,14 +85,12 @@ export default function ScanProgressModal({
 
   const getLoadingText = () => {
     if (loadingTextOverride) return loadingTextOverride;
-    if (isComplete || progress >= 100) return "Analysis & mention checks completed!";
-    if (progress >= 90) return "Verifying mentions, rankings & model citations...";
-    if (progress >= 75) return "Analyzing competitor search position ranks...";
-    if (progress >= 60) return "Evaluating cited domain sources & references...";
-    if (progress >= 45) return "Verifying entity brand consistency...";
-    if (progress >= 30) return "Dispatching search prompts to AI models...";
-    if (progress >= 15) return "Connecting multi-provider AI engine...";
-    return "Initializing AI search analysis...";
+    if (isComplete || progress >= 100) return "Finished. Preparing your results.";
+    if (progress >= 90) return "Final checks are running.";
+    if (progress >= 70) return "Reviewing AI answers and sources.";
+    if (progress >= 45) return "Checking the business details.";
+    if (progress >= 20) return "Running the scan.";
+    return "Starting the analysis.";
   };
 
   const loadingText = getLoadingText();
@@ -201,9 +199,9 @@ export default function ScanProgressModal({
           </div>
 
           <div className="flex justify-between w-full mt-2.5 text-[9px] font-bold text-[#9b927f] uppercase tracking-wider font-mono-spline">
-            <span>Live AI Job Engine</span>
+            <span>Usually 1-5 min</span>
             <span className="text-[#15463b]">
-              {isComplete ? "Complete" : "Verifying Mentions..."}
+              {isComplete ? "Complete" : "Keep this open or browse other pages"}
             </span>
           </div>
         </div>
