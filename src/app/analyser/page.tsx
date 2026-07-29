@@ -5,7 +5,8 @@ import {
   Globe, MapPin, Tag, CheckCircle2, XCircle, AlertCircle,
   Phone, Mail, Clock, Link2, FileCode2, Cpu, ShieldCheck, Smartphone,
   FileSearch, Bot, BrainCircuit, MessageSquare, Sparkles, ArrowRight,
-  Building2, Languages, Image as ImageIcon, BookOpen, TrendingUp, TrendingDown
+  Building2, Languages, Image as ImageIcon, BookOpen, TrendingUp, TrendingDown,
+  X
 } from "lucide-react";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { WonderscoreSpinner, WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -70,6 +71,7 @@ export default function AnalyserPage() {
   // Live dynamic data state
   const [scanData, setScanData] = useState<any>(null);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [selectedAiInsight, setSelectedAiInsight] = useState<any | null>(null);
   const [competitors, setCompetitors] = useState<any[]>([]);
   const [auditAreas, setAuditAreas] = useState<any[]>([]);
 
@@ -398,6 +400,7 @@ export default function AnalyserPage() {
             summary: item.summary || `${label} indexed ${domain} entity details.`,
             verifiedFields: item.platforms?.length ? item.platforms.map((p: string) => p) : ["Name", "URL", "Location"],
             missingFields: isOffline ? ["API Offline"] : ["Hours"],
+            raw: item,
           };
         });
       } else {
@@ -529,6 +532,90 @@ export default function AnalyserPage() {
         onClose={handleScanComplete}
         title="Website Analysis"
       />
+
+      {selectedAiInsight && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close AI insight details"
+            className="absolute inset-0 bg-[#23211b]/45 backdrop-blur-[3px] border-0 cursor-default"
+            onClick={() => setSelectedAiInsight(null)}
+          />
+          <div className="relative w-full max-w-2xl max-h-[86vh] overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_18px_54px_rgba(35,33,27,0.18)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[#ece3d1] bg-[#fdfcf8] px-5 py-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl border border-[#e8dcc8] bg-white flex items-center justify-center shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={selectedAiInsight.icon} alt={selectedAiInsight.model} className="w-6 h-6 object-contain" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-spectral text-[22px] font-semibold text-[#23211b] leading-tight">
+                    {selectedAiInsight.model} insight
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full"
+                      style={{ color: selectedAiInsight.confidenceColor, backgroundColor: selectedAiInsight.confidenceBg }}
+                    >
+                      {selectedAiInsight.confidence}
+                    </span>
+                    <span className="text-[12px] text-[#8a8273]">Full model details</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAiInsight(null)}
+                className="w-9 h-9 rounded-lg border border-[#e8dcc8] bg-white text-[#6f6757] hover:text-[#23211b] hover:bg-[#f5f0e6] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(86vh-86px)] overflow-y-auto p-5 space-y-4">
+              <section className="rounded-xl border border-[#ece3d1] bg-[#fdfcf8] p-4">
+                <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-2">Summary</div>
+                <p className="text-[14px] leading-relaxed text-[#3a352b] whitespace-pre-wrap">
+                  {selectedAiInsight.summary || "No summary returned for this model."}
+                </p>
+              </section>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <section className="rounded-xl border border-[#d7eedf] bg-[#f3fbf6] p-4">
+                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#1e7d4f] mb-2">Detected</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedAiInsight.verifiedFields?.length ? selectedAiInsight.verifiedFields : ["No detected fields"]).map((field: string) => (
+                      <span key={field} className="text-[11px] font-semibold text-[#1e7d4f] bg-white border border-[#c7ead3] px-2 py-1 rounded-md">
+                        ✓ {field}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-[#f3d2c9] bg-[#fff6f3] p-4">
+                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#b1442a] mb-2">Missing or weak</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedAiInsight.missingFields?.length ? selectedAiInsight.missingFields : ["No obvious gaps returned"]).map((field: string) => (
+                      <span key={field} className="text-[11px] font-semibold text-[#b1442a] bg-white border border-[#f0c5ba] px-2 py-1 rounded-md">
+                        × {field}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              {selectedAiInsight.raw && (
+                <section className="rounded-xl border border-[#ece3d1] bg-[#0b1020] p-4">
+                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#b8c1e8] mb-2">Raw AI data</div>
+                  <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-[#eef3ff]">
+                    {JSON.stringify(selectedAiInsight.raw, null, 2)}
+                  </pre>
+                </section>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 md:p-[28px_32px] shadow-sm">
@@ -726,7 +813,12 @@ export default function AnalyserPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {aiInsights.map((ai) => {
             return (
-              <div key={ai.model} className="border border-[#ece3d1] rounded-xl p-4 flex flex-col gap-3 bg-[#fdfcf8]">
+              <button
+                key={ai.model}
+                type="button"
+                onClick={() => setSelectedAiInsight(ai)}
+                className="text-left border border-[#ece3d1] rounded-xl p-4 flex flex-col gap-3 bg-[#fdfcf8] hover:border-[#b8cdfd] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 transition-all"
+              >
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 shrink-0 flex items-center justify-center overflow-hidden">
@@ -758,7 +850,7 @@ export default function AnalyserPage() {
                     ))}
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

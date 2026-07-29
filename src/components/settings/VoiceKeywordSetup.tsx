@@ -6,6 +6,75 @@ import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi } from "../../lib/api";
 
+function cleanText(value?: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanText(item)).filter(Boolean).join(", ");
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return cleanText(record.name || record.label || record.title || record.value || "");
+  }
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function cleanLocation(value?: unknown) {
+  const raw = cleanText(value);
+  if (!raw) return "";
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(" ");
+}
+
+function splitList(value?: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanText(item)).filter(Boolean).slice(0, 4);
+  }
+  return cleanText(value)
+    .split(/[,|;/]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function uniqueKeywords(items: string[]) {
+  const seen = new Set<string>();
+  return items
+    .map((item) => cleanText(item).replace(/\s+near\s+$/i, ""))
+    .filter((item) => item.length > 2)
+    .filter((item) => {
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6);
+}
+
+function generateKeywordSuggestions(business: any) {
+  const name = cleanText(business?.name);
+  const category = cleanText(business?.category);
+  const location = cleanLocation(business?.location);
+  const services = splitList(business?.services);
+  const audience = splitList(business?.targetAudience);
+
+  const serviceKeywords = services.flatMap((service) => [
+    location ? `${service} ${location}` : service,
+    category && location ? `${service} for ${category.toLowerCase()} customers ${location}` : "",
+  ]);
+
+  return uniqueKeywords([
+    category && location ? `${category} ${location}` : "",
+    name && location ? `${name} ${location}` : name,
+    ...serviceKeywords,
+    ...audience.map((item) => (location ? `${item} ${location}` : item)),
+    category ? `best ${category.toLowerCase()}` : "",
+    category && location ? `best ${category.toLowerCase()} ${location}` : "",
+  ]);
+}
+
 export default function VoiceKeywordSetup() {
   const { activeBusiness, updateActiveBusiness } = useBusiness();
   const { showToast } = useToast();
@@ -22,11 +91,7 @@ export default function VoiceKeywordSetup() {
       if (Array.isArray(activeBusiness.blogKeywords) && activeBusiness.blogKeywords.length > 0) {
         setKeywords(activeBusiness.blogKeywords);
       } else {
-        setKeywords([
-          "corporate advisory Bristol",
-          "restructuring services UK",
-          "Bristol business consultant",
-        ]);
+        setKeywords(generateKeywordSuggestions(activeBusiness));
       }
     }
   }, [activeBusiness]);

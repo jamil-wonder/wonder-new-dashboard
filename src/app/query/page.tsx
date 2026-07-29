@@ -191,6 +191,7 @@ export default function QueryPage() {
             .map((item) => item.trim())
             .filter(Boolean);
 
+      let generationError = "";
       const res = await fetchApi<any>("/api/phase5/generate-questions", {
         method: "POST",
         body: JSON.stringify({
@@ -203,7 +204,10 @@ export default function QueryPage() {
           services: serviceList,
           questionGeneration: qgMix,
         }),
-      }).catch(() => null);
+      }).catch((err) => {
+        generationError = err?.message || "Backend question generation failed.";
+        return null;
+      });
 
       if (res && Array.isArray(res.questions) && res.questions.length > 0) {
         const b = qgMix.branded ?? 5;
@@ -251,7 +255,7 @@ export default function QueryPage() {
         }
       } else {
         setQueriesList([]);
-        showToast("Could not generate live questions. Please check login and business profile details.", "error");
+        showToast(generationError || "Could not generate live questions. Please check business profile details.", "error");
       }
     } catch (err) {
       console.error("Failed to generate questions:", err);

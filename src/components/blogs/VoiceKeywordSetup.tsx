@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 
 const VOICE_DEFAULTS = ["authoritative", "approachable", "expert", "local"];
-const KEYWORD_DEFAULTS = ["professional services Bristol", "corporate advisory", "business restructuring UK"];
+const KEYWORD_DEFAULTS: string[] = [];
 
 export default function VoiceKeywordSetup() {
   const [voiceTags, setVoiceTags] = useState<string[]>(VOICE_DEFAULTS);
