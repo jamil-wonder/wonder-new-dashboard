@@ -53,7 +53,7 @@ export default function SourcesModal({ query, onClose }: SourcesModalProps) {
   const sourcesList = Array.from(allSourcesSet).filter(Boolean);
 
   const siteStatus = targetSiteObj?.status;
-  const siteDomain = targetSiteObj?.domain || "thegallivant.co.uk";
+  const siteDomain = targetSiteObj?.domain || targetSiteObj?.sourceDomain || "";
   const supportedFacts = Array.isArray(targetSiteObj?.supported_facts || targetSiteObj?.supportedFacts)
     ? (targetSiteObj?.supported_facts || targetSiteObj?.supportedFacts)
     : [];
@@ -124,10 +124,16 @@ export default function SourcesModal({ query, onClose }: SourcesModalProps) {
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[#2c2821] pt-1">
-              <DomainFavicon domain={siteDomain} />
-              <span>{siteDomain}</span>
-            </div>
+            {siteDomain ? (
+              <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[#2c2821] pt-1">
+                <DomainFavicon domain={siteDomain} />
+                <span>{siteDomain}</span>
+              </div>
+            ) : (
+              <div className="text-[12.5px] font-medium text-[#8a8273] pt-1">
+                No target-site source domain returned for this prompt.
+              </div>
+            )}
 
             {/* Supported & Missing Facts */}
             {supportedFacts.length > 0 && (

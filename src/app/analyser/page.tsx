@@ -108,6 +108,15 @@ export default function AnalyserPage() {
     return null;
   }, [getCacheKey]);
 
+  const clearCachedAnalysis = useCallback((targetUrl: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const cacheKey = getCacheKey(targetUrl);
+      sessionStorage.removeItem(cacheKey);
+      localStorage.removeItem(cacheKey);
+    } catch {}
+  }, [getCacheKey]);
+
   // Save to 2-Hour TTL cache
   const saveCachedAnalysis = useCallback((targetUrl: string, payload: any) => {
     if (typeof window === "undefined") return;
@@ -172,6 +181,11 @@ export default function AnalyserPage() {
 
     try {
       if (isUserTriggered) {
+        clearCachedAnalysis(domain);
+        setScanData(null);
+        setAiInsights([]);
+        setCompetitors([]);
+        setAuditAreas([]);
         setIsScanning(true);
         setIsScanComplete(false);
         markActiveAnalysis(domain);
@@ -491,7 +505,7 @@ export default function AnalyserPage() {
     } finally {
       setIsLoadingInitial(false);
     }
-  }, [domain, businessName, category, location, showToast, loadCachedAnalysis, saveCachedAnalysis, markActiveAnalysis, clearActiveAnalysis, getActiveAnalysisKey]);
+  }, [domain, businessName, category, location, showToast, loadCachedAnalysis, clearCachedAnalysis, saveCachedAnalysis, markActiveAnalysis, clearActiveAnalysis, getActiveAnalysisKey]);
 
   // Execute analysis on mount or domain change
   useEffect(() => {

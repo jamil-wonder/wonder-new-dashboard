@@ -69,6 +69,17 @@ export default function BusinessProfilesPanel() {
 
   const qgTotal = formQG.branded + formQG.nonBranded + formQG.localSeo + formQG.broadSeo;
 
+  const normalizeQG = (value: QG): QG => {
+    const next: QG = {
+      branded: Math.max(0, Math.min(20, Math.round(Number(value.branded) || 0))),
+      nonBranded: Math.max(0, Math.min(20, Math.round(Number(value.nonBranded) || 0))),
+      localSeo: Math.max(0, Math.min(20, Math.round(Number(value.localSeo) || 0))),
+      broadSeo: Math.max(0, Math.min(20, Math.round(Number(value.broadSeo) || 0))),
+    };
+    const total = next.branded + next.nonBranded + next.localSeo + next.broadSeo;
+    return total === 20 ? next : DEFAULT_QG;
+  };
+
   const updateQG = (key: keyof QG, raw: string) => {
     const next = Math.max(0, Math.min(20, Number(raw) || 0));
     setFormQG((cur) => ({ ...cur, [key]: next }));
@@ -120,6 +131,7 @@ export default function BusinessProfilesPanel() {
       ? formServices.split(",").map((s) => s.trim()).filter(Boolean)
       : formServices;
 
+    const normalizedQG = normalizeQG(formQG);
     const payload = {
       url: formattedUrl,
       businessName: formName.trim(),
@@ -130,7 +142,7 @@ export default function BusinessProfilesPanel() {
       aiDescription: formAiDesc.trim(),
       services: servicesList,
       targetAudience: formAudience.trim(),
-      questionGeneration: formQG,
+      questionGeneration: normalizedQG,
       competitors: formCompetitors,
       trackedPages: formPages,
       business_id: editId || undefined,
@@ -151,7 +163,7 @@ export default function BusinessProfilesPanel() {
         name: formName.trim(), url: formattedUrl, category: formCategory, location: formLocation,
         logoUrl: formLogoUrl, description: formDesc, aiDescription: formAiDesc,
         services: formServices, targetAudience: formAudience,
-        competitors: formCompetitors, trackedPages: formPages, questionGeneration: formQG,
+        competitors: formCompetitors, trackedPages: formPages, questionGeneration: normalizedQG,
         completeness: 88, initial: formName.trim().charAt(0).toUpperCase(),
         isUserEdited: true,
       };

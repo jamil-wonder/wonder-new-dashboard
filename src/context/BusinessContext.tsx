@@ -225,7 +225,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             targetAudience: b.target_audience || b.targetAudience || "",
             competitors: b.competitors || [],
             trackedPages: b.tracked_pages || b.trackedPages || ["/"],
-            questionGeneration: b.question_generation || { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 },
+            questionGeneration: b.questionGeneration || b.question_generation || { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 },
           };
         });
         setBusinesses(mapped);

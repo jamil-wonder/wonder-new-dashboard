@@ -135,7 +135,7 @@ function formatModelReplyText(
           ? "Partial matched this prompt"
           : "Not matched for this prompt";
     const siteLines = [
-      siteObj.sourceDomain ? `- ${siteObj.sourceDomain}` : "- thegallivant.co.uk",
+      siteObj.sourceDomain ? `- ${siteObj.sourceDomain}` : "",
       siteObj.summary ? `- ${siteObj.summary}` : "",
       ...(siteObj.matchedFacts || siteObj.matched_facts || []).slice(0, 3).map((fact: string) => `- Found: ${fact}`),
       ...(siteObj.missingFacts || siteObj.missing_facts || []).slice(0, 3).map((fact: string) => `- Missing: ${fact}`),

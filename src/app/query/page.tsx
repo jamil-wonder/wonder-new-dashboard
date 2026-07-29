@@ -8,7 +8,6 @@ import QueryChatModal from "../../components/query/QueryChatModal";
 import AddPromptModal from "../../components/query/AddPromptModal";
 import SourcesModal from "../../components/query/SourcesModal";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
-import { WonderscoreSpinner } from "../../components/ui/WonderscoreSpinner";
 import { SearchQueryItem } from "../../types/dashboard";
 import { useBusiness, isGenericName, cleanBrandNameFromDomain } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
@@ -16,6 +15,32 @@ import { fetchApi } from "../../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const ACTIVE_QUERY_JOB_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const QUERY_CACHE_VERSION = "v3";
+
+type QuestionMix = {
+  branded: number;
+  nonBranded: number;
+  localSeo: number;
+  broadSeo: number;
+};
+
+const DEFAULT_QUESTION_MIX: QuestionMix = {
+  branded: 5,
+  nonBranded: 5,
+  localSeo: 5,
+  broadSeo: 5,
+};
+
+const QUESTION_CATEGORIES: Array<{
+  key: keyof QuestionMix;
+  label: string;
+  hint: string;
+}> = [
+  { key: "branded", label: "Branded", hint: "Business-name prompts" },
+  { key: "nonBranded", label: "Non-branded", hint: "Category discovery prompts" },
+  { key: "localSeo", label: "Local SEO", hint: "Location-specific prompts" },
+  { key: "broadSeo", label: "Broad SEO", hint: "Nearby-area prompts" },
+];
 
 function extractDomain(urlOrDomain: string): string {
   const raw = (urlOrDomain || "").trim().toLowerCase();
@@ -53,6 +78,185 @@ function extractSourcesFromProviderData(pData: any): string[] {
   return Array.from(new Set(merged));
 }
 
+function normalizeQuestionMix(value?: Partial<QuestionMix> | null): QuestionMix {
+  const source = value || {};
+  const safe = (key: keyof QuestionMix) => {
+    const raw = Number(source[key] ?? DEFAULT_QUESTION_MIX[key]);
+    return Number.isFinite(raw) ? Math.max(0, Math.min(20, Math.round(raw))) : DEFAULT_QUESTION_MIX[key];
+  };
+
+  const normalized = {
+    branded: safe("branded"),
+    nonBranded: safe("nonBranded"),
+    localSeo: safe("localSeo"),
+    broadSeo: safe("broadSeo"),
+  };
+  const total = normalized.branded + normalized.nonBranded + normalized.localSeo + normalized.broadSeo;
+  if (total <= 0) return DEFAULT_QUESTION_MIX;
+  if (total > 20) {
+    let overflow = total - 20;
+    (["broadSeo", "localSeo", "nonBranded", "branded"] as Array<keyof QuestionMix>).forEach((key) => {
+      if (overflow <= 0) return;
+      const removed = Math.min(normalized[key], overflow);
+      normalized[key] -= removed;
+      overflow -= removed;
+    });
+  } else if (total < 20) return DEFAULT_QUESTION_MIX;
+  return normalized;
+}
+
+function isLowQualityGeneratedQuestion(
+  value: string,
+  type: "branded" | "non-branded" | "local-seo" | "broad-seo" = "non-branded"
+): boolean {
+  const raw = String(value || "")
+    .replace(/[“”]/g, "\"")
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/^["']|["']$/g, "");
+
+  if (!raw) return true;
+
+  const wordCount = (raw.match(/\b[a-z0-9]+\b/g) || []).length;
+  if (type === "branded") {
+    return wordCount <= 2 || raw.includes("??");
+  }
+
+  if (wordCount <= 4) return true;
+  if (raw.includes("??")) return true;
+  const advicePatterns = [
+    /^what should i look for\b/,
+    /^how (do|can|should) i compare\b/,
+    /^how (do|can|should) i check\b/,
+    /^what is the best way to\b/,
+    /^what's the best way to\b/,
+    /^how (do|can|should) i choose\b/,
+    /^how (do|can|should) i decide\b/,
+  ];
+  if (advicePatterns.some((pattern) => pattern.test(raw))) return true;
+  if (/\b(business|company|place)\b/.test(raw)) return true;
+  if (raw.includes(" options for ") && wordCount <= 8) return true;
+
+  const thinBestPatterns = [
+    /^best\s+[a-z0-9 &'-]+\s+in\s+[a-z0-9 ,&'-]+\?$/,
+    /^best\s+[a-z0-9 &'-]+\s+near\s+[a-z0-9 ,&'-]+\?$/,
+    /^best\s+[a-z0-9 &'-]+\s+around\s+[a-z0-9 ,&'-]+\?$/,
+    /^best\s+[a-z0-9 &'-]+\s+options\s+for\s+[a-z0-9 ,&'-]+\?$/,
+  ];
+
+  return wordCount <= 8 && thinBestPatterns.some((pattern) => pattern.test(raw));
+}
+
+function QueryGenerationLoader({
+  businessName,
+  targets,
+  counts,
+  isGenerating,
+  onGenerate,
+}: {
+  businessName: string;
+  targets: QuestionMix;
+  counts: QuestionMix;
+  isGenerating: boolean;
+  onGenerate: () => void;
+}) {
+  const totalTarget = QUESTION_CATEGORIES.reduce((sum, item) => sum + targets[item.key], 0);
+  const totalFound = QUESTION_CATEGORIES.reduce((sum, item) => sum + Math.min(counts[item.key], targets[item.key]), 0);
+  const progress = totalTarget > 0 ? Math.round((totalFound / totalTarget) * 100) : 0;
+  const circumference = 2 * Math.PI * 34;
+  const dashOffset = circumference - (circumference * Math.min(progress, 100)) / 100;
+
+  return (
+    <div className="w-full max-w-[760px] mx-auto">
+      <div className="flex flex-col items-center gap-5">
+        <div className="flex items-center gap-5">
+          <div className="relative w-[96px] h-[96px] shrink-0">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="34" fill="none" stroke="#eee8dc" strokeWidth="8" />
+            <circle
+              cx="50"
+              cy="50"
+              r="34"
+              fill="none"
+              stroke="#15463b"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              className={`transition-all duration-700 ease-out ${isGenerating ? "animate-pulse" : ""}`}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[24px] font-medium text-[#15463b] leading-none">{totalFound}</span>
+            <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#9b927f]">of {totalTarget}</span>
+          </div>
+        </div>
+
+          <div className="text-left">
+            <p className="text-[15px] font-medium text-[#15463b]">
+              {isGenerating ? "Generating questions" : "No generated questions yet"}
+            </p>
+            <p className="mt-1 text-[12.5px] text-[#8a8273]">
+              {isGenerating ? "This can take 1-5 minutes." : `Ready for ${businessName}.`}
+            </p>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={isGenerating}
+              className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-[#15463b] bg-[#15463b] px-4 text-[12.5px] font-medium text-white transition-colors hover:bg-[#1a5c44] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isGenerating ? "Generating..." : "Generate questions"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid w-full grid-cols-2 lg:grid-cols-4 gap-3">
+            {QUESTION_CATEGORIES.map((item) => {
+              const target = targets[item.key];
+              const found = Math.min(counts[item.key], target);
+              const categoryPct = target > 0 ? Math.round((found / target) * 100) : 100;
+              const smallCircumference = 2 * Math.PI * 18;
+              const smallDashOffset = smallCircumference - (smallCircumference * Math.min(categoryPct, 100)) / 100;
+
+              return (
+                <div key={item.key} className="rounded-xl border border-[#ece3d1] bg-[#fdfcf8] px-3 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-11 w-11 shrink-0">
+                      <svg className="h-full w-full -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
+                        <circle cx="24" cy="24" r="18" fill="none" stroke="#eee8dc" strokeWidth="5" />
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r="18"
+                          fill="none"
+                          stroke="#15463b"
+                          strokeWidth="5"
+                          strokeLinecap="round"
+                          strokeDasharray={smallCircumference}
+                          strokeDashoffset={smallDashOffset}
+                          className={`transition-all duration-700 ease-out ${isGenerating ? "animate-pulse" : ""}`}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center text-[10.5px] font-medium text-[#15463b]">
+                        {found}/{target}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[12.5px] font-medium text-[#2c2821]">{item.label}</div>
+                      <div className="mt-0.5 text-[10.5px] text-[#9b927f]">{item.hint}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QueryPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
@@ -62,7 +266,14 @@ export default function QueryPage() {
   const [activeStatus, setActiveStatus] = useState("all");
   
   const [queriesList, setQueriesList] = useState<SearchQueryItem[]>([]);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [questionGenerationTargets, setQuestionGenerationTargets] = useState<QuestionMix>(DEFAULT_QUESTION_MIX);
+  const [questionGenerationCounts, setQuestionGenerationCounts] = useState<QuestionMix>({
+    branded: 0,
+    nonBranded: 0,
+    localSeo: 0,
+    broadSeo: 0,
+  });
 
   const [selectedQuery, setSelectedQuery] = useState<SearchQueryItem | null>(null);
   const [sourcesQuery, setSourcesQuery] = useState<SearchQueryItem | null>(null);
@@ -73,12 +284,17 @@ export default function QueryPage() {
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const questionProgressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const domain = activeBusiness?.url || "https://thegallivant.co.uk/";
   const rawBusinessName = activeBusiness?.name || "The Gallivant";
   const businessName = isGenericName(rawBusinessName) ? cleanBrandNameFromDomain(domain) : rawBusinessName;
   const category = activeBusiness?.category || "Restaurant & Hotel";
   const location = activeBusiness?.location || "Camber, Rye, UK";
+  const savedQuestionMix = useMemo(
+    () => normalizeQuestionMix(activeBusiness?.questionGeneration as Partial<QuestionMix> | undefined),
+    [activeBusiness?.questionGeneration],
+  );
 
   // Calculate live dynamic Model Scores strictly for each specific model
   const modelScores = useMemo(() => {
@@ -106,7 +322,7 @@ export default function QueryPage() {
 
   const getCacheKey = useCallback((targetUrl: string) => {
     const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-    return `wonder_query_cache_${clean}`;
+    return `wonder_query_cache_${QUERY_CACHE_VERSION}_${clean}`;
   }, []);
 
   const getActiveJobKey = useCallback((targetUrl: string) => {
@@ -134,6 +350,40 @@ export default function QueryPage() {
     } catch {}
   }, [domain, getActiveJobKey]);
 
+  const stopQuestionProgressTimer = useCallback(() => {
+    if (questionProgressTimerRef.current) {
+      clearInterval(questionProgressTimerRef.current);
+      questionProgressTimerRef.current = null;
+    }
+  }, []);
+
+  const startQuestionProgressTimer = useCallback((targets: QuestionMix) => {
+    stopQuestionProgressTimer();
+    setQuestionGenerationTargets(targets);
+    setQuestionGenerationCounts({ branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
+
+    const keys: Array<keyof QuestionMix> = ["branded", "nonBranded", "localSeo", "broadSeo"];
+    const totalTarget = keys.reduce((sum, key) => sum + Math.max(0, targets[key] || 0), 0);
+    let visibleStep = 0;
+
+    const makeDisplayCounts = (step: number) => {
+      let remaining = Math.min(step, totalTarget);
+      return keys.reduce<QuestionMix>((acc, key) => {
+        const target = Math.max(0, targets[key] || 0);
+        const value = Math.min(target, remaining);
+        acc[key] = value;
+        remaining = Math.max(0, remaining - value);
+        return acc;
+      }, { branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
+    };
+
+    setQuestionGenerationCounts(makeDisplayCounts(visibleStep));
+    questionProgressTimerRef.current = setInterval(() => {
+      visibleStep = totalTarget > 0 ? Math.min(totalTarget, visibleStep + 1) : 0;
+      setQuestionGenerationCounts(makeDisplayCounts(visibleStep));
+    }, 900);
+  }, [stopQuestionProgressTimer]);
+
   // 1. Check 2-Hour TTL Cache
   const loadCachedQueries = useCallback((targetUrl: string) => {
     if (typeof window === "undefined") return null;
@@ -144,12 +394,23 @@ export default function QueryPage() {
 
       const parsed = JSON.parse(raw);
       if (parsed && parsed.timestamp && (Date.now() - parsed.timestamp < TWO_HOURS_MS)) {
-        return parsed.queries || null;
+        const queries = Array.isArray(parsed.queries) ? parsed.queries : null;
+        if (!queries) return null;
+        return queries.filter((item: SearchQueryItem) => !isLowQualityGeneratedQuestion(item.query));
       }
     } catch {
       return null;
     }
     return null;
+  }, [getCacheKey]);
+
+  const clearCachedQueries = useCallback((targetUrl: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const cacheKey = getCacheKey(targetUrl);
+      sessionStorage.removeItem(cacheKey);
+      localStorage.removeItem(cacheKey);
+    } catch {}
   }, [getCacheKey]);
 
   // Save to 2-Hour Cache
@@ -178,12 +439,20 @@ export default function QueryPage() {
 
     try {
       setIsLoadingQuestions(true);
+      const avoidQuestions = forceRefresh
+        ? queriesList.map((item) => item.query).filter(Boolean)
+        : [];
+      if (forceRefresh) {
+        clearCachedQueries(domain);
+        setQueriesList([]);
+      }
+      const qgMix = savedQuestionMix;
+      startQuestionProgressTimer(qgMix);
       if (forceRefresh) {
         showToast(`Generating fresh AI search prompts for ${businessName}. This can take 1-5 minutes.`, "info");
       }
 
       const cleanUrl = domain.startsWith("http") ? domain : `https://${domain}`;
-      const qgMix = activeBusiness?.questionGeneration || { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 };
       const serviceList = Array.isArray(activeBusiness?.services)
         ? activeBusiness.services
         : String(activeBusiness?.services || "")
@@ -203,6 +472,7 @@ export default function QueryPage() {
           description: activeBusiness?.description || activeBusiness?.aiDescription,
           services: serviceList,
           questionGeneration: qgMix,
+          avoidQuestions,
         }),
       }).catch((err) => {
         generationError = err?.message || "Backend question generation failed.";
@@ -214,7 +484,23 @@ export default function QueryPage() {
         const nb = qgMix.nonBranded ?? 5;
         const l = qgMix.localSeo ?? 5;
 
-        const mapped: SearchQueryItem[] = res.questions.map((qStr: string, idx: number) => {
+        type GeneratedQuestionRow = {
+          query: string;
+          type: "branded" | "non-branded" | "local-seo" | "broad-seo";
+          label: string;
+        };
+
+        const questionGroups = res.questionGroups && typeof res.questionGroups === "object" ? res.questionGroups : null;
+        const groupedQuestions = questionGroups
+          ? [
+              ...((questionGroups.branded || []) as string[]).map((query) => ({ query, type: "branded" as const, label: "Branded" })),
+              ...((questionGroups.nonBranded || []) as string[]).map((query) => ({ query, type: "non-branded" as const, label: "Non-Branded" })),
+              ...((questionGroups.localSeo || []) as string[]).map((query) => ({ query, type: "local-seo" as const, label: "Local SEO" })),
+              ...((questionGroups.broadSeo || []) as string[]).map((query) => ({ query, type: "broad-seo" as const, label: "Broad SEO" })),
+            ].filter((item) => String(item.query || "").trim()) as GeneratedQuestionRow[]
+          : null;
+
+        const fallbackQuestions: GeneratedQuestionRow[] = res.questions.map((qStr: string, idx: number) => {
           let type: "branded" | "non-branded" | "local-seo" | "broad-seo" = "broad-seo";
           let label = "Broad SEO";
 
@@ -232,12 +518,18 @@ export default function QueryPage() {
             label = "Broad SEO";
           }
 
+          return { query: qStr, type, label };
+        });
+
+        const validQuestions = (groupedQuestions || fallbackQuestions).filter((item) => !isLowQualityGeneratedQuestion(item.query, item.type));
+
+        const mapped: SearchQueryItem[] = validQuestions.map((item: GeneratedQuestionRow, idx: number) => {
           // Initial un-audited state (Pending Run until user clicks "Run")
           return {
             id: idx + 1,
-            type,
-            label,
-            query: qStr,
+            type: item.type,
+            label: item.label,
+            query: item.query,
             status: "Pending" as any,
             rank: null,
             sources: [],
@@ -247,33 +539,66 @@ export default function QueryPage() {
           };
         });
 
+        const exactCounts = validQuestions.reduce<QuestionMix>((acc, item) => {
+          if (item.type === "branded") acc.branded += 1;
+          if (item.type === "non-branded") acc.nonBranded += 1;
+          if (item.type === "local-seo") acc.localSeo += 1;
+          if (item.type === "broad-seo") acc.broadSeo += 1;
+          return acc;
+        }, { branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
+
+        stopQuestionProgressTimer();
+        setQuestionGenerationCounts(exactCounts);
+
         setQueriesList(mapped);
         saveCachedQueries(domain, mapped);
 
         if (forceRefresh) {
           showToast(`Generated ${mapped.length} new AI search prompts matching ratio settings! Click "Run" to analyze.`, "success");
         }
+        await new Promise((resolve) => setTimeout(resolve, 850));
       } else {
+        stopQuestionProgressTimer();
         setQueriesList([]);
         showToast(generationError || "Could not generate live questions. Please check business profile details.", "error");
       }
     } catch (err) {
+      stopQuestionProgressTimer();
       console.error("Failed to generate questions:", err);
       showToast("Error generating questions from backend", "error");
     } finally {
       setIsLoadingQuestions(false);
     }
-  }, [domain, businessName, category, location, activeBusiness, showToast, loadCachedQueries, saveCachedQueries]);
+  }, [domain, businessName, category, location, activeBusiness, savedQuestionMix, queriesList, showToast, loadCachedQueries, clearCachedQueries, saveCachedQueries, startQuestionProgressTimer, stopQuestionProgressTimer]);
 
   useEffect(() => {
-    loadOrGenerateQuestions(false);
-  }, [loadOrGenerateQuestions]);
+    const cached = loadCachedQueries(domain);
+    setQuestionGenerationTargets(savedQuestionMix);
+
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setQueriesList(cached);
+      const cachedCounts = cached.reduce<QuestionMix>((acc: QuestionMix, item: SearchQueryItem) => {
+        if (item.type === "branded") acc.branded += 1;
+        if (item.type === "non-branded") acc.nonBranded += 1;
+        if (item.type === "local-seo") acc.localSeo += 1;
+        if (item.type === "broad-seo") acc.broadSeo += 1;
+        return acc;
+      }, { branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
+      setQuestionGenerationCounts(cachedCounts);
+    } else {
+      setQueriesList([]);
+      setQuestionGenerationCounts({ branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
+    }
+
+    setIsLoadingQuestions(false);
+  }, [domain, savedQuestionMix, loadCachedQueries]);
 
   // Clean up timers & eventSource on unmount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (eventSourceRef.current) eventSourceRef.current.close();
+      if (questionProgressTimerRef.current) clearInterval(questionProgressTimerRef.current);
     };
   }, []);
 
@@ -615,19 +940,19 @@ export default function QueryPage() {
           onOpenAddModal={() => setIsAddModalOpen(true)}
           onRunAudit={handleStartScan}
           onRegeneratePrompts={() => loadOrGenerateQuestions(true)}
+          showActions={queriesList.length > 0}
         />
 
-        {/* Dynamic Loading Spinner or Query Table */}
-        {isLoadingQuestions ? (
-          <div className="py-16 text-center flex flex-col items-center justify-center border border-dashed border-[#ece3d1] rounded-xl bg-[#fdfcf8] my-3">
-            <WonderscoreSpinner
-              size={48}
-              label={`Generating AI search prompts for ${businessName}`}
-              note="This can take 1-5 minutes. You can move around the dashboard and come back."
+        {/* Question generation state or Query Table */}
+        {isLoadingQuestions || queriesList.length === 0 ? (
+          <div className="py-9 md:py-10 px-4 border border-dashed border-[#ece3d1] rounded-xl bg-[#fcfaf5] my-3">
+            <QueryGenerationLoader
+              businessName={businessName}
+              targets={questionGenerationTargets}
+              counts={questionGenerationCounts}
+              isGenerating={isLoadingQuestions}
+              onGenerate={() => loadOrGenerateQuestions(true)}
             />
-            <p className="text-[13px] text-[#8a8273] max-w-[420px] mx-auto mt-2 font-normal">
-              Building 20 search questions from the saved business profile.
-            </p>
           </div>
         ) : (
           <>
