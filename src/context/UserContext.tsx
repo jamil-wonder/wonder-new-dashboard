@@ -91,20 +91,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(false);
       }
     } catch {
-      // Fallback: if token exists but offline, check local storage
       if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("wonder_user");
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            if (parsed.email) {
-              setUser(parsed);
-              setIsAuthenticated(true);
-              setIsLoading(false);
-              return;
-            }
-          } catch {}
-        }
+        localStorage.removeItem("wonder_token");
+        localStorage.removeItem("wonder_user");
       }
       setUser(null);
       setIsAuthenticated(false);
@@ -141,18 +130,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err: any) {
-      const prof: UserProfile = {
-        id: "user-demo",
-        email: emailStr,
-        full_name: emailStr.split("@")[0].toUpperCase() || "Marcus Reed",
-        role: "admin",
-      };
-      setUser(prof);
-      setIsAuthenticated(true);
       if (typeof window !== "undefined") {
-        localStorage.setItem("wonder_token", "wonder_demo_token_12345");
-        localStorage.setItem("wonder_user", JSON.stringify(prof));
+        localStorage.removeItem("wonder_token");
+        localStorage.removeItem("wonder_user");
       }
+      setUser(null);
+      setIsAuthenticated(false);
+      throw err;
     }
   };
 
@@ -179,19 +163,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("wonder_user", JSON.stringify(prof));
         }
       }
-    } catch {
-      const prof: UserProfile = {
-        id: "user-new",
-        email: emailStr,
-        full_name: nameStr,
-        role: "user",
-      };
-      setUser(prof);
-      setIsAuthenticated(true);
+    } catch (err) {
       if (typeof window !== "undefined") {
-        localStorage.setItem("wonder_token", "wonder_demo_token_12345");
-        localStorage.setItem("wonder_user", JSON.stringify(prof));
+        localStorage.removeItem("wonder_token");
+        localStorage.removeItem("wonder_user");
       }
+      setUser(null);
+      setIsAuthenticated(false);
+      throw err;
     }
   };
 

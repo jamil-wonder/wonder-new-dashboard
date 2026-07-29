@@ -9,7 +9,6 @@ import AddPromptModal from "../../components/query/AddPromptModal";
 import SourcesModal from "../../components/query/SourcesModal";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { WonderscoreSpinner } from "../../components/ui/WonderscoreSpinner";
-import { MOCK_QUERIES } from "../../constants/mockData";
 import { SearchQueryItem } from "../../types/dashboard";
 import { useBusiness, isGenericName, cleanBrandNameFromDomain } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
@@ -159,6 +158,12 @@ export default function QueryPage() {
 
       const cleanUrl = domain.startsWith("http") ? domain : `https://${domain}`;
       const qgMix = activeBusiness?.questionGeneration || { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 };
+      const serviceList = Array.isArray(activeBusiness?.services)
+        ? activeBusiness.services
+        : String(activeBusiness?.services || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
 
       const res = await fetchApi<any>("/api/phase5/generate-questions", {
         method: "POST",
@@ -169,7 +174,7 @@ export default function QueryPage() {
           category,
           location,
           description: activeBusiness?.description || activeBusiness?.aiDescription,
-          services: activeBusiness?.services || [],
+          services: serviceList,
           questionGeneration: qgMix,
         }),
       }).catch(() => null);
@@ -219,15 +224,8 @@ export default function QueryPage() {
           showToast(`Generated ${mapped.length} new AI search prompts matching ratio settings! Click "Run" to analyze.`, "success");
         }
       } else {
-        // Fallback initial questions (un-audited)
-        const unAuditedMock: SearchQueryItem[] = MOCK_QUERIES.map((q) => ({
-          ...q,
-          status: "Pending" as any,
-          rank: null,
-          sources: [],
-          resultsByModel: undefined,
-        }));
-        setQueriesList(unAuditedMock);
+        setQueriesList([]);
+        showToast("Could not generate live questions. Please check login and business profile details.", "error");
       }
     } catch (err) {
       console.error("Failed to generate questions:", err);
@@ -552,12 +550,13 @@ export default function QueryPage() {
         ) : (
           <>
             {/* Table Header */}
-            <div className="flex items-center px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]">
-              <div className="w-[5%]">No.</div>
-              <div className="flex-1 pl-2.5">Generated Search Query</div>
-              <div className="w-[14%] text-center">Status</div>
-              <div className="w-[10%] text-center">Rank</div>
-              <div className="w-[28%] text-right">Cited Sources</div>
+            <div className="grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]">
+              <div>No.</div>
+              <div>Type</div>
+              <div>Generated Search Query</div>
+              <div className="text-center">Status</div>
+              <div className="text-center">Rank</div>
+              <div className="text-right">Sources</div>
             </div>
 
             <QueryTable

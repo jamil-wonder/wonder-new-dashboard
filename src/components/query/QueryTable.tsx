@@ -93,49 +93,51 @@ export default function QueryTable({
                   onSelectQuery(q);
                 }
               }}
-              className={`row-hover flex items-center border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
+              className={`row-hover grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
                 isAudited ? "hover:border-[#d9cbaf] hover:shadow-xs cursor-pointer" : "cursor-default opacity-90"
               }`}
             >
-              <div className="w-[5%] text-[13px] font-semibold text-[#c2b69c]">
+              <div className="text-[12.5px] font-semibold text-[#c2b69c]">
                 #{q.id}
               </div>
               
-              <div className="flex-1 pl-2.5 flex items-center gap-3 min-w-0 pr-4">
-                <span
-                  className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded shrink-0"
-                  style={{ color: typeColor, backgroundColor: typeBg }}
-                >
-                  {q.label}
-                </span>
-                <span className="text-[14px] font-medium text-[#1c1a16] tracking-tight leading-snug truncate max-w-full">
-                  "{q.query}"
+              <span
+                className="justify-self-start text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded shrink-0 max-w-[86px] truncate"
+                style={{ color: typeColor, backgroundColor: typeBg }}
+                title={q.label}
+              >
+                {q.label}
+              </span>
+
+              <div className="min-w-0 pr-2">
+                <span className="block text-[14px] font-medium text-[#1c1a16] tracking-tight leading-snug whitespace-normal break-words">
+                  &ldquo;{q.query}&rdquo;
                 </span>
               </div>
 
               {/* Light & Crisp Distinct Status Pills */}
-              <div className="w-[14%] text-center shrink-0">
+              <div className="text-center">
                 {isAudited ? (
                   isMentioned ? (
-                    <span className="text-[12px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-3 py-1 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#15803d]" />
+                    <span className="text-[11px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2 py-1 rounded-lg inline-flex items-center gap-1 shadow-2xs">
+                      <CheckCircle2 className="w-3 h-3 text-[#15803d]" />
                       <span>Mentioned</span>
                     </span>
                   ) : (
-                    <span className="text-[12px] font-bold text-[#b91c1c] bg-[#fee2e2] border border-[#fca5a5] px-3 py-1 rounded-lg inline-flex items-center gap-1.5 shadow-2xs">
-                      <XCircle className="w-3.5 h-3.5 text-[#b91c1c]" />
-                      <span>Not Mentioned</span>
+                    <span className="text-[11px] font-bold text-[#b91c1c] bg-[#fee2e2] border border-[#fca5a5] px-2 py-1 rounded-lg inline-flex items-center gap-1 shadow-2xs">
+                      <XCircle className="w-3 h-3 text-[#b91c1c]" />
+                      <span>Missing</span>
                     </span>
                   )
                 ) : (
-                  <span className="text-[11.5px] font-medium text-[#8a8273] bg-[#f5f0e6] border border-[#e2d8c4] px-3 py-1 rounded-md inline-flex items-center gap-1 animate-pulse">
+                  <span className="text-[11px] font-medium text-[#8a8273] bg-[#f5f0e6] border border-[#e2d8c4] px-2 py-1 rounded-md inline-flex items-center gap-1 animate-pulse">
                     Pending...
                   </span>
                 )}
               </div>
 
               {/* Rank Column: ONLY shown if Mentioned */}
-              <div className="w-[10%] text-center shrink-0">
+              <div className="text-center">
                 {isAudited && isMentioned && rankVal ? (
                   <span className="text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-0.5 rounded-md">
                     #{rankVal}
@@ -146,7 +148,7 @@ export default function QueryTable({
               </div>
 
               {/* Cited Sources Column with Target Site Match Badge & Domain Favicons */}
-              <div className="w-[28%] text-right flex gap-1.5 justify-end items-center flex-wrap shrink-0">
+              <div className="text-right flex gap-1.5 justify-end items-center flex-wrap">
                 {isAudited ? (
                   <>
                     {/* Target Site Match Status Badge */}
