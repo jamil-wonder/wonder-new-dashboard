@@ -155,18 +155,19 @@ export default function QueryFilterBar({
           </button>
         </div>
 
+        {/* Regenerate — always visible */}
+        <button
+          onClick={onRegeneratePrompts}
+          disabled={isGenerating}
+          title="Regenerate questions using Business Profile ratios"
+          className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium bg-[#fdfcf8] text-[#15463b] border border-[#e2d8c4] hover:bg-white hover:border-[#15463b] transition-all cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+        >
+          <WonderscoreLogoIcon className="w-4 h-4 text-[#15463b]" />
+          <span>{isGenerating ? "Generating…" : "Regenerate"}</span>
+        </button>
+
         {showActions && (
           <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={onRegeneratePrompts}
-              disabled={isGenerating}
-              title="Regenerate questions using Business Profile ratios"
-              className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium bg-[#fdfcf8] text-[#15463b] border border-[#e2d8c4] hover:bg-white hover:border-[#15463b] transition-all cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
-            >
-              <WonderscoreLogoIcon className="w-4 h-4 text-[#15463b]" />
-              <span>Regenerate</span>
-            </button>
-
             <button
               onClick={onOpenAddModal}
               className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium bg-[#15463b] text-white border-none cursor-pointer hover:bg-[#1a5c44] transition-colors shrink-0 shadow-xs"

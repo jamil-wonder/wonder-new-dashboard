@@ -6,7 +6,7 @@ import {
   Phone, Mail, Clock, Link2, FileCode2, Cpu, ShieldCheck, Smartphone,
   FileSearch, Bot, BrainCircuit, MessageSquare, Sparkles, ArrowRight,
   Building2, Languages, Image as ImageIcon, BookOpen, TrendingUp, TrendingDown,
-  X
+  X, Info
 } from "lucide-react";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { WonderscoreSpinner, WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -74,6 +74,7 @@ export default function AnalyserPage() {
   const [selectedAiInsight, setSelectedAiInsight] = useState<any | null>(null);
   const [competitors, setCompetitors] = useState<any[]>([]);
   const [auditAreas, setAuditAreas] = useState<any[]>([]);
+  const [technicalInfoOpen, setTechnicalInfoOpen] = useState(false);
 
   const domain = activeBusiness?.url || "https://thegallivant.co.uk/";
   const businessName = activeBusiness?.name || "The Gallivant";
@@ -914,21 +915,34 @@ export default function AnalyserPage() {
               <ShieldCheck className="w-4 h-4 text-[#15463b]" />
               <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Technical Readiness</div>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {[
-                { icon: ShieldCheck, label: "HTTPS / SSL",        ok: s.hasSSL ?? true },
-                { icon: Smartphone,  label: "Mobile viewport",     ok: s.hasMobileMeta ?? true },
-                { icon: Globe,       label: "Canonical URL",       ok: !!s.canonicalUrl },
-                { icon: FileSearch,  label: "Sitemap.xml",         ok: s.sitemapFound ?? true },
-                { icon: Bot,         label: "Robots.txt",          ok: s.robotsTxtFound ?? true },
-                { icon: Bot,         label: "GPTBot permitted",    ok: true },
-                { icon: Bot,         label: "ClaudeBot permitted", ok: true },
-                { icon: Bot,         label: "PerplexityBot",       ok: true },
-              ].map(({ icon: Icon, label, ok }) => (
-                <div key={label} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[#fdfcf8] border border-[#ece3d1]">
+                { icon: ShieldCheck, label: "HTTPS / SSL",        ok: s.hasSSL ?? true, desc: "Encrypts visitor traffic. AI crawlers prioritize HTTPS domains for entity verification." },
+                { icon: Smartphone,  label: "Mobile Viewport",     ok: s.hasMobileMeta ?? true, desc: "Ensures mobile layout rendering so AI bots can read page content correctly." },
+                { icon: Globe,       label: "Canonical URL",       ok: !!s.canonicalUrl, desc: "Defines the main site URL to prevent search engine duplicate content penalties." },
+                { icon: FileSearch,  label: "Sitemap.xml",         ok: s.sitemapFound ?? true, desc: "Directs search engines to index all published pages and service URLs." },
+                { icon: Bot,         label: "Robots.txt",          ok: s.robotsTxtFound ?? true, desc: "Master server configuration file that controls crawler access to site paths." },
+                { icon: Bot,         label: "ChatGPT Bot Access",  ok: true, desc: "Allows OpenAI's crawler (GPTBot) to index your site for live ChatGPT answers." },
+                { icon: Bot,         label: "Claude Bot Access",   ok: true, desc: "Allows Anthropic's crawler (ClaudeBot) to index your business info for Claude." },
+                { icon: Bot,         label: "Perplexity Bot Access", ok: true, desc: "Allows Perplexity AI search crawlers to extract live citations from your site." },
+              ].map(({ icon: Icon, label, ok, desc }) => (
+                <div key={label} className="group relative flex items-center gap-2.5 p-2.5 rounded-lg bg-[#fdfcf8] border border-[#ece3d1] hover:border-[#c8dec9] transition-colors">
                   <Icon className="w-3.5 h-3.5 text-[#9b927f] shrink-0" />
-                  <span className="flex-1 text-[13px] text-[#23211b]">{label}</span>
-                  <StatusIcon ok={ok} />
+                  <span className="flex-1 text-[12.5px] font-medium text-[#23211b] truncate">{label}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusIcon ok={ok} />
+
+                    {/* Floating Tooltip Popover */}
+                    <div className="relative flex items-center">
+                      <Info className="w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer" />
+                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block w-[240px] bg-[#15463b] text-white text-[11.5px] leading-snug p-2.5 rounded-xl shadow-xl z-30 pointer-events-none transition-all">
+                        <div className="font-semibold text-[#a8d860] mb-0.5">{label}</div>
+                        {desc}
+                        <div className="absolute right-2 -bottom-1 w-2 h-2 bg-[#15463b] rotate-45"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -972,43 +986,6 @@ export default function AnalyserPage() {
           </div>
         </div>
       </div>
-
-      {/* ── Competitor Score Comparison ─────────────────────────────────── */}
-      <div className={`bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <ArrowRight className="w-4 h-4 text-[#9a8a5e]" />
-            <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
-              Competitor Score Comparison
-            </div>
-          </div>
-          <span className="text-[12.5px] text-[#8a8273]">
-            {competitors[0]?.isUser
-              ? `🏆 #1 Market Leader · ${competitors[0].name}`
-              : competitors[0]?.score
-              ? `${Math.max(0, (competitors[0]?.score || 0) - (s.scores?.total || 91))} points behind #1 · ${competitors[0].name}`
-              : "Live rank calculated"}
-          </span>
-        </div>
-        <div className="flex flex-col gap-2">
-          {competitors.map((comp) => (
-            <div key={comp.domain || comp.rank} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-              comp.isUser ? "bg-white shadow-[0_1px_4px_rgba(60,48,28,0.08)] border border-[#ece3d1]" : "hover:bg-[#f6eee0]"
-            }`}>
-              <span className={`num text-[12px] w-4 text-center shrink-0 ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#9b927f]"}`}>{comp.rank}</span>
-              <span className={`flex-1 text-[13.5px] ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b]"}`}>
-                {comp.name || comp.domain} {comp.isUser && <span className="font-normal text-[#9b927f] text-[11px] ml-1">You</span>}
-                {comp.change === "NEW" && <span className="font-mono-spline text-[8.5px] tracking-wider text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.5 rounded ml-1.5 align-middle">NEW</span>}
-              </span>
-              <div className="w-[140px] h-[6px] bg-[#ece0c4] rounded-full overflow-hidden shrink-0">
-                <div className={`h-full ${comp.isUser ? "bg-[#1e7d4f]" : "bg-[#c2b69c]"}`} style={{ width: `${comp.score}%` }} />
-              </div>
-              <span className={`num text-[15px] font-bold w-8 text-right shrink-0 ${comp.isUser ? "text-[#1a5c44]" : "text-[#23211b]"}`}>{comp.score}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </div>
   );
 }

@@ -86,13 +86,9 @@ export default function NavTabs() {
               />
               <span>{item.label}</span>
 
-              {/* Framer-Motion Gliding Active Indicator */}
+              {/* Clean Active Tab Underline */}
               {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#15463b]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
+                <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#15463b] rounded-full transition-all duration-200" />
               )}
             </Link>
           );

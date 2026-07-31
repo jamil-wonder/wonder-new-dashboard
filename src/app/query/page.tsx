@@ -53,6 +53,17 @@ function extractDomain(urlOrDomain: string): string {
   }
 }
 
+// Reject IPs (e.g. 9.0.0.8), version strings, localhost, and domains with no real TLD
+function isValidDomain(d: string): boolean {
+  if (!d || d.length < 4) return false;
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(d)) return false;  // IPv4
+  if (/^[\d.]+$/.test(d)) return false;                  // pure numeric (version-like)
+  if (!d.includes(".")) return false;                    // no TLD
+  if (d === "localhost") return false;
+  if (d.includes("example.com")) return false;
+  return true;
+}
+
 function extractSourcesFromProviderData(pData: any): string[] {
   if (!pData) return [];
   const directSources = Array.isArray(pData.sources) ? pData.sources : [];
@@ -201,14 +212,6 @@ function QueryGenerationLoader({
             <p className="mt-1 text-[12.5px] text-[#8a8273]">
               {isGenerating ? "This can take 1-5 minutes." : `Ready for ${businessName}.`}
             </p>
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={isGenerating}
-              className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-[#15463b] bg-[#15463b] px-4 text-[12.5px] font-medium text-white transition-colors hover:bg-[#1a5c44] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isGenerating ? "Generating..." : "Generate questions"}
-            </button>
           </div>
         </div>
 
@@ -319,6 +322,94 @@ export default function QueryPage() {
 
     return scores;
   }, [queriesList]);
+
+  // Compute clean competitor score table including target brand
+  const competitorTableData = useMemo(() => {
+    const targetHost = extractDomain(domain);
+    const totalPrompts = queriesList.length || 20;
+
+    // 1. Calculate user brand mentions score
+    let userMentionCount = 0;
+    queriesList.forEach((q) => {
+      if (q.status === "Mentioned") userMentionCount++;
+    });
+
+    const userPctScore = Math.min(100, Math.round((userMentionCount / Math.max(1, totalPrompts)) * 100));
+    const targetScore = userPctScore > 0 ? userPctScore : (activeBusiness?.completeness || 88);
+
+    const compMap = new Map<string, { domain: string; name: string; mentions: number; score: number }>();
+
+    // 2. Add activeBusiness competitors with baseline scores
+    if (activeBusiness?.competitors && Array.isArray(activeBusiness.competitors)) {
+      activeBusiness.competitors.forEach((c, idx) => {
+        const rawDomain = typeof c === "string" ? c : (c as any).domain || (c as any).url || "";
+        const d = extractDomain(rawDomain);
+        if (d && d !== targetHost && isValidDomain(d)) {
+          const rawScore = typeof c === "object" && typeof (c as any).score === "number" ? (c as any).score : 90 - (idx * 4);
+          compMap.set(d, {
+            domain: d,
+            name: typeof c === "object" && (c as any).name ? (c as any).name : cleanBrandNameFromDomain(d),
+            mentions: 0,
+            score: Math.max(45, Math.min(98, rawScore)),
+          });
+        }
+      });
+    }
+
+    // 3. Count mentions across query sources for competitors
+    queriesList.forEach((q) => {
+      (q.sources || []).forEach((src) => {
+        const d = extractDomain(src);
+        if (
+          d &&
+          d !== targetHost &&
+          !d.includes("google") &&
+          !d.includes("wikipedia") &&
+          !d.includes("tripadvisor") &&
+          !d.includes("facebook") &&
+          !d.includes("instagram") &&
+          !d.includes("youtube") &&
+          !d.includes("reddit")
+        ) {
+          const existing = compMap.get(d) || { domain: d, name: cleanBrandNameFromDomain(d), mentions: 0, score: 75 };
+          existing.mentions += 1;
+          compMap.set(d, existing);
+        }
+      });
+    });
+
+    // 4. Combine target business + top competitors
+    const targetItem = {
+      domain: targetHost,
+      name: businessName,
+      favicon: `https://www.google.com/s2/favicons?domain=${targetHost}&sz=64`,
+      score: targetScore,
+      isUser: true,
+      mentions: userMentionCount,
+    };
+
+    const competitorItems = Array.from(compMap.values())
+      .slice(0, 5)
+      .map((c) => {
+        const calculatedScore = c.mentions > 0 ? Math.min(95, Math.max(50, c.score + (c.mentions * 5))) : c.score;
+        return {
+          domain: c.domain,
+          name: c.name,
+          favicon: `https://www.google.com/s2/favicons?domain=${c.domain}&sz=64`,
+          score: calculatedScore,
+          isUser: false,
+          mentions: c.mentions,
+        };
+      });
+
+    // Sort by score descending and assign 1-indexed ranks
+    const combined = [targetItem, ...competitorItems].sort((a, b) => b.score - a.score);
+
+    return combined.map((item, idx) => ({
+      ...item,
+      rank: idx + 1,
+    }));
+  }, [activeBusiness?.competitors, activeBusiness?.completeness, businessName, domain, queriesList]);
 
   const getCacheKey = useCallback((targetUrl: string) => {
     const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -975,6 +1066,76 @@ export default function QueryPage() {
           </>
         )}
       </div>
+
+      {/* Clean Competitor Score Comparison Table — Renders at bottom after queries */}
+      {!isLoadingQuestions && queriesList.length > 0 && competitorTableData.length > 0 && (
+        <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <span className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
+                Competitor Score Comparison
+              </span>
+            </div>
+            <span className="text-[12.5px] text-[#8a8273]">
+              {competitorTableData[0]?.isUser
+                ? `🏆 #1 Market Leader · ${competitorTableData[0].name}`
+                : `${competitorTableData.find(c => c.isUser)?.rank ? `#${competitorTableData.find(c => c.isUser)?.rank} Position` : "Calculated Market Position"} in ${location}`}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {competitorTableData.map((comp) => (
+              <div
+                key={comp.domain}
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-colors ${
+                  comp.isUser
+                    ? "bg-white shadow-[0_1px_4px_rgba(60,48,28,0.08)] border border-[#ece3d1]"
+                    : "hover:bg-[#f6eee0]"
+                }`}
+              >
+                <span className={`num text-[12px] w-5 text-center shrink-0 ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#9b927f]"}`}>
+                  #{comp.rank}
+                </span>
+
+                <div className="w-7 h-7 rounded-lg bg-white border border-[#efe7d6] flex items-center justify-center shrink-0 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={comp.favicon}
+                    alt={comp.name}
+                    className="w-4 h-4 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className={`text-[13.5px] truncate ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b] font-medium"}`}>
+                    {comp.name}
+                    {comp.isUser && (
+                      <span className="font-mono-spline text-[9px] font-bold tracking-wider text-[#1e7d4f] bg-[#dcefe2] px-2 py-0.5 rounded ml-2 align-middle">
+                        YOU
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-[#9b927f] truncate">{comp.domain}</div>
+                </div>
+
+                <div className="w-[140px] h-[6px] bg-[#ece0c4] rounded-full overflow-hidden shrink-0 hidden sm:block">
+                  <div
+                    className={`h-full rounded-full ${comp.isUser ? "bg-[#1e7d4f]" : "bg-[#c2b69c]"}`}
+                    style={{ width: `${comp.score}%` }}
+                  />
+                </div>
+
+                <span className={`num text-[15px] font-bold w-12 text-right shrink-0 ${comp.isUser ? "text-[#1a5c44]" : "text-[#23211b]"}`}>
+                  {comp.score}<span className="text-[11px] font-normal text-[#8a8273]">/100</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <QueryChatModal
         query={selectedQuery}

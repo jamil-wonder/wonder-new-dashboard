@@ -45,7 +45,7 @@ const AVATAR_COLORS = [
 ];
 
 export default function BusinessProfilesPanel() {
-  const { activeBusiness, businesses, setBusinesses, switchBusiness, refetchBusinesses } = useBusiness();
+  const { activeBusiness, businesses, switchBusiness, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -116,9 +116,10 @@ export default function BusinessProfilesPanel() {
       await fetchApi(`/api/user/businesses/${id}`, { method: "DELETE" });
       showToast("Business profile deleted successfully!", "info");
       await refetchBusinesses();
-    } catch {
-      setBusinesses((prev) => prev.filter((b) => b.id !== id));
-      showToast("Business profile removed locally.", "info");
+    } catch (err) {
+      console.error("Delete business error:", err);
+      showToast("Could not delete this business profile. Please try again.", "error");
+      await refetchBusinesses();
     }
   };
 
@@ -157,26 +158,13 @@ export default function BusinessProfilesPanel() {
 
       showToast(editId ? "Business profile updated!" : "New business profile created!", "success");
       await refetchBusinesses();
+      setIsEditing(false);
     } catch (err) {
       console.error("Save business error:", err);
-      const updated: Partial<Business> = {
-        name: formName.trim(), url: formattedUrl, category: formCategory, location: formLocation,
-        logoUrl: formLogoUrl, description: formDesc, aiDescription: formAiDesc,
-        services: formServices, targetAudience: formAudience,
-        competitors: formCompetitors, trackedPages: formPages, questionGeneration: normalizedQG,
-        completeness: 88, initial: formName.trim().charAt(0).toUpperCase(),
-        isUserEdited: true,
-      };
-      if (editId) {
-        setBusinesses(businesses.map((p) => p.id === editId ? { ...p, ...updated } : p));
-        showToast("Business profile updated locally!", "success");
-      } else {
-        setBusinesses([...businesses, { id: `biz-${Date.now()}`, completeness: 75, ...updated } as Business]);
-        showToast("New business profile added locally!", "success");
-      }
+      showToast("Could not save this business profile. Please check the details and try again.", "error");
+      await refetchBusinesses();
     } finally {
       setIsSubmitting(false);
-      setIsEditing(false);
     }
   };
 
@@ -198,7 +186,6 @@ export default function BusinessProfilesPanel() {
               { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://thegallivant.co.uk/", req: true },
               { label: "Category", val: formCategory, set: setFormCategory, ph: "Restaurant & Hotel" },
               { label: "Location", val: formLocation, set: setFormLocation, ph: "Camber, Rye, UK" },
-              { label: "Logo / Favicon URL", val: formLogoUrl, set: setFormLogoUrl, ph: "https://thegallivant.co.uk/favicon.ico" },
             ].map(({ label, val, set, ph, req }) => (
               <div key={label}>
                 <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">{label}</label>

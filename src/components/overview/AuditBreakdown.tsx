@@ -36,7 +36,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
     <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_0.92fr] gap-4 mt-4 mb-5">
 
       {/* ── Six Audit Areas Card ── */}
-      <div className="bg-[#fdeef1] border border-[#f6d9e0] rounded-[14px] p-5 md:p-[22px_24px]">
+      <div className="bg-[#fdeef1] border border-[#f6d9e0] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col">
         <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#a86d7e]">
           The full picture · six areas behind your score
         </div>
@@ -49,7 +49,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 mt-[18px]">
+          <div className="flex flex-col flex-1 justify-between mt-[18px]">
             {auditAreas.slice(0, 6).map((item) => {
               const IconComponent = ICON_MAP[item.iconName] || FileText;
               const barColor = item.barColor || getBarColor(item.score);

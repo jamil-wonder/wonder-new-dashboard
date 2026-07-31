@@ -8,9 +8,9 @@ export default function IntegrationsPanel() {
       title: "Google Search Console",
       type: "Analytics",
       iconPath: "/icons/sidebar/analytics.svg",
-      connected: true,
+      connected: false,
       desc: "Track search console clicks, impressions, and ranking slots directly.",
-      action: "Connected",
+      action: "Coming soon",
       brandColor: "#4285f4",
       bgColor: "#eef4fe",
     },
@@ -18,9 +18,9 @@ export default function IntegrationsPanel() {
       title: "Google Analytics 4",
       type: "Analytics",
       iconPath: "/icons/sidebar/analyse.svg",
-      connected: true,
+      connected: false,
       desc: "Measure traffic sources, customer engagement, and onsite visibility.",
-      action: "Connected",
+      action: "Coming soon",
       brandColor: "#f25c05",
       bgColor: "#fef1eb",
     },
@@ -92,11 +92,9 @@ export default function IntegrationsPanel() {
                   <h4 className="font-bold text-[14px] text-[#23211b] truncate">{item.title}</h4>
                   <p className="font-mono-spline text-[9px] uppercase tracking-wider text-[#9b927f] mt-0.5">{item.type}</p>
                 </div>
-                {item.connected && (
-                  <span className="text-[10px] font-bold text-[#1e7d4f] bg-[#dcefe2] px-2.5 py-0.5 rounded-full uppercase whitespace-nowrap">
-                    Active
-                  </span>
-                )}
+                <span className="text-[10px] font-bold text-[#8a8273] bg-[#f5f0e6] px-2.5 py-0.5 rounded-full uppercase whitespace-nowrap">
+                  Coming soon
+                </span>
               </div>
               <p className="text-[12.5px] leading-relaxed text-[#6f6757] mt-3.5 min-h-[40px]">
                 {item.desc}
@@ -104,16 +102,12 @@ export default function IntegrationsPanel() {
             </div>
 
             <div className="mt-4 pt-3.5 border-t border-[#efe7d6]">
-              {item.connected ? (
-                <span className="text-[12.5px] font-semibold text-[#1e7d4f]">Connected</span>
-              ) : (
-                <button
-                  disabled
-                  className="w-full text-center text-[12px] font-semibold text-[#8a8273] bg-[#fdfcf8] border border-[#ece3d1] py-2 rounded-lg cursor-not-allowed"
-                >
-                  Coming soon
-                </button>
-              )}
+              <button
+                disabled
+                className="w-full text-center text-[12px] font-semibold text-[#8a8273] bg-[#fdfcf8] border border-[#ece3d1] py-2 rounded-lg cursor-not-allowed"
+              >
+                Coming soon
+              </button>
             </div>
           </div>
         ))}

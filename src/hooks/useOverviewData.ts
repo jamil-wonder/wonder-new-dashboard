@@ -4,9 +4,26 @@ import { useMemo } from "react";
 import { getScanHistory } from "../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+const QUERY_CACHE_VERSION = "v3";
 
 function cleanUrl(url: string) {
   return url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+}
+
+function normalizeDomain(value: string) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  try {
+    return new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname
+      .replace(/^www\./, "")
+      .replace(/[),.;:]+$/g, "");
+  } catch {
+    return raw
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0]
+      .replace(/[),.;:]+$/g, "");
+  }
 }
 
 function loadAnalyserCache(url: string) {
@@ -25,14 +42,175 @@ function loadAnalyserCache(url: string) {
 function loadQueryCache(url: string) {
   if (typeof window === "undefined" || !url) return null;
   const clean = cleanUrl(url);
-  const key = `wonder_query_cache_${clean}`;
+  const keys = [
+    `wonder_query_cache_${QUERY_CACHE_VERSION}_${clean}`,
+    `wonder_query_cache_${clean}`,
+  ];
   try {
-    const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed?.timestamp && Date.now() - parsed.timestamp < TWO_HOURS_MS) return parsed.queries || null;
+    for (const key of keys) {
+      const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed?.timestamp && Date.now() - parsed.timestamp < TWO_HOURS_MS) {
+        return Array.isArray(parsed.queries) ? parsed.queries : null;
+      }
+    }
   } catch {}
   return null;
+}
+
+function isMentionedResult(result: any) {
+  if (!result) return false;
+  return (
+    result.status === "Mentioned" ||
+    result.matchType === "site_matched" ||
+    result.targetSite?.status === "matched" ||
+    Boolean(result.mentioned)
+  );
+}
+
+function getQuerySources(query: any) {
+  const sources = new Set<string>();
+  const add = (value: unknown) => {
+    const normalized = normalizeDomain(String(value || ""));
+    if (normalized && normalized !== "example.com") sources.add(normalized);
+  };
+
+  if (Array.isArray(query?.sources)) query.sources.forEach(add);
+  if (query?.resultsByModel && typeof query.resultsByModel === "object") {
+    Object.values(query.resultsByModel).forEach((modelResult: any) => {
+      if (Array.isArray(modelResult?.sources)) modelResult.sources.forEach(add);
+      if (Array.isArray(modelResult?.sourceUrls)) modelResult.sourceUrls.forEach(add);
+      if (Array.isArray(modelResult?.references)) modelResult.references.forEach(add);
+    });
+  }
+
+  return Array.from(sources);
+}
+
+function parseJsonResponse(rawValue: unknown) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return null;
+  const unfenced = raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    return JSON.parse(unfenced);
+  } catch {
+    return null;
+  }
+}
+
+function collectFactLines(rawValue: unknown) {
+  const raw = String(rawValue || "");
+  const found: string[] = [];
+  const missing: string[] = [];
+
+  raw.split(/\r?\n/).forEach((line) => {
+    const clean = line.replace(/^[\s\-*•✓✕×]+/, "").trim();
+    const foundMatch = clean.match(/^Found:\s*(.+)$/i);
+    const missingMatch = clean.match(/^Missing:\s*(.+)$/i);
+    if (foundMatch?.[1]) found.push(foundMatch[1].trim());
+    if (missingMatch?.[1]) missing.push(missingMatch[1].trim());
+  });
+
+  return { found, missing };
+}
+
+function uniqueStrings(values: unknown[], limit = 4) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values.forEach((value) => {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    if (!clean || seen.has(clean.toLowerCase())) return;
+    seen.add(clean.toLowerCase());
+    result.push(clean);
+  });
+  return result.slice(0, limit);
+}
+
+function getQueryEvidence(query: any, models: string[]) {
+  const modelResults = query?.resultsByModel && typeof query.resultsByModel === "object"
+    ? Object.entries(query.resultsByModel)
+    : [];
+  const resultsToCheck: Array<[string, any]> = modelResults.length > 0
+    ? (modelResults as Array<[string, any]>)
+    : [["Result", query]];
+
+  const foundFacts: string[] = [];
+  const missingFacts: string[] = [];
+  const matchedModels: string[] = [];
+
+  resultsToCheck.forEach(([modelName, result]) => {
+    const parsed = parseJsonResponse(result?.llmResponse || result?.answerSnippet);
+    const targetSite = result?.targetSite || parsed?.target || null;
+
+    if (isMentionedResult(result) || targetSite?.status === "matched") {
+      matchedModels.push(modelName);
+    }
+
+    const targetFound = targetSite?.matchedFacts || targetSite?.matched_facts || [];
+    const targetMissing = targetSite?.missingFacts || targetSite?.missing_facts || [];
+    foundFacts.push(...(Array.isArray(targetFound) ? targetFound : []));
+    missingFacts.push(...(Array.isArray(targetMissing) ? targetMissing : []));
+
+    const lineFacts = collectFactLines([
+      result?.llmResponse,
+      result?.answerSnippet,
+      result?.reasoning,
+      result?.evidence,
+    ].filter(Boolean).join("\n"));
+    foundFacts.push(...lineFacts.found);
+    missingFacts.push(...lineFacts.missing);
+  });
+
+  const anyMentioned = models.some((model) => isMentionedResult(query?.resultsByModel?.[model]));
+
+  return {
+    query: String(query?.query || ""),
+    type: String(query?.label || query?.type || "Query"),
+    matchedModels: uniqueStrings(matchedModels, 4),
+    found: uniqueStrings(foundFacts, 3),
+    missing: uniqueStrings(missingFacts, 5),
+    isMissingMention: !anyMentioned,
+  };
+}
+
+function getModelEvidence(query: any, model: string) {
+  const result = query?.resultsByModel?.[model];
+  if (!result) return null;
+
+  const parsed = parseJsonResponse(result?.llmResponse || result?.answerSnippet);
+  const targetSite = result?.targetSite || parsed?.target || null;
+  const targetFound = targetSite?.matchedFacts || targetSite?.matched_facts || [];
+  const targetMissing = targetSite?.missingFacts || targetSite?.missing_facts || [];
+  const lineFacts = collectFactLines([
+    result?.llmResponse,
+    result?.answerSnippet,
+    result?.reasoning,
+    result?.evidence,
+  ].filter(Boolean).join("\n"));
+
+  const found = uniqueStrings([
+    ...(Array.isArray(targetFound) ? targetFound : []),
+    ...lineFacts.found,
+  ], 8);
+  const missing = uniqueStrings([
+    ...(Array.isArray(targetMissing) ? targetMissing : []),
+    ...lineFacts.missing,
+  ], 12);
+
+  if (found.length === 0 && missing.length === 0 && isMentionedResult(result)) return null;
+
+  return {
+    query: String(query?.query || ""),
+    model,
+    found,
+    missing,
+    mentioned: isMentionedResult(result),
+  };
 }
 
 export interface OverviewData {
@@ -66,6 +244,25 @@ export interface OverviewData {
   // Cited sources from queries
   citedSources: string[];
   missingCount: number;
+  queryEvidence: {
+    query: string;
+    type: string;
+    matchedModels: string[];
+    found: string[];
+    missing: string[];
+    isMissingMention: boolean;
+  }[];
+  queryModelEvidence: {
+    model: string;
+    items: {
+      query: string;
+      found: string[];
+      missing: string[];
+      mentioned: boolean;
+    }[];
+    missingCount: number;
+    foundCount: number;
+  }[];
 
   // Blog drafts from weekly cache
   blogDrafts: { title: string; excerpt?: string }[];
@@ -114,10 +311,73 @@ export function useOverviewData(url: string): OverviewData {
 
     const previousScore = scanPoints.length >= 2 ? scanPoints[scanPoints.length - 2].score : null;
 
-    // Competitors
-    const rawComps: any[] = analyserCache?.competitors || [];
+    // Competitors — built from the same queryQueries already loaded above
+    let rawComps: any[] = [];
+    const qItems = queryQueries || [];
+
+    if (qItems.length > 0 && url) {
+      const clean = cleanUrl(url);
+      const totalPrompts = qItems.length;
+
+      let userMentionCount = 0;
+      qItems.forEach((q: any) => {
+        if (q.status === "Mentioned") userMentionCount++;
+      });
+      const userPctScore = Math.min(100, Math.round((userMentionCount / Math.max(1, totalPrompts)) * 100));
+      const targetScore = userPctScore > 0 ? userPctScore : (scanData?.scores?.total || 55);
+
+      const compMap = new Map<string, { domain: string; name: string; mentions: number; score: number }>();
+
+      // Count mentions from query sources
+      qItems.forEach((q: any) => {
+        (q.sources || []).forEach((src: string) => {
+          const d = normalizeDomain(src);
+          if (
+            d &&
+            d !== clean &&
+            !d.includes("google") &&
+            !d.includes("wikipedia") &&
+            !d.includes("tripadvisor") &&
+            !d.includes("facebook") &&
+            !d.includes("instagram") &&
+            !d.includes("youtube") &&
+            !d.includes("reddit")
+          ) {
+            const existing = compMap.get(d) || {
+              domain: d,
+              name: d.split(".")[0].replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+              mentions: 0,
+              score: 75,
+            };
+            existing.mentions += 1;
+            compMap.set(d, existing);
+          }
+        });
+      });
+
+      const targetName = clean.split(".")[0].replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+      const targetItem = { name: targetName, score: targetScore, isUser: true, change: "→" };
+
+      const competitorItems = Array.from(compMap.values())
+        .map((c) => ({
+          name: c.name,
+          score: c.mentions > 0 ? Math.min(95, Math.max(50, c.score + (c.mentions * 5))) : c.score,
+          isUser: false,
+          change: "→",
+        }));
+
+      const combined = [targetItem, ...competitorItems].sort((a, b) => b.score - a.score);
+      if (combined.length > 1) {
+        rawComps = combined;
+      }
+    }
+
+    if (rawComps.length === 0) {
+      rawComps = analyserCache?.competitors || [];
+    }
+
     const competitors = rawComps.length > 0
-      ? rawComps.map((c: any, i: number) => ({
+      ? rawComps.map((c: any) => ({
           name: c.name || c.domain || "Unknown",
           score: typeof c.score === "number" ? c.score : (typeof c.visibility_score === "number" ? c.visibility_score : 0),
           isUser: Boolean(c.isUser || c.is_user),
@@ -154,7 +414,7 @@ export function useOverviewData(url: string): OverviewData {
     const models = ["ChatGPT", "Claude", "Perplexity", "Gemini"];
     const totalQueries = queryQueries?.length || 0;
     const modelMentions = models.map(model => {
-      const mentioned = queryQueries?.filter(q => q.resultsByModel?.[model]?.status === "Mentioned").length || 0;
+      const mentioned = queryQueries?.filter(q => isMentionedResult(q.resultsByModel?.[model])).length || 0;
       return { model, mentioned, total: totalQueries };
     });
 
@@ -162,14 +422,39 @@ export function useOverviewData(url: string): OverviewData {
     const sourcesSet = new Set<string>();
     if (queryQueries) {
       queryQueries.forEach(q => {
-        (q.sources || []).forEach((s: string) => sourcesSet.add(s));
+        getQuerySources(q).forEach((s) => sourcesSet.add(s));
       });
     }
-    const citedSources = Array.from(sourcesSet).slice(0, 6);
+    const citedSources = Array.from(sourcesSet).slice(0, 16);
     const missingCount = queryQueries?.filter(q => {
-      const anyMentioned = models.some(m => q.resultsByModel?.[m]?.status === "Mentioned");
+      const anyMentioned = models.some(m => isMentionedResult(q.resultsByModel?.[m]));
       return !anyMentioned;
     }).length || 0;
+    const queryEvidence = (queryQueries || [])
+      .map((query) => getQueryEvidence(query, models))
+      .filter((item) => item.query && (item.missing.length > 0 || item.found.length > 0 || item.isMissingMention))
+      .sort((a, b) => {
+        if (a.isMissingMention !== b.isMissingMention) return a.isMissingMention ? -1 : 1;
+        return b.missing.length - a.missing.length;
+      });
+    const queryModelEvidence = models.map((model) => {
+      const items = (queryQueries || [])
+        .map((query) => getModelEvidence(query, model))
+        .filter(Boolean) as {
+          query: string;
+          model: string;
+          found: string[];
+          missing: string[];
+          mentioned: boolean;
+        }[];
+
+      return {
+        model,
+        items,
+        missingCount: items.reduce((sum, item) => sum + item.missing.length, 0),
+        foundCount: items.reduce((sum, item) => sum + item.found.length, 0),
+      };
+    }).filter((group) => group.items.length > 0);
 
     // Blog drafts
     let blogDrafts: { title: string; excerpt?: string }[] = [];
@@ -215,6 +500,8 @@ export function useOverviewData(url: string): OverviewData {
       totalQueries,
       citedSources,
       missingCount,
+      queryEvidence,
+      queryModelEvidence,
       blogDrafts,
       quickWins,
       hasAnalyserData: Boolean(scanData),

@@ -28,8 +28,8 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
   const potentialGain = sorted.reduce((acc, m) => acc + (totalQueries - m.mentioned), 0);
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col justify-between">
-      <div>
+    <div className="bg-white border border-[#ece3d1] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col">
+      <div className="flex flex-col flex-1">
         <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">
           Where AI sees you
         </div>
@@ -45,8 +45,8 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
             </Link>
           </div>
         ) : (
-          <>
-            <div className="flex flex-col gap-3 mt-4">
+          <div className="flex flex-col flex-1 mt-0">
+            <div className="flex flex-col gap-3.5 mt-3.5 mb-4">
               {modelMentions.map(({ model, mentioned, total }) => {
                 const pct = total > 0 ? Math.round((mentioned / total) * 100) : 0;
                 const colors = MODEL_COLORS[model] || { bar: "#d6a23a", label: "#9a6a12" };
@@ -71,7 +71,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
               })}
             </div>
 
-            <div className="grid grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-4">
+            <div className="grid grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-auto pt-0">
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Strongest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "—"}</div>
@@ -88,7 +88,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
                 <div className="text-[11px] text-[#8a8273]">queries missing</div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 
