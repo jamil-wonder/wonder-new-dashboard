@@ -2,28 +2,13 @@
 
 import { useMemo } from "react";
 import { getScanHistory } from "../lib/api";
+import { getAllSourcesForQueries } from "../lib/querySources";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const QUERY_CACHE_VERSION = "v3";
 
 function cleanUrl(url: string) {
   return url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-}
-
-function normalizeDomain(value: string) {
-  const raw = String(value || "").trim().toLowerCase();
-  if (!raw) return "";
-  try {
-    return new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname
-      .replace(/^www\./, "")
-      .replace(/[),.;:]+$/g, "");
-  } catch {
-    return raw
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .split("/")[0]
-      .replace(/[),.;:]+$/g, "");
-  }
 }
 
 function loadAnalyserCache(url: string) {
@@ -67,25 +52,6 @@ function isMentionedResult(result: any) {
     result.targetSite?.status === "matched" ||
     Boolean(result.mentioned)
   );
-}
-
-function getQuerySources(query: any) {
-  const sources = new Set<string>();
-  const add = (value: unknown) => {
-    const normalized = normalizeDomain(String(value || ""));
-    if (normalized && normalized !== "example.com") sources.add(normalized);
-  };
-
-  if (Array.isArray(query?.sources)) query.sources.forEach(add);
-  if (query?.resultsByModel && typeof query.resultsByModel === "object") {
-    Object.values(query.resultsByModel).forEach((modelResult: any) => {
-      if (Array.isArray(modelResult?.sources)) modelResult.sources.forEach(add);
-      if (Array.isArray(modelResult?.sourceUrls)) modelResult.sourceUrls.forEach(add);
-      if (Array.isArray(modelResult?.references)) modelResult.references.forEach(add);
-    });
-  }
-
-  return Array.from(sources);
 }
 
 function parseJsonResponse(rawValue: unknown) {
@@ -299,7 +265,7 @@ function ordinal(n: number) {
   return `${n}th`;
 }
 
-export function useOverviewData(url: string): OverviewData {
+export function useOverviewData(url: string, refreshSignal?: unknown): OverviewData {
   return useMemo(() => {
     const analyserCache = loadAnalyserCache(url);
     const queryQueries: any[] | null = loadQueryCache(url);
@@ -349,14 +315,15 @@ export function useOverviewData(url: string): OverviewData {
       return { model, mentioned, total: totalQueries };
     });
 
-    // Cited sources from query results
-    const sourcesSet = new Set<string>();
-    if (queryQueries) {
-      queryQueries.forEach(q => {
-        getQuerySources(q).forEach((s) => sourcesSet.add(s));
-      });
-    }
-    const citedSources = Array.from(sourcesSet).slice(0, 16);
+    // Cited sources from query results — same shared, validated logic the
+    // Query table/sidebar use, so this can never show junk (stray
+    // version-like strings, IPs) that isn't actually a real domain, and
+    // can never disagree with what those pages show for the same run.
+    // Kept as the FULL list (not capped) so the "All Sources" sidebar shows
+    // the same true count as the Query page; components that only want a
+    // short preview (band pills, "cited alongside" list) slice it down
+    // themselves at render time.
+    const citedSources = getAllSourcesForQueries(queryQueries || []);
     const missingCount = queryQueries?.filter(q => {
       const anyMentioned = models.some(m => isMentionedResult(q.resultsByModel?.[m]));
       return !anyMentioned;
@@ -437,5 +404,12 @@ export function useOverviewData(url: string): OverviewData {
       hasAnalyserData: Boolean(scanData),
       hasQueryData: Boolean(queryQueries && queryQueries.length > 0),
     };
-  }, [url]);
+    // refreshSignal isn't read above — it's a proxy for "a Query run just
+    // completed for this business" (BusinessContext.liveDeepCompetitors
+    // updates the instant new results are saved to the session/localStorage
+    // cache this hook reads from). Without it in the deps, this memo would
+    // never see that the underlying cache changed and every figure here
+    // (missingCount, citedSources, modelMentions, ...) would stay frozen at
+    // whatever it was the first time this hook ran for this url.
+  }, [url, refreshSignal]);
 }

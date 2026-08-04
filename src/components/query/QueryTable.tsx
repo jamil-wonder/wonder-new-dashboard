@@ -3,24 +3,16 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Globe } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
+import { getAllSourcesForQuery, normalizeDomain } from "../../lib/querySources";
 
 interface QueryTableProps {
   queries: SearchQueryItem[];
   selectedModel?: string;
   onSelectQuery: (query: SearchQueryItem) => void;
-  onOpenSourcesModal?: (query: SearchQueryItem) => void;
+  onOpenSources?: (query: SearchQueryItem) => void;
 }
 
-function normalizeDomain(value: string): string {
-  const raw = (value || "").trim().toLowerCase();
-  if (!raw) return "";
-  try {
-    const host = new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname;
-    return host.replace(/^www\./, "").replace(/[),.;:]+$/g, "");
-  } catch {
-    return raw.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].replace(/[),.;:]+$/g, "");
-  }
-}
+const VISIBLE_SOURCE_COUNT = 3;
 
 function Favicon({ domain }: { domain: string }) {
   const clean = normalizeDomain(domain);
@@ -39,7 +31,7 @@ export default function QueryTable({
   queries,
   selectedModel = "ChatGPT",
   onSelectQuery,
-  onOpenSourcesModal,
+  onOpenSources,
 }: QueryTableProps) {
   if (queries.length === 0) {
     return (
@@ -73,7 +65,13 @@ export default function QueryTable({
           // STRICT RULE: Rank is ONLY displayed if the entity is Mentioned for THIS specific model
           const rankVal = isMentioned ? (modelRes?.rank ?? (hasModelRes ? null : q.rank)) : null;
           
-          const sourcesVal = hasModelRes ? (modelRes.sources || []) : (q.sources || []);
+          // Total truth: every source domain cited across ALL models for
+          // this query, not just whichever model tab happens to be
+          // selected — the same set the sidebar shows, so the two can
+          // never disagree the way the column vs. old modal used to.
+          const sourcesVal = getAllSourcesForQuery(q);
+          const visibleSources = sourcesVal.slice(0, VISIBLE_SOURCE_COUNT);
+          const extraSourceCount = Math.max(0, sourcesVal.length - VISIBLE_SOURCE_COUNT);
 
           // Target Site Match Status Badge (Site matched, Partial match, Not matched)
           const targetSiteData = modelRes?.targetSite || (q as any).targetSite;
@@ -126,7 +124,7 @@ export default function QueryTable({
                   ) : (
                     <span className="text-[11px] font-bold text-[#b91c1c] bg-[#fee2e2] border border-[#fca5a5] px-2 py-1 rounded-lg inline-flex items-center gap-1 shadow-2xs">
                       <XCircle className="w-3 h-3 text-[#b91c1c]" />
-                      <span>Missing</span>
+                      <span>Not mentioned</span>
                     </span>
                   )
                 ) : (
@@ -154,7 +152,7 @@ export default function QueryTable({
                     {/* Target Site Match Status Badge */}
                     {targetSiteStatus === "matched" && (
                       <span
-                        onClick={(e) => { e.stopPropagation(); if (onOpenSourcesModal) onOpenSourcesModal(q); }}
+                        onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
                         className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
                         title="Target website matched this query prompt"
                       >
@@ -165,7 +163,7 @@ export default function QueryTable({
 
                     {targetSiteStatus === "partial" && (
                       <span
-                        onClick={(e) => { e.stopPropagation(); if (onOpenSourcesModal) onOpenSourcesModal(q); }}
+                        onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
                         className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
                         title="Target website partially matched this query"
                       >
@@ -176,7 +174,7 @@ export default function QueryTable({
 
                     {targetSiteStatus === "no_match" && (
                       <span
-                        onClick={(e) => { e.stopPropagation(); if (onOpenSourcesModal) onOpenSourcesModal(q); }}
+                        onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
                         className="inline-flex items-center gap-1 text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] border border-[#e5e7eb] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
                         title="Target website did not rank directly in organic top results"
                       >
@@ -184,13 +182,15 @@ export default function QueryTable({
                       </span>
                     )}
 
-                    {/* Third-Party Domain Favicon Pills */}
-                    {sourcesVal.slice(0, 2).map((sItem, idx) => (
+                    {/* Third-Party Domain Favicon Pills — top 3, then a +N
+                        overflow badge, both opening the sidebar with the
+                        FULL list so the count shown here is never a lie. */}
+                    {visibleSources.map((sItem, idx) => (
                       <span
                         key={idx}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onOpenSourcesModal) onOpenSourcesModal(q);
+                          if (onOpenSources) onOpenSources(q);
                         }}
                         className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3a352b] bg-[#f6f3ec] border border-[#ece3d1] px-2 py-0.5 rounded hover:underline hover:border-[#15463b] transition-colors cursor-pointer"
                         title="Click to view all extracted sources"
@@ -199,6 +199,19 @@ export default function QueryTable({
                         <span>{sItem}</span>
                       </span>
                     ))}
+
+                    {extraSourceCount > 0 && (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onOpenSources) onOpenSources(q);
+                        }}
+                        className="inline-flex items-center text-[11px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2 py-0.5 rounded cursor-pointer hover:underline"
+                        title="Click to view all extracted sources"
+                      >
+                        +{extraSourceCount}
+                      </span>
+                    )}
                   </>
                 ) : (
                   <span className="text-[13px] font-medium text-[#c2b69c]">-</span>

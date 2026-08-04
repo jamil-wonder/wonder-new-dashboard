@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { X, CheckCircle2, XCircle } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
+import { normalizeDomain, isValidSourceDomain } from "../../lib/querySources";
 
 interface QueryChatModalProps {
   query: SearchQueryItem | null;
@@ -16,17 +17,6 @@ const MODEL_CONFIG: Record<string, { name: string; icon: string }> = {
   Perplexity: { name: "Perplexity", icon: "/icons/perplexity.svg" },
   Gemini:     { name: "Gemini",     icon: "/icons/gemini.svg" },
 };
-
-function normalizeDomain(value: string): string {
-  const raw = (value || "").trim().toLowerCase();
-  if (!raw) return "";
-  try {
-    const host = new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname;
-    return host.replace(/^www\./, "").replace(/[),.;:]+$/g, "");
-  } catch {
-    return raw.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].replace(/[),.;:]+$/g, "");
-  }
-}
 
 function parseDomainBullet(line: string): { domain: string; tail: string } | null {
   const match = line.match(/^\s*-\s*([a-z0-9.-]+\.[a-z]{2,})(.*)$/i);
@@ -101,7 +91,11 @@ function formatModelReplyText(
     ...((result?.sourceUrls || []).map((u: string) => normalizeDomain(u)).filter(Boolean) as string[]),
   ];
   const allReferences = Array.from(
-    new Set([...parsedReferences, ...resultReferences].map((d) => normalizeDomain(String(d))).filter(Boolean)),
+    new Set(
+      [...parsedReferences, ...resultReferences]
+        .map((d) => normalizeDomain(String(d)))
+        .filter((d) => d && isValidSourceDomain(d)),
+    ),
   ).slice(0, 6);
 
   const parsedReasoning = typeof parsed?.reasoning === "string" ? parsed.reasoning.trim() : "";

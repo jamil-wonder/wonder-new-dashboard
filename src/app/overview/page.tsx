@@ -36,7 +36,11 @@ type OverviewBlogDraft = {
 
 export default function OverviewPage() {
   const { activeBusiness, isLoading: isBusinessLoading, liveDeepCompetitors } = useBusiness();
-  const overviewData = useOverviewData(activeBusiness?.url || "");
+  // liveDeepCompetitors updates the instant a Query run finishes for this
+  // business — passing it through forces useOverviewData to re-read the
+  // query cache instead of staying frozen at whatever it computed the
+  // first time this hook ran (see the hook's own comment for why).
+  const overviewData = useOverviewData(activeBusiness?.url || "", liveDeepCompetitors);
 
   // Reads the EXACT same liveDeepCompetitors value Query does (see
   // BusinessContext) instead of a separately-fetched, separately-merged

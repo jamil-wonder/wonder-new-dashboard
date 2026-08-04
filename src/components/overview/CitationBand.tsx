@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Building, CheckCircle2, Compass, MapPin, SearchCheck, Star } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
+import SourcesSidebar from "../query/SourcesSidebar";
 
 function cleanDomain(domain: string) {
   return String(domain || "")
@@ -13,7 +15,8 @@ function cleanDomain(domain: string) {
 }
 
 export default function CitationBand({ data }: { data: OverviewData }) {
-  const { citedSources, hasQueryData } = data;
+  const { citedSources, hasQueryData, totalQueries } = data;
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const sources = citedSources.map(cleanDomain).filter(Boolean);
   const usedSources = new Set<string>();
 
@@ -60,9 +63,13 @@ export default function CitationBand({ data }: { data: OverviewData }) {
             Where AI finds market evidence
           </div>
         </div>
-        <Link href="/query" className="ul inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#bfeade] whitespace-nowrap">
+        <button
+          onClick={() => setIsSourcesOpen(true)}
+          disabled={sources.length === 0}
+          className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#bfeade] whitespace-nowrap bg-transparent border-none p-0 cursor-pointer hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:no-underline"
+        >
           Open sources <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        </button>
       </div>
 
       {!hasQueryData && (
@@ -132,6 +139,14 @@ export default function CitationBand({ data }: { data: OverviewData }) {
           ))}
         </div>
       )}
+
+      <SourcesSidebar
+        isOpen={isSourcesOpen}
+        query={null}
+        allSources={sources}
+        allSourcesSubtitle={totalQueries ? `across ${totalQueries} quer${totalQueries === 1 ? "y" : "ies"} in this run` : undefined}
+        onClose={() => setIsSourcesOpen(false)}
+      />
     </div>
   );
 }

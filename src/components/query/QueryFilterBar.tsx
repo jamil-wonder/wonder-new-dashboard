@@ -155,36 +155,38 @@ export default function QueryFilterBar({
           </button>
         </div>
 
-        {/* Regenerate — always visible */}
-        <button
-          onClick={onRegeneratePrompts}
-          disabled={isGenerating}
-          title="Regenerate questions using Business Profile ratios"
-          className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium bg-[#fdfcf8] text-[#15463b] border border-[#e2d8c4] hover:bg-white hover:border-[#15463b] transition-all cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
-        >
-          <WonderscoreLogoIcon className="w-4 h-4 text-[#15463b]" />
-          <span>{isGenerating ? "Generating…" : "Regenerate"}</span>
-        </button>
+        {/* RIGHT: Regenerate grouped with Add Prompt / Run, side by side */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={onRegeneratePrompts}
+            disabled={isGenerating}
+            title={showActions ? "Regenerate questions using Business Profile ratios" : "Generate questions using Business Profile ratios"}
+            className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium bg-[#fdfcf8] text-[#15463b] border border-[#e2d8c4] hover:bg-white hover:border-[#15463b] transition-all cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+          >
+            <WonderscoreLogoIcon className="w-4 h-4 text-[#15463b]" />
+            <span>{isGenerating ? "Generating…" : showActions ? "Regenerate" : "Generate"}</span>
+          </button>
 
-        {showActions && (
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium bg-[#15463b] text-white border-none cursor-pointer hover:bg-[#1a5c44] transition-colors shrink-0 shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Prompt</span>
-            </button>
+          {showActions && (
+            <>
+              <button
+                onClick={onOpenAddModal}
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium bg-[#15463b] text-white border-none cursor-pointer hover:bg-[#1a5c44] transition-colors shrink-0 shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Prompt</span>
+              </button>
 
-            <button
-              onClick={onRunAudit}
-              className="inline-flex items-center gap-1.5 h-9 px-4.5 rounded-lg text-[13px] font-medium bg-[#1e7d4f] text-white border-none cursor-pointer hover:bg-[#166039] transition-colors shrink-0 shadow-xs"
-            >
-              <Play className="w-4 h-4" />
-              <span>Run</span>
-            </button>
-          </div>
-        )}
+              <button
+                onClick={onRunAudit}
+                className="inline-flex items-center gap-1.5 h-9 px-4.5 rounded-lg text-[13px] font-medium bg-[#1e7d4f] text-white border-none cursor-pointer hover:bg-[#166039] transition-colors shrink-0 shadow-xs"
+              >
+                <Play className="w-4 h-4" />
+                <span>Run</span>
+              </button>
+            </>
+          )}
+        </div>
 
       </div>
     </div>

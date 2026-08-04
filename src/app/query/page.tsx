@@ -6,12 +6,13 @@ import QueryFilterBar from "../../components/query/QueryFilterBar";
 import QueryTable from "../../components/query/QueryTable";
 import QueryChatModal from "../../components/query/QueryChatModal";
 import AddPromptModal from "../../components/query/AddPromptModal";
-import SourcesModal from "../../components/query/SourcesModal";
+import SourcesSidebar from "../../components/query/SourcesSidebar";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { SearchQueryItem } from "../../types/dashboard";
 import { useBusiness, isGenericName, cleanBrandNameFromDomain } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { buildRankedCompetitors } from "../../lib/competitorRanking";
+import { getAllSourcesForQueries } from "../../lib/querySources";
 import { fetchApi } from "../../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
@@ -270,6 +271,7 @@ export default function QueryPage() {
 
   const [selectedQuery, setSelectedQuery] = useState<SearchQueryItem | null>(null);
   const [sourcesQuery, setSourcesQuery] = useState<SearchQueryItem | null>(null);
+  const [isSourcesSidebarOpen, setIsSourcesSidebarOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isScanComplete, setIsScanComplete] = useState(false);
@@ -299,6 +301,8 @@ export default function QueryPage() {
   // shows competitors for a run you actually watched complete this
   // session; the last-known list belongs on Overview, not here.
   const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
+
+  const allSourcesThisRun = useMemo(() => getAllSourcesForQueries(queriesList), [queriesList]);
 
   // Calculate live dynamic Model Scores strictly for each specific model
   const modelScores = useMemo(() => {
@@ -660,6 +664,16 @@ export default function QueryPage() {
     return matchesCategory && matchesStatus;
   });
 
+  const handleOpenQuerySources = useCallback((q: SearchQueryItem) => {
+    setSourcesQuery(q);
+    setIsSourcesSidebarOpen(true);
+  }, []);
+
+  const handleOpenAllSources = useCallback(() => {
+    setSourcesQuery(null);
+    setIsSourcesSidebarOpen(true);
+  }, []);
+
   const handleCopyAll = () => {
     const textList = queriesList
       .map((q, idx) => `${idx + 1}. [${q.label}] "${q.query}"`)
@@ -1004,14 +1018,21 @@ export default function QueryPage() {
               <div>Generated Search Query</div>
               <div className="text-center">Status</div>
               <div className="text-center">Rank</div>
-              <div className="text-right">Sources</div>
+              <button
+                type="button"
+                onClick={handleOpenAllSources}
+                className="bg-transparent border-none p-0 m-0 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] text-right hover:text-[#15463b] hover:underline cursor-pointer transition-colors"
+                title="View every source cited across all queries in this run"
+              >
+                Sources
+              </button>
             </div>
 
             <QueryTable
               queries={filteredQueries}
               selectedModel={selectedModel}
               onSelectQuery={setSelectedQuery}
-              onOpenSourcesModal={setSourcesQuery}
+              onOpenSources={handleOpenQuerySources}
             />
           </>
         )}
@@ -1035,9 +1056,12 @@ export default function QueryPage() {
 
           <div className="flex flex-col gap-2">
             {competitorRows.map((comp) => (
-              <div
+              <a
                 key={comp.domain}
-                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-colors ${
+                href={comp.url || `https://${comp.domain}/`}
+                target="_blank"
+                rel="noreferrer"
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-colors cursor-pointer ${
                   comp.isUser
                     ? "bg-white shadow-[0_1px_4px_rgba(60,48,28,0.08)] border border-[#ece3d1]"
                     : "hover:bg-[#f6eee0]"
@@ -1081,7 +1105,7 @@ export default function QueryPage() {
                 <span className={`num text-[15px] font-bold w-12 text-right shrink-0 ${comp.isUser ? "text-[#1a5c44]" : "text-[#23211b]"}`}>
                   {comp.score}<span className="text-[11px] font-normal text-[#8a8273]">/100</span>
                 </span>
-              </div>
+              </a>
             ))}
           </div>
         </div>
@@ -1101,9 +1125,12 @@ export default function QueryPage() {
         onClose={() => setSelectedQuery(null)}
       />
 
-      <SourcesModal
+      <SourcesSidebar
+        isOpen={isSourcesSidebarOpen}
         query={sourcesQuery}
-        onClose={() => setSourcesQuery(null)}
+        allSources={allSourcesThisRun}
+        allSourcesSubtitle={`across ${queriesList.length} quer${queriesList.length === 1 ? "y" : "ies"} in this run`}
+        onClose={() => setIsSourcesSidebarOpen(false)}
       />
 
       <AddPromptModal

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, FileText, SearchCheck, X } from "lucide-react";
+import { ArrowRight, FileText, MessageCircle, SearchCheck, X } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
 
 const MODEL_ICONS: Record<string, string> = {
@@ -142,11 +142,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
         </div>
       </div>
 
-      <p className="text-[14px] text-[#5f5780] my-4 md:mb-5 max-w-[720px] leading-relaxed">
-        Four focused actions from blogs, query evidence, and the website scan.
-      </p>
-
-      <div className="plan-cards grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 items-stretch">
+      <div className="plan-cards grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 items-stretch mt-4">
         {cards.map((card, i) => {
           const opensModal = card.kind === "query" && totalQueries > 0;
           return (
@@ -221,6 +217,19 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
             )}
           </div>
         )})}
+      </div>
+
+      <div className="flex items-center justify-between gap-4 flex-wrap mt-5">
+        <p className="text-[13.5px] text-[#5f5780] max-w-[560px] leading-relaxed">
+          Four focused actions from blogs, query evidence, and the website scan.
+        </p>
+        <Link
+          href="/contact"
+          className="inline-flex items-center gap-1.5 shrink-0 text-[12.5px] font-semibold text-white bg-[#2d2a6e] px-4 py-2.5 rounded-lg hover:bg-[#231f57] transition-colors shadow-xs"
+        >
+          Talk to team
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       {selectedCard?.kind === "query" && (

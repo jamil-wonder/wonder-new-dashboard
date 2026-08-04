@@ -104,13 +104,13 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     const userScore = userComp ? userComp.score : score;
 
     if (userRank > 1) {
-      const aheadComp = competitors[userRank - 2]; // Competitor directly above
+      const aheadComp = competitors[userRank - 2]; // Competitor directly above (higher score)
       const gap = aheadComp ? aheadComp.score - userScore : null;
       changes.push({
-        icon: "▲",
-        bg: "#e7f4ea",
-        color: "#1e7d4f",
-        title: aheadComp ? `Ahead of ${aheadComp.name}` : `Ahead of competitors`,
+        icon: "▼",
+        bg: "#fbeee6",
+        color: "#b1442a",
+        title: aheadComp ? `Behind ${aheadComp.name}` : `Room to grow`,
         sub: `Ranked ${data.userRankOrdinal}${locText}${gap !== null && gap > 0 ? ` · ${gap} pts behind #${userRank - 1}` : ""}`,
       });
     } else {
@@ -159,13 +159,14 @@ export default function HeroSection({ data }: { data: OverviewData }) {
 
   // 3. New Competitor or Trend / Insight Card
   const trailingComp = competitors.length > 1 ? competitors[competitors.length - 1] : null;
-  if (trailingComp && !trailingComp.isUser) {
+  if (trailingComp && !trailingComp.isUser && trailingComp.score <= score) {
+    const leadGap = score - trailingComp.score;
     changes.push({
       icon: "▲",
       bg: "#e7f4ea",
       color: "#1e7d4f",
       title: `Ahead of ${trailingComp.name}`,
-      sub: `Indexed ahead of competitor profiles${locText}`,
+      sub: `${leadGap} pt${leadGap === 1 ? "" : "s"} ahead · ranked last of ${competitors.length}${locText}`,
     });
   } else {
     changes.push({
