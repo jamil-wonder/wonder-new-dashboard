@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import SundayCalendar from "../../components/blogs/SundayCalendar";
 import BlogReaderModal from "../../components/blogs/BlogReaderModal";
@@ -43,6 +43,10 @@ export default function BlogsPage() {
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(true);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
+  // Same pattern as Analyser: claim a request slot so a slow fetch from a
+  // business the user has since switched away from can't overwrite the
+  // now-displayed business's blog drafts once it resolves.
+  const weeklyRequestIdRef = useRef(0);
 
   // Ensure or force-regenerate weekly blogs stored in MongoDB
   const ensureWeeklyBlogs = useCallback(async (force = false, targetMongoId?: string) => {
@@ -105,17 +109,25 @@ export default function BlogsPage() {
   // Load weekly blogs directly from MongoDB database
   const loadWeeklyBlogs = useCallback(async () => {
     if (!activeBusiness) return;
+    const requestId = ++weeklyRequestIdRef.current;
+    // Clear immediately — otherwise the PREVIOUS business's blog drafts
+    // stay on screen, mislabeled, for however long this fetch takes.
+    setWeeklyData(null);
 
     try {
       setIsLoadingWeekly(true);
       const mongoId = await getValidMongoBusinessId(activeBusiness);
       if (!mongoId) {
-        setIsLoadingWeekly(false);
+        if (weeklyRequestIdRef.current === requestId) setIsLoadingWeekly(false);
         return;
       }
 
       const res = await fetchApi<any>(`/api/blogs/weekly?business_id=${encodeURIComponent(mongoId)}`);
-      
+
+      // If the user has switched business since this call started, don't
+      // apply its result to whatever's now on screen.
+      if (weeklyRequestIdRef.current !== requestId) return;
+
       if (res && res.success) {
         setWeeklyData(res.weekly || null);
 
@@ -127,7 +139,7 @@ export default function BlogsPage() {
     } catch (err) {
       console.error("Failed to load weekly blogs from DB:", err);
     } finally {
-      setIsLoadingWeekly(false);
+      if (weeklyRequestIdRef.current === requestId) setIsLoadingWeekly(false);
     }
   }, [activeBusiness, ensureWeeklyBlogs]);
 

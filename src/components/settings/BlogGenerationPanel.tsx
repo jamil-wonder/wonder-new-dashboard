@@ -29,7 +29,10 @@ export default function BlogGenerationPanel() {
       })
       .catch((err) => console.error("Failed to load blog usage:", err));
 
-    // 2. Load weekly generated blog history for active business
+    // 2. Load weekly generated blog history for active business — clear
+    // the previous business's drafts immediately rather than leaving them
+    // on screen (mislabeled) while this fetch is in flight.
+    setHistoryDrafts([]);
     if (activeBusiness?.id) {
       setIsLoading(true);
       fetchApi<any>(`/api/blogs/weekly?business_id=${encodeURIComponent(activeBusiness.id)}`)

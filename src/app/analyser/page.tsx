@@ -60,6 +60,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   MessageSquare, BookOpen, FileCode2, Building2, FileSearch, Cpu,
 };
 
+const AUDIT_AREA_DESCRIPTIONS: Record<string, string> = {
+  sentiment: "How clearly your business name, category, and description come across to AI — built from how complete and unambiguous your core identity signals are on the page.",
+  sources: "How many verifiable contact and social signals (phone, email, social profiles) AI models and search engines can point to as evidence when answering questions about you.",
+  content: "How much substance your page gives AI to work with — a real description, a canonical URL, a declared language, and a clear logo all help AI summarize you accurately instead of guessing.",
+  presence: "How many social and platform profiles are linked from your site — more linked platforms give AI more independent places to confirm who you are.",
+  coverage: "How much structured data (JSON-LD schema) your site exposes — this is the machine-readable map AI uses to understand what your business actually offers.",
+  technical: "Core crawlability infrastructure — SSL, mobile-friendliness, a canonical URL, sitemap.xml, and robots.txt. Without these, AI crawlers can struggle to reach or trust your pages at all.",
+};
+
 export default function AnalyserPage() {
   const { activeBusiness, updateActiveBusiness } = useBusiness();
   const { showToast } = useToast();
@@ -72,7 +81,6 @@ export default function AnalyserPage() {
   const [scanData, setScanData] = useState<any>(null);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
   const [selectedAiInsight, setSelectedAiInsight] = useState<any | null>(null);
-  const [competitors, setCompetitors] = useState<any[]>([]);
   const [auditAreas, setAuditAreas] = useState<any[]>([]);
   const [technicalInfoOpen, setTechnicalInfoOpen] = useState(false);
 
@@ -151,6 +159,12 @@ export default function AnalyserPage() {
 
   const activeBusinessRef = useRef(activeBusiness);
   const updateActiveBusinessRef = useRef(updateActiveBusiness);
+  // Incremented on every runLiveAnalysis call; captured at the start of
+  // each call so a slow in-flight scrape/insights request from a business
+  // the user has since switched away from can detect it's stale and
+  // discard its result instead of overwriting whatever business is
+  // currently on screen.
+  const analysisRequestIdRef = useRef(0);
 
   useEffect(() => {
     activeBusinessRef.current = activeBusiness;
@@ -160,6 +174,12 @@ export default function AnalyserPage() {
   // Dynamic analysis executor that queries backend live
   const runLiveAnalysis = useCallback(async (isUserTriggered = false) => {
     if (!domain) return;
+    // Claim this call's slot — if a NEWER call has started by the time
+    // this one's network requests resolve (e.g. the user switched to a
+    // different business), its result-application below detects the
+    // mismatch and discards itself instead of overwriting the new
+    // business's display with the old one's data.
+    const requestId = ++analysisRequestIdRef.current;
 
     // If not user-triggered (e.g. page navigation), check 2-Hour TTL cache first!
     if (!isUserTriggered) {
@@ -167,7 +187,6 @@ export default function AnalyserPage() {
       if (cached && cached.scanData) {
         setScanData(cached.scanData);
         setAiInsights(cached.aiInsights || []);
-        setCompetitors(cached.competitors || []);
         setAuditAreas(cached.auditAreas || []);
         setIsLoadingInitial(false);
         if (
@@ -185,13 +204,18 @@ export default function AnalyserPage() {
         clearCachedAnalysis(domain);
         setScanData(null);
         setAiInsights([]);
-        setCompetitors([]);
         setAuditAreas([]);
         setIsScanning(true);
         setIsScanComplete(false);
         markActiveAnalysis(domain);
         showToast(`Starting website analysis for ${domain}. This can take 1-5 minutes.`, "info");
       } else {
+        // No cache for this business — clear whatever's currently shown
+        // (very likely the PREVIOUS business's scan) instead of leaving it
+        // on screen, mislabeled, for the 1-5 minutes this fetch takes.
+        setScanData(null);
+        setAiInsights([]);
+        setAuditAreas([]);
         try {
           const raw = typeof window !== "undefined" ? localStorage.getItem(getActiveAnalysisKey(domain)) : null;
           const activeRun = raw ? JSON.parse(raw) : null;
@@ -216,22 +240,15 @@ export default function AnalyserPage() {
         body: JSON.stringify({ businessName, url: cleanUrl }),
       }).catch(() => null);
 
-      const compPromise = fetchApi<any>("/api/public/competitors", {
-        method: "POST",
-        body: JSON.stringify({ url: cleanUrl, businessName, category, location }),
-      }).catch(() => null);
-
       // Await live backend resolution
-      const [scrapeRes, insightsRes, compRes] = await Promise.all([
+      const [scrapeRes, insightsRes] = await Promise.all([
         scrapePromise,
         insightsPromise,
-        compPromise,
       ]);
 
       let finalScan: any = null;
       let finalAreas: any[] = [];
       let finalInsights: any[] = [];
-      let finalComps: any[] = [];
 
       // ── 1. Process Scrape Results ──────────────────────────────────────────
       if (scrapeRes && scrapeRes.scores) {
@@ -443,73 +460,51 @@ export default function AnalyserPage() {
         ];
       }
 
-      // ── 3. Process Competitor Comparisons ────────────────────────────────
-      const userScore = finalScan?.scores?.total || activeBusiness.completeness || 91;
-
-      let allComps: any[] = [];
-      if (compRes && Array.isArray(compRes.competitors) && compRes.competitors.length > 0) {
-        const rawComps = compRes.competitors;
-        allComps = [
-          { name: businessName, domain, score: userScore, change: "▲4", isUser: true },
-          ...rawComps.map((c: any) => ({
-            name: c.domain,
-            domain: c.domain,
-            score: c.score || 85,
-            change: "→",
-          })),
-        ];
-      } else {
-        allComps = [
-          { name: businessName, domain, score: userScore, change: "▲4", isUser: true },
-          { name: "thegeorgeinrye.com", domain: "thegeorgeinrye.com", score: 92, change: "→" },
-          { name: "standardinnrye.co.uk", domain: "standardinnrye.co.uk", score: 85, change: "→" },
-          { name: "thefigrestaurant.co.uk", domain: "thefigrestaurant.co.uk", score: 82, change: "→" },
-          { name: "webbesrestaurants.co.uk", domain: "webbesrestaurants.co.uk", score: 80, change: "→" },
-        ];
-      }
-
-      // Sort strictly descending by score so highest score is ALWAYS #1
-      allComps.sort((a, b) => b.score - a.score);
-
-      // Re-assign ranks 1..N based on sorted order
-      finalComps = allComps.map((item, idx) => ({
-        ...item,
-        rank: idx + 1,
-      }));
-
-      // Update state
-      setScanData(finalScan);
-      setAuditAreas(finalAreas);
-      setAiInsights(finalInsights);
-      setCompetitors(finalComps);
-
-      // Record crawl score in scan history for trend comparison
+      // Record crawl score in scan history for trend comparison, and save
+      // to cache regardless of staleness — both are keyed by THIS call's
+      // domain (from closure) and remain correct for that business even
+      // if the user has since switched away from it.
       if (finalScan?.scores?.total) {
         recordScanHistory(domain, finalScan.scores.total);
       }
-
-      // Save to 2-Hour TTL cache!
       saveCachedAnalysis(domain, {
         scanData: finalScan,
         auditAreas: finalAreas,
         aiInsights: finalInsights,
-        competitors: finalComps,
       });
       clearActiveAnalysis(domain);
+
+      // Only touch what's actually ON SCREEN if this is still the latest
+      // call — otherwise the user has switched business since this
+      // request started, and applying it now would overwrite the new
+      // business's display with the old one's data.
+      if (analysisRequestIdRef.current !== requestId) return;
+
+      setScanData(finalScan);
+      setAuditAreas(finalAreas);
+      setAiInsights(finalInsights);
 
       if (isUserTriggered) {
         setIsScanComplete(true);
       }
     } catch (err) {
       console.error("Analysis failed:", err);
-      if (isUserTriggered) setIsScanComplete(true);
+      if (isUserTriggered && analysisRequestIdRef.current === requestId) setIsScanComplete(true);
     } finally {
-      setIsLoadingInitial(false);
+      if (analysisRequestIdRef.current === requestId) setIsLoadingInitial(false);
     }
   }, [domain, businessName, category, location, showToast, loadCachedAnalysis, clearCachedAnalysis, saveCachedAnalysis, markActiveAnalysis, clearActiveAnalysis, getActiveAnalysisKey]);
 
   // Execute analysis on mount or domain change
   useEffect(() => {
+    // A scan left running on the PREVIOUS business is now correctly
+    // prevented (via analysisRequestIdRef) from writing its result into
+    // this new business's display — but without resetting these too,
+    // isScanning could stay stuck true here forever, since the old scan's
+    // completion no longer flips it off for a business it doesn't belong
+    // to. Clean slate for whichever business is now active.
+    setIsScanning(false);
+    setIsScanComplete(false);
     runLiveAnalysis(false);
   }, [domain, runLiveAnalysis]);
 
@@ -799,8 +794,18 @@ export default function AnalyserPage() {
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: item.statusBg }}>
                     <IconComponent className="w-4 h-4" style={{ color: item.statusColor }} />
                   </div>
-                  <span className="w-[160px] text-[13.5px] text-[#23211b] font-medium truncate shrink-0">{item.label}</span>
-                  <div className="flex-1 h-[7px] bg-[#eee9de] rounded-full overflow-hidden">
+                  <div className="group relative flex items-center gap-1 flex-1 min-w-0">
+                    <span className="text-[13.5px] text-[#23211b] font-medium">{item.label}</span>
+                    <Info className="w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
+
+                    {/* Floating Tooltip Popover */}
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-[240px] bg-[#15463b] text-white text-[11.5px] leading-snug p-2.5 rounded-xl shadow-xl z-30 pointer-events-none transition-all">
+                      <div className="font-semibold text-[#a8d860] mb-0.5">{item.label}</div>
+                      {AUDIT_AREA_DESCRIPTIONS[item.id] || "Part of your 6-area AI visibility audit score."}
+                      <div className="absolute left-2 -bottom-1 w-2 h-2 bg-[#15463b] rotate-45"></div>
+                    </div>
+                  </div>
+                  <div className="w-[140px] sm:w-[200px] h-[7px] bg-[#eee9de] rounded-full overflow-hidden shrink-0">
                     <div className="h-full rounded-full transition-all" style={{ width: `${item.score}%`, backgroundColor: item.barColor }} />
                   </div>
                   <span className="num text-[13px] font-bold text-[#23211b] w-[50px] text-right shrink-0">

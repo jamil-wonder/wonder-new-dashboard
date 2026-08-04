@@ -223,8 +223,9 @@ export interface OverviewData {
   previousScore: number | null;
   scanPoints: { score: number; timestamp: string }[];
 
-  // Competitors from analyser
-  competitors: { name: string; score: number; isUser: boolean; change: string }[];
+  // Competitors — sourced from buildRankedCompetitors() and merged in at
+  // the page level; only { name, score, isUser } are read by these components.
+  competitors: { name: string; score: number; isUser: boolean }[];
   userRank: number;
   userRankOrdinal: string;
   nearestAboveName: string | null;
@@ -311,87 +312,17 @@ export function useOverviewData(url: string): OverviewData {
 
     const previousScore = scanPoints.length >= 2 ? scanPoints[scanPoints.length - 2].score : null;
 
-    // Competitors — built from the same queryQueries already loaded above
-    let rawComps: any[] = [];
-    const qItems = queryQueries || [];
-
-    if (qItems.length > 0 && url) {
-      const clean = cleanUrl(url);
-      const totalPrompts = qItems.length;
-
-      let userMentionCount = 0;
-      qItems.forEach((q: any) => {
-        if (q.status === "Mentioned") userMentionCount++;
-      });
-      const userPctScore = Math.min(100, Math.round((userMentionCount / Math.max(1, totalPrompts)) * 100));
-      const targetScore = userPctScore > 0 ? userPctScore : (scanData?.scores?.total || 55);
-
-      const compMap = new Map<string, { domain: string; name: string; mentions: number; score: number }>();
-
-      // Count mentions from query sources
-      qItems.forEach((q: any) => {
-        (q.sources || []).forEach((src: string) => {
-          const d = normalizeDomain(src);
-          if (
-            d &&
-            d !== clean &&
-            !d.includes("google") &&
-            !d.includes("wikipedia") &&
-            !d.includes("tripadvisor") &&
-            !d.includes("facebook") &&
-            !d.includes("instagram") &&
-            !d.includes("youtube") &&
-            !d.includes("reddit")
-          ) {
-            const existing = compMap.get(d) || {
-              domain: d,
-              name: d.split(".")[0].replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
-              mentions: 0,
-              score: 75,
-            };
-            existing.mentions += 1;
-            compMap.set(d, existing);
-          }
-        });
-      });
-
-      const targetName = clean.split(".")[0].replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-      const targetItem = { name: targetName, score: targetScore, isUser: true, change: "→" };
-
-      const competitorItems = Array.from(compMap.values())
-        .map((c) => ({
-          name: c.name,
-          score: c.mentions > 0 ? Math.min(95, Math.max(50, c.score + (c.mentions * 5))) : c.score,
-          isUser: false,
-          change: "→",
-        }));
-
-      const combined = [targetItem, ...competitorItems].sort((a, b) => b.score - a.score);
-      if (combined.length > 1) {
-        rawComps = combined;
-      }
-    }
-
-    if (rawComps.length === 0) {
-      rawComps = analyserCache?.competitors || [];
-    }
-
-    const competitors = rawComps.length > 0
-      ? rawComps.map((c: any) => ({
-          name: c.name || c.domain || "Unknown",
-          score: typeof c.score === "number" ? c.score : (typeof c.visibility_score === "number" ? c.visibility_score : 0),
-          isUser: Boolean(c.isUser || c.is_user),
-          change: c.change || "→",
-        }))
-      : [];
-
-    const userRankIndex = competitors.findIndex(c => c.isUser);
-    const userRank = userRankIndex >= 0 ? userRankIndex + 1 : 1;
+    // Competitors are no longer derived here from cached query "sources" —
+    // that produced a different, inconsistent list from page to page. The
+    // single source of truth is now BusinessContext.liveDeepCompetitors
+    // (buildRankedCompetitors(), see overview/page.tsx), the same value
+    // Query reads, merged into this data at the page level. These fields
+    // are neutral placeholders until that merge happens.
+    const competitors: OverviewData["competitors"] = [];
+    const userRank = 1;
     const userRankOrdinal = ordinal(userRank);
-
-    const nearestAbove = userRank > 1 ? competitors[userRankIndex - 1] : null;
-    const nearestAboveName = nearestAbove?.name || null;
-    const nearestAboveGap = nearestAbove ? nearestAbove.score - score : null;
+    const nearestAboveName: string | null = null;
+    const nearestAboveGap: number | null = null;
 
     // Audit areas
     const auditAreas = analyserCache?.auditAreas || [];
@@ -474,9 +405,8 @@ export function useOverviewData(url: string): OverviewData {
     if (aiInsights.length > 0) {
       aiInsights.slice(0, 2).forEach(t => quickWins.push({ text: t, type: "boost" }));
     }
-    if (nearestAboveName && nearestAboveGap !== null && nearestAboveGap <= 10) {
-      quickWins.push({ text: `You're only ${nearestAboveGap} points behind ${nearestAboveName}. One good week can close the gap.`, type: "info" });
-    }
+    // The "points behind" quick win now lives in overview/page.tsx, computed
+    // from useCompetitorRanking() once real nearestAbove data is merged in.
     const weakestModel = [...modelMentions].sort((a, b) => a.mentioned - b.mentioned)[0];
     if (weakestModel && totalQueries > 0 && weakestModel.mentioned < totalQueries * 0.3) {
       quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned}/${totalQueries} queries — a priority to fix.`, type: "warn" });

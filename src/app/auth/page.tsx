@@ -1,15 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Loader2, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck } from "lucide-react";
-import { WonderscoreLogo, WonderscoreSpinner } from "../../components/ui/WonderscoreSpinner";
+import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
 export default function AuthPage() {
-  const router = useRouter();
   const { login, signup } = useUser();
   const { showToast } = useToast();
 
@@ -43,24 +41,13 @@ export default function AuthPage() {
         await signup(email, password, name);
         showToast("Account created successfully!", "success");
       }
-      router.push("/overview");
+      // Hard navigation (not router.push) — forces every provider
+      // (BusinessContext included) to remount and fetch fresh with this
+      // session's token, rather than possibly reusing another account's
+      // in-memory state left over in the same tab.
+      window.location.href = "/overview";
     } catch (err: any) {
       setErrorMsg(err?.message || "Authentication failed. Please check credentials.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    try {
-      setLoading(true);
-      await login("demo@wonderscore.ai", "demo123456");
-      showToast("Signed in as Demo User!", "success");
-      router.push("/overview");
-    } catch {
-      showToast("Signed in as Demo User!", "success");
-      router.push("/overview");
-    } finally {
       setLoading(false);
     }
   };
@@ -186,7 +173,7 @@ export default function AuthPage() {
             className="w-full py-3.5 bg-[#15463b] text-white text-[14px] font-bold rounded-xl shadow-md hover:bg-[#1a5c44] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-3"
           >
             {loading ? (
-              <WonderscoreSpinner size={22} color="white" />
+              <Loader2 className="w-4.5 h-4.5 animate-spin" />
             ) : (
               <>
                 <span>{mode === "login" ? "Sign In to Dashboard" : "Create Account"}</span>
@@ -195,19 +182,6 @@ export default function AuthPage() {
             )}
           </button>
         </form>
-
-        {/* Demo Button */}
-        <div className="mt-5 pt-5 border-t border-[#efe7d6] text-center">
-          <button
-            onClick={handleDemoLogin}
-            disabled={loading}
-            className="w-full py-3 bg-[#f6f3ec] border border-[#d8cfbd] text-[#15463b] text-[13px] font-bold rounded-xl hover:bg-[#ede7d8] transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <ShieldCheck className="w-4.5 h-4.5 text-[#1e7d4f]" />
-            <span>Explore Demo Session</span>
-          </button>
-        </div>
-
       </motion.div>
 
       {/* Footer copyright */}

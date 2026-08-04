@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useBusiness } from "../../context/BusinessContext";
 import HeroSection from "../../components/overview/HeroSection";
 import SprintSection from "../../components/overview/SprintSection";
@@ -11,9 +11,17 @@ import CitationBand from "../../components/overview/CitationBand";
 import AuditBreakdown from "../../components/overview/AuditBreakdown";
 import OverviewSkeleton from "../../components/overview/OverviewSkeleton";
 import { useOverviewData } from "../../hooks/useOverviewData";
+import { buildRankedCompetitors } from "../../lib/competitorRanking";
 import { fetchApi } from "../../lib/api";
 import Link from "next/link";
 import { ArrowRight, SearchCheck, Sparkles } from "lucide-react";
+
+function ordinal(n: number): string {
+  if (n === 1) return "1st";
+  if (n === 2) return "2nd";
+  if (n === 3) return "3rd";
+  return `${n}th`;
+}
 
 type OverviewBlogDraft = {
   title: string;
@@ -27,8 +35,21 @@ type OverviewBlogDraft = {
 };
 
 export default function OverviewPage() {
-  const { activeBusiness, isLoading: isBusinessLoading } = useBusiness();
+  const { activeBusiness, isLoading: isBusinessLoading, liveDeepCompetitors } = useBusiness();
   const overviewData = useOverviewData(activeBusiness?.url || "");
+
+  // Reads the EXACT same liveDeepCompetitors value Query does (see
+  // BusinessContext) instead of a separately-fetched, separately-merged
+  // backend snapshot. Query and Overview are now structurally guaranteed
+  // to agree — there's no second data source that can drift or race.
+  // Deliberate consequence: if no Query run has happened yet this session
+  // for the active business, this is correctly empty rather than showing
+  // an old "last known" list — competitors only ever appear once actually
+  // discovered.
+  const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
+  const userRow = competitorRows.find((c) => c.isUser) || null;
+  const nearestAbove = userRow && userRow.rank > 1 ? competitorRows[userRow.rank - 2] : null;
+
   const [weeklyBlogDrafts, setWeeklyBlogDrafts] = useState<OverviewBlogDraft[]>([]);
   const [isBlogLoading, setIsBlogLoading] = useState(true);
   const [showInitialSkeleton, setShowInitialSkeleton] = useState(true);
@@ -44,8 +65,10 @@ export default function OverviewPage() {
 
     const loadWeeklyBlogs = async () => {
       const businessId = activeBusiness?.id || "";
+      // Clear immediately — the previous business's blog drafts otherwise
+      // stay visible (mislabeled) until this fetch resolves.
+      setWeeklyBlogDrafts([]);
       if (!/^[0-9a-fA-F]{24}$/.test(businessId)) {
-        setWeeklyBlogDrafts([]);
         setIsBlogLoading(false);
         return;
       }
@@ -71,10 +94,27 @@ export default function OverviewPage() {
     };
   }, [activeBusiness?.id]);
 
+  const nearestAboveName = nearestAbove?.name || null;
+  const nearestAboveGap = nearestAbove && userRow ? nearestAbove.score - userRow.score : null;
+
+  const quickWins = [...overviewData.quickWins];
+  if (nearestAboveName && nearestAboveGap !== null && nearestAboveGap <= 10) {
+    quickWins.push({
+      text: `You're only ${nearestAboveGap} points behind ${nearestAboveName}. One good week can close the gap.`,
+      type: "info",
+    });
+  }
+
   const enrichedData = {
     ...overviewData,
     location: overviewData.location || activeBusiness?.location || "",
     blogDrafts: weeklyBlogDrafts.length > 0 ? weeklyBlogDrafts : overviewData.blogDrafts,
+    competitors: competitorRows,
+    userRank: userRow?.rank ?? 1,
+    userRankOrdinal: ordinal(userRow?.rank ?? 1),
+    nearestAboveName,
+    nearestAboveGap,
+    quickWins,
   };
 
   const hasAnyOverviewData =
@@ -126,7 +166,7 @@ export default function OverviewPage() {
 
       {/* Three Column Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-        <MarketRankSection data={enrichedData} url={activeBusiness?.url || ""} businessName={activeBusiness?.name || ""} location={activeBusiness?.location || ""} competitors={activeBusiness?.competitors || []} />
+        <MarketRankSection rows={competitorRows} />
         <PlatformVisSection data={enrichedData} />
         <SourcesSection data={enrichedData} />
       </div>

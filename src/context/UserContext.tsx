@@ -21,13 +21,6 @@ interface UserContextType {
   updateProfile: (data: { full_name: string; email: string }) => Promise<void>;
 }
 
-const DEFAULT_DEMO_USER: UserProfile = {
-  id: "user-demo",
-  email: "marcus@meridian.co",
-  full_name: "Marcus Reed",
-  role: "admin",
-};
-
 const UserContext = createContext<UserContextType | null>(null);
 
 export function useUser() {
@@ -53,7 +46,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               setUser({
                 id: parsed.id || "user-local",
                 email: parsed.email,
-                full_name: parsed.full_name || parsed.name || "Marcus Reed",
+                full_name: parsed.full_name || parsed.name || "User",
                 role: parsed.role || "user",
                 avatar_url: parsed.avatar_url || "",
               });
@@ -77,7 +70,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const prof: UserProfile = {
           id: data.id || "",
           email: data.email || "",
-          full_name: data.name || data.full_name || "Marcus Reed",
+          full_name: data.name || data.full_name || "User",
           role: data.role || "user",
           avatar_url: data.avatar_url || "",
         };
@@ -225,7 +218,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   return (
     <UserContext.Provider
       value={{
-        user: user || DEFAULT_DEMO_USER,
+        user,
         isAuthenticated,
         isLoading,
         login,

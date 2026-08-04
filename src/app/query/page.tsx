@@ -11,6 +11,7 @@ import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { SearchQueryItem } from "../../types/dashboard";
 import { useBusiness, isGenericName, cleanBrandNameFromDomain } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
+import { buildRankedCompetitors } from "../../lib/competitorRanking";
 import { fetchApi } from "../../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
@@ -51,17 +52,6 @@ function extractDomain(urlOrDomain: string): string {
   } catch {
     return raw.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].replace(/[),.;:]+$/g, "");
   }
-}
-
-// Reject IPs (e.g. 9.0.0.8), version strings, localhost, and domains with no real TLD
-function isValidDomain(d: string): boolean {
-  if (!d || d.length < 4) return false;
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(d)) return false;  // IPv4
-  if (/^[\d.]+$/.test(d)) return false;                  // pure numeric (version-like)
-  if (!d.includes(".")) return false;                    // no TLD
-  if (d === "localhost") return false;
-  if (d.includes("example.com")) return false;
-  return true;
 }
 
 function extractSourcesFromProviderData(pData: any): string[] {
@@ -261,7 +251,7 @@ function QueryGenerationLoader({
 }
 
 export default function QueryPage() {
-  const { activeBusiness } = useBusiness();
+  const { activeBusiness, liveDeepCompetitors, setLiveDeepCompetitors } = useBusiness();
   const { showToast } = useToast();
 
   const [selectedModel, setSelectedModel] = useState("ChatGPT");
@@ -299,6 +289,17 @@ export default function QueryPage() {
     [activeBusiness?.questionGeneration],
   );
 
+  // Competitor ranking comes straight from THIS BROWSING SESSION's
+  // running/completed job's own deep_competitors field (captured in the
+  // job-status/job-stream handlers below) — no separate fetch, no extra AI
+  // cost. Held in BusinessContext (not local state) so it survives
+  // navigating away to Overview and back to Query without vanishing, while
+  // still resetting correctly on business switch / logout (handled there).
+  // Deliberately never falls back to old persisted data here — Query only
+  // shows competitors for a run you actually watched complete this
+  // session; the last-known list belongs on Overview, not here.
+  const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
+
   // Calculate live dynamic Model Scores strictly for each specific model
   const modelScores = useMemo(() => {
     const models = ["ChatGPT", "Claude", "Perplexity", "Gemini"];
@@ -322,94 +323,6 @@ export default function QueryPage() {
 
     return scores;
   }, [queriesList]);
-
-  // Compute clean competitor score table including target brand
-  const competitorTableData = useMemo(() => {
-    const targetHost = extractDomain(domain);
-    const totalPrompts = queriesList.length || 20;
-
-    // 1. Calculate user brand mentions score
-    let userMentionCount = 0;
-    queriesList.forEach((q) => {
-      if (q.status === "Mentioned") userMentionCount++;
-    });
-
-    const userPctScore = Math.min(100, Math.round((userMentionCount / Math.max(1, totalPrompts)) * 100));
-    const targetScore = userPctScore > 0 ? userPctScore : (activeBusiness?.completeness || 88);
-
-    const compMap = new Map<string, { domain: string; name: string; mentions: number; score: number }>();
-
-    // 2. Add activeBusiness competitors with baseline scores
-    if (activeBusiness?.competitors && Array.isArray(activeBusiness.competitors)) {
-      activeBusiness.competitors.forEach((c, idx) => {
-        const rawDomain = typeof c === "string" ? c : (c as any).domain || (c as any).url || "";
-        const d = extractDomain(rawDomain);
-        if (d && d !== targetHost && isValidDomain(d)) {
-          const rawScore = typeof c === "object" && typeof (c as any).score === "number" ? (c as any).score : 90 - (idx * 4);
-          compMap.set(d, {
-            domain: d,
-            name: typeof c === "object" && (c as any).name ? (c as any).name : cleanBrandNameFromDomain(d),
-            mentions: 0,
-            score: Math.max(45, Math.min(98, rawScore)),
-          });
-        }
-      });
-    }
-
-    // 3. Count mentions across query sources for competitors
-    queriesList.forEach((q) => {
-      (q.sources || []).forEach((src) => {
-        const d = extractDomain(src);
-        if (
-          d &&
-          d !== targetHost &&
-          !d.includes("google") &&
-          !d.includes("wikipedia") &&
-          !d.includes("tripadvisor") &&
-          !d.includes("facebook") &&
-          !d.includes("instagram") &&
-          !d.includes("youtube") &&
-          !d.includes("reddit")
-        ) {
-          const existing = compMap.get(d) || { domain: d, name: cleanBrandNameFromDomain(d), mentions: 0, score: 75 };
-          existing.mentions += 1;
-          compMap.set(d, existing);
-        }
-      });
-    });
-
-    // 4. Combine target business + top competitors
-    const targetItem = {
-      domain: targetHost,
-      name: businessName,
-      favicon: `https://www.google.com/s2/favicons?domain=${targetHost}&sz=64`,
-      score: targetScore,
-      isUser: true,
-      mentions: userMentionCount,
-    };
-
-    const competitorItems = Array.from(compMap.values())
-      .slice(0, 5)
-      .map((c) => {
-        const calculatedScore = c.mentions > 0 ? Math.min(95, Math.max(50, c.score + (c.mentions * 5))) : c.score;
-        return {
-          domain: c.domain,
-          name: c.name,
-          favicon: `https://www.google.com/s2/favicons?domain=${c.domain}&sz=64`,
-          score: calculatedScore,
-          isUser: false,
-          mentions: c.mentions,
-        };
-      });
-
-    // Sort by score descending and assign 1-indexed ranks
-    const combined = [targetItem, ...competitorItems].sort((a, b) => b.score - a.score);
-
-    return combined.map((item, idx) => ({
-      ...item,
-      rank: idx + 1,
-    }));
-  }, [activeBusiness?.competitors, activeBusiness?.completeness, businessName, domain, queriesList]);
 
   const getCacheKey = useCallback((targetUrl: string) => {
     const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -681,17 +594,45 @@ export default function QueryPage() {
       setQuestionGenerationCounts({ branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
     }
 
+    // Scan-status state belongs to whichever business was active when it
+    // was set — reset it here so a completed/in-progress state from the
+    // PREVIOUS business doesn't linger and misrepresent the new one. If
+    // this new business genuinely has its own active job, the resume-on-
+    // mount effect below (also keyed on `domain`) re-derives this
+    // correctly right after — this only clears the stale carry-over.
+    setIsScanning(false);
+    setIsScanComplete(false);
+    setProcessedCount(0);
+    setSelectedQuery(null);
+    setSourcesQuery(null);
+
     setIsLoadingQuestions(false);
   }, [domain, savedQuestionMix, loadCachedQueries]);
 
-  // Clean up timers & eventSource on unmount
+  // Tear down any in-flight polling/SSE whenever the active business
+  // changes — not just on true unmount. Switching business via the header
+  // switcher does NOT unmount this page, so without `domain` in the deps
+  // here, a scan still running for the PREVIOUS business kept polling and
+  // writing its results (queriesList, competitors, scan-complete state)
+  // into whatever business is now on screen. The backend job itself is
+  // unaffected — it keeps running server-side either way — this only
+  // stops the frontend from misapplying its updates to the wrong business.
   useEffect(() => {
     return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      if (eventSourceRef.current) eventSourceRef.current.close();
-      if (questionProgressTimerRef.current) clearInterval(questionProgressTimerRef.current);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (questionProgressTimerRef.current) {
+        clearInterval(questionProgressTimerRef.current);
+        questionProgressTimerRef.current = null;
+      }
     };
-  }, []);
+  }, [domain]);
 
   // 3. Multi-dimensional filtering logic strictly matching selected model
   const filteredQueries = queriesList.filter((q) => {
@@ -883,6 +824,9 @@ export default function QueryPage() {
         if (statusRes?.results) {
           applyJobResultsToQueries(statusRes.results);
         }
+        if (Array.isArray(statusRes?.deep_competitors) && statusRes.deep_competitors.length > 0) {
+          setLiveDeepCompetitors(statusRes.deep_competitors);
+        }
         if (statusRes && (statusRes.status === "completed" || statusRes.status === "failed" || statusRes.status === "cancelled")) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
@@ -946,6 +890,9 @@ export default function QueryPage() {
             if (statusData.results) {
               applyJobResultsToQueries(statusData.results);
             }
+            if (Array.isArray(statusData.deep_competitors) && statusData.deep_competitors.length > 0) {
+              setLiveDeepCompetitors(statusData.deep_competitors);
+            }
             // ONLY stop when backend returns terminal job status ("completed", "failed", "cancelled")
             if (statusData.status === "completed" || statusData.status === "failed" || statusData.status === "cancelled") {
               es.close();
@@ -969,6 +916,9 @@ export default function QueryPage() {
             }
             if (statusRes && statusRes.results) {
               applyJobResultsToQueries(statusRes.results);
+            }
+            if (Array.isArray(statusRes?.deep_competitors) && statusRes.deep_competitors.length > 0) {
+              setLiveDeepCompetitors(statusRes.deep_competitors);
             }
 
             // ONLY stop when backend job status is terminal ("completed", "failed", "cancelled")
@@ -1067,24 +1017,24 @@ export default function QueryPage() {
         )}
       </div>
 
-      {/* Clean Competitor Score Comparison Table — Renders at bottom after queries */}
-      {!isLoadingQuestions && queriesList.length > 0 && competitorTableData.length > 0 && (
+      {/* Competitor Score Comparison — read directly from this job's own
+          deep_competitors, already computed as a side effect of the run
+          above. No separate fetch, no extra AI call. */}
+      {!isLoadingQuestions && competitorRows.length > 0 && (
         <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <span className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
-                Competitor Score Comparison
-              </span>
-            </div>
+            <span className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
+              Competitor Score Comparison
+            </span>
             <span className="text-[12.5px] text-[#8a8273]">
-              {competitorTableData[0]?.isUser
-                ? `🏆 #1 Market Leader · ${competitorTableData[0].name}`
-                : `${competitorTableData.find(c => c.isUser)?.rank ? `#${competitorTableData.find(c => c.isUser)?.rank} Position` : "Calculated Market Position"} in ${location}`}
+              {competitorRows[0]?.isUser
+                ? `🏆 #1 Market Leader · ${competitorRows[0].name}`
+                : `#${competitorRows.find((c) => c.isUser)?.rank ?? ""} Position in ${location}`}
             </span>
           </div>
 
           <div className="flex flex-col gap-2">
-            {competitorTableData.map((comp) => (
+            {competitorRows.map((comp) => (
               <div
                 key={comp.domain}
                 className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-colors ${
@@ -1134,6 +1084,14 @@ export default function QueryPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {!isLoadingQuestions && competitorRows.length === 0 && (isScanning || processedCount > 0) && (
+        <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
+          <span className="text-[12.5px] text-[#8a8273]">
+            {isScanning ? "Competitor ranking will appear here once the analysis finishes." : "No competitor data was found in the latest run."}
+          </span>
         </div>
       )}
 

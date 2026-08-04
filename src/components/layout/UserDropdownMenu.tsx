@@ -2,22 +2,20 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { User, Building2, KeyRound, LogOut, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
 export default function UserDropdownMenu() {
-  const router = useRouter();
   const { user, logout } = useUser();
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const name = user?.full_name || "Marcus Reed";
-  const email = user?.email || "marcus@meridian.co";
-  const initial = name.charAt(0).toUpperCase() || "M";
+  const name = user?.full_name || "User";
+  const email = user?.email || "";
+  const initial = name.charAt(0).toUpperCase() || "U";
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -33,7 +31,10 @@ export default function UserDropdownMenu() {
     setOpen(false);
     logout();
     showToast("Signed out of session.", "info");
-    router.push("/auth");
+    // Hard navigation — forces every provider to remount from scratch so
+    // no in-memory state from this session lingers for whoever logs in
+    // next in this browser.
+    window.location.href = "/auth";
   };
 
   return (

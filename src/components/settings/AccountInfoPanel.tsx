@@ -41,8 +41,8 @@ export default function AccountInfoPanel() {
           {name.charAt(0).toUpperCase() || "U"}
         </div>
         <div>
-          <span className="text-[14px] font-bold text-[#23211b] block">{name || "Marcus Reed"}</span>
-          <span className="text-[12px] text-[#9b927f]">{email || "marcus@meridian.co"}</span>
+          <span className="text-[14px] font-bold text-[#23211b] block">{name || "User"}</span>
+          <span className="text-[12px] text-[#9b927f]">{email}</span>
         </div>
       </div>
 
