@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -9,6 +9,86 @@ import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { useUser } from "../../context/UserContext";
 
 const OTP_LENGTH = 6;
+
+function OtpBoxes({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const digits = Array.from({ length: OTP_LENGTH }, (_, index) => value[index] || "");
+
+  const setDigit = (index: number, rawValue: string) => {
+    const clean = rawValue.replace(/\D/g, "");
+    if (!clean) {
+      const next = value.split("");
+      next[index] = "";
+      onChange(next.join("").slice(0, OTP_LENGTH));
+      return;
+    }
+
+    const next = value.padEnd(OTP_LENGTH, " ").split("");
+    clean.slice(0, OTP_LENGTH - index).split("").forEach((digit, offset) => {
+      next[index + offset] = digit;
+    });
+    onChange(next.join("").replace(/\s/g, "").slice(0, OTP_LENGTH));
+
+    const nextIndex = Math.min(index + clean.length, OTP_LENGTH - 1);
+    inputRefs.current[nextIndex]?.focus();
+  };
+
+  const handleKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Backspace" && !digits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+    if (event.key === "ArrowLeft" && index > 0) {
+      event.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+    }
+    if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
+      event.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (pasted) {
+      onChange(pasted);
+      inputRefs.current[Math.min(pasted.length, OTP_LENGTH) - 1]?.focus();
+    }
+  };
+
+  return (
+    <div className="flex justify-center gap-2 sm:gap-3">
+      {digits.map((digit, index) => (
+        <input
+          key={index}
+          ref={(node) => {
+            inputRefs.current[index] = node;
+          }}
+          type="text"
+          inputMode="numeric"
+          autoComplete={index === 0 ? "one-time-code" : "off"}
+          maxLength={1}
+          value={digit}
+          disabled={disabled}
+          onChange={(event) => setDigit(index, event.target.value)}
+          onKeyDown={(event) => handleKeyDown(index, event)}
+          onPaste={handlePaste}
+          autoFocus={index === 0}
+          aria-label={`Verification code digit ${index + 1}`}
+          className="h-12 w-11 rounded-xl border border-[#ece3d1] bg-[#fdfcf8] text-center text-[22px] font-bold text-[#15463b] outline-none transition-all focus:border-[#15463b] focus:bg-white focus:shadow-[0_0_0_3px_rgba(21,70,59,0.10)] disabled:opacity-60 sm:h-14 sm:w-12"
+        />
+      ))}
+    </div>
+  );
+}
 
 function parseErrorMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err || "");
@@ -123,16 +203,13 @@ function VerifyEmailContent() {
         )}
 
         <form onSubmit={handleVerify} className="mt-6">
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={OTP_LENGTH}
+          <OtpBoxes
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
-            placeholder="000000"
-            autoFocus
-            className="w-full text-center text-[28px] font-bold tracking-[0.5em] pl-[0.5em] py-3.5 border border-[#ece3d1] rounded-xl bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
+            onChange={(nextCode) => {
+              setCode(nextCode);
+              setErrorMsg("");
+            }}
+            disabled={isVerifying}
           />
           <button
             type="submit"
