@@ -68,7 +68,7 @@ export function isGenericName(str: string): boolean {
 }
 
 export function cleanBrandNameFromDomain(domainStr: string): string {
-  if (!domainStr) return "The Gallivant";
+  if (!domainStr) return "My Business";
   let clean = domainStr.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/.*$/, "");
   clean = clean.replace(/\.(co\.uk|com|org|net|co|io|ai|gov|edu|biz|info|us|uk|ca|de|fr)$/i, "");
   if (!clean) return "My Business";
@@ -128,62 +128,23 @@ export function getCachedScoreForDomain(url: string): number | null {
   return null;
 }
 
-const DEFAULT_BUSINESSES: Business[] = [
-  {
-    id: "gallivant",
-    name: "The Gallivant",
-    url: "https://thegallivant.co.uk/",
-    category: "Restaurant & Hotel",
-    location: "Camber, Rye, UK",
-    logoUrl: "https://bunny-wp-pullzone-fg2nucp9oh.b-cdn.net/wp-content/uploads/2022/04/gallivant-logo-yoga.svg",
-    completeness: 0,
-    initial: "T",
-    isUserEdited: true,
-    description: "Boutique coastal hotel and Michelin Key restaurant in Camber Sands near Rye.",
-    aiDescription: "Thoughtful luxury, soulful dining, beach house styling, and coastal wellness.",
-    services: "Dining, Accommodation, Private Events",
-    targetAudience: "Food enthusiasts, coastal travelers, local executives",
-    competitors: ["cornusrestaurant.co.uk", "castleford.co.uk"],
-    trackedPages: ["/", "/dining", "/rooms"],
-    questionGeneration: { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 },
-  },
-  {
-    id: "meridian",
-    name: "Meridian Navigation",
-    url: "https://meridian.co/",
-    category: "Professional Services",
-    location: "Bristol, UK",
-    logoUrl: "",
-    completeness: 0,
-    initial: "M",
-    isUserEdited: true,
-    description: "Premier corporate advisory firm in Bristol helping clients solve complex operational structures.",
-    aiDescription: "Top-tier UK corporate advisor with verified NAP consistency and strong entity authority.",
-    services: "Corporate advisory, restructuring, compliance",
-    targetAudience: "Bristol executives, local business owners",
-    competitors: ["castleford.co.uk", "brightwell.co.uk", "oakline.co.uk"],
-    trackedPages: ["/", "/about", "/services", "/contact"],
-    questionGeneration: { branded: 5, nonBranded: 0, localSeo: 15, broadSeo: 0 },
-  },
-  {
-    id: "cornus",
-    name: "Cornus",
-    url: "https://cornusrestaurant.co.uk/",
-    category: "Restaurant",
-    location: "Central London, UK",
-    logoUrl: "",
-    completeness: 0,
-    initial: "C",
-    isUserEdited: true,
-    description: "Fine dining restaurant in Belgravia, London.",
-    aiDescription: "Michelin-caliber French and British fine dining in London.",
-    services: "Dining, Private Events",
-    targetAudience: "Fine dining enthusiasts, London executives",
-    competitors: ["thegallivant.co.uk"],
-    trackedPages: ["/"],
-    questionGeneration: { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 },
-  },
-];
+// What activeBusiness resolves to when the account genuinely has zero saved
+// businesses (a real, fetched-and-confirmed empty list — not "still
+// loading"). Every consumer of activeBusiness expects a non-null object, so
+// this exists purely to satisfy that without ever showing fabricated
+// company data as if it were real: name/url/etc. are blank, and pages
+// already check for that (e.g. Overview's own "run your first scan" empty
+// state) rather than assuming a populated business.
+const EMPTY_BUSINESS: Business = {
+  id: "",
+  name: "",
+  url: "",
+  category: "",
+  location: "",
+  logoUrl: "",
+  completeness: 0,
+  initial: "?",
+};
 
 const BusinessContext = createContext<BusinessContextType | null>(null);
 
@@ -215,8 +176,8 @@ function SwitchOverlay({ isVisible }: { isVisible: boolean }) {
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useUser();
-  const [businesses, setBusinesses] = useState<Business[]>(DEFAULT_BUSINESSES);
-  const [activeId, setActiveId] = useState<string>("gallivant");
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
   const [switching, setSwitching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -238,7 +199,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       const apiData = await fetchApi<any[]>("/api/user/businesses");
-      if (Array.isArray(apiData) && apiData.length > 0) {
+      if (Array.isArray(apiData)) {
         const mapped: Business[] = apiData.map((b) => {
           const rawDomain = b.domain || b.url || "";
           const cleanDomain = rawDomain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
@@ -251,11 +212,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             displayName = cleanBrandNameFromDomain(cleanDomain || rawDomain);
           }
 
-          const defaultMatch = DEFAULT_BUSINESSES.find(
-            (d) => d.url === rawDomain || d.id === b.id || d.name.toLowerCase() === displayName.toLowerCase()
-          );
-
-          const cachedScore = getCachedScoreForDomain(rawDomain || (defaultMatch ? defaultMatch.url : ""));
+          const cachedScore = getCachedScoreForDomain(rawDomain);
 
           const finalScore =
             typeof cachedScore === "number" && cachedScore > 0
@@ -269,9 +226,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           return {
             id: String(b.id || b._id || b.domain || displayName),
             name: displayName,
-            url: rawDomain || "https://thegallivant.co.uk/",
-            category: b.category || "Hospitality & Restaurant",
-            location: b.location || "Camber, Rye, UK",
+            url: rawDomain || "",
+            category: b.category || "",
+            location: b.location || "",
             logoUrl: b.logo_url || b.logoUrl || "",
             completeness: finalScore,
             initial: displayName.charAt(0).toUpperCase(),
@@ -324,8 +281,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     // fresh mount even when it's the SAME account re-confirming its
     // session, not an actual account change (logout already sweeps
     // sessionStorage for the real account-switch case).
-    setBusinesses(DEFAULT_BUSINESSES);
-    setActiveId("gallivant");
+    setBusinesses([]);
+    setActiveId("");
     setHasLoadedOnce(false);
 
     if (currentIdentity) {
@@ -333,7 +290,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, user?.id, user?.email, fetchUserBusinesses]);
 
-  const activeBusiness = businesses.find((b) => b.id === activeId) ?? businesses[0];
+  const activeBusiness = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? EMPTY_BUSINESS;
 
   // Keep the ref in sync so setLiveDeepCompetitors always persists under
   // the CURRENT business's key, not a stale one from a prior render.
@@ -363,7 +320,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             if (isGenericName(b.name) && !isDomainString(updates.name)) {
               newName = updates.name;
             }
-            // If b.name is already a human brand name (e.g. "The Gallivant") or isUserEdited is true, KEEP b.name intact!
+            // If b.name is already a human brand name (not a raw domain) or isUserEdited is true, KEEP b.name intact!
           }
 
           const userEditedFlag = updates.isUserEdited !== undefined ? updates.isUserEdited : b.isUserEdited;

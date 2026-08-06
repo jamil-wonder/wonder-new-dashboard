@@ -34,18 +34,19 @@ export default function AuthPage() {
 
     try {
       setLoading(true);
+      // Neither path signs the user in directly anymore — both send a code
+      // to the email and only /verify-email actually establishes a session.
+      // No hard navigation here (unlike after verifying) since there's no
+      // token yet for providers to pick up.
       if (mode === "login") {
-        await login(email, password);
-        showToast("Welcome back to Wonderscore!", "success");
+        const { email: confirmedEmail } = await login(email, password);
+        showToast("We sent a sign-in code to your email.", "success");
+        window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}`);
       } else {
-        await signup(email, password, name);
-        showToast("Account created successfully!", "success");
+        const { email: confirmedEmail } = await signup(email, password, name);
+        showToast("Account created — check your email for a verification code.", "success");
+        window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}`);
       }
-      // Hard navigation (not router.push) — forces every provider
-      // (BusinessContext included) to remount and fetch fresh with this
-      // session's token, rather than possibly reusing another account's
-      // in-memory state left over in the same tab.
-      window.location.href = "/overview";
     } catch (err: any) {
       setErrorMsg(err?.message || "Authentication failed. Please check credentials.");
       setLoading(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
   Globe, MapPin, Tag, CheckCircle2, XCircle, AlertCircle,
   Phone, Mail, Clock, Link2, FileCode2, Cpu, ShieldCheck, Smartphone,
@@ -76,6 +77,7 @@ export default function AnalyserPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [isScanComplete, setIsScanComplete] = useState(false);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   // Live dynamic data state
   const [scanData, setScanData] = useState<any>(null);
@@ -84,10 +86,10 @@ export default function AnalyserPage() {
   const [auditAreas, setAuditAreas] = useState<any[]>([]);
   const [technicalInfoOpen, setTechnicalInfoOpen] = useState(false);
 
-  const domain = activeBusiness?.url || "https://thegallivant.co.uk/";
-  const businessName = activeBusiness?.name || "The Gallivant";
-  const category = activeBusiness?.category || "Restaurant & Hotel";
-  const location = activeBusiness?.location || "Camber, Rye, UK";
+  const domain = activeBusiness?.url || "";
+  const businessName = activeBusiness?.name || "";
+  const category = activeBusiness?.category || "";
+  const location = activeBusiness?.location || "";
 
   const getCacheKey = useCallback((targetUrl: string) => {
     const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -200,6 +202,7 @@ export default function AnalyserPage() {
     }
 
     try {
+      setScanError(null);
       if (isUserTriggered) {
         clearCachedAnalysis(domain);
         setScanData(null);
@@ -348,55 +351,14 @@ export default function AnalyserPage() {
           { id: "technical", label: "Technical health", score: techScore, statusText: techScore >= 75 ? "GOOD" : "NEEDS WORK", statusColor: techScore >= 75 ? "#1e7d4f" : "#b1442a", statusBg: techScore >= 75 ? "#dcefe2" : "#f6dcd5", barColor: techScore >= 75 ? "#2e9e5b" : "#dc6b6b", iconName: "Cpu" },
         ];
       } else {
-        const totalScore = activeBusiness.completeness || 91;
-        const sentimentScore = 95;
-        const sourcesScore = 88;
-        const contentScore = 86;
-        const presenceScore = 85;
-        const coverageScore = 82;
-        const techScore = 100;
-
-        finalScan = {
-          businessName,
-          url: domain,
-          category,
-          location,
-          description: activeBusiness.description || `${businessName} in ${location}.`,
-          canonicalUrl: cleanUrl,
-          language: "EN-GB",
-          hasSSL: true,
-          hasMobileMeta: true,
-          sitemapFound: true,
-          robotsTxtFound: true,
-          emails: [userEmailFallback(domain)],
-          phones: ["01797 225 057"],
-          addresses: [location],
-          openingHours: ["Mon–Sun 08:00–23:00"],
-          socialLinks: { instagram: "instagram.com/thegallivant", facebook: "facebook.com/gallivanthotel" },
-          schemas: [{ "@type": "Hotel" }, { "@type": "Restaurant" }],
-          hasBooking: true,
-          logoFound: true,
-          technologies: ["WordPress", "HTTPS", "Schema.org"],
-          scores: {
-            total: totalScore,
-            grade: "A+",
-            coreIdentity: { total: sentimentScore },
-            contact: { total: sourcesScore },
-            operating: { total: 90 },
-            trust: { total: presenceScore },
-            schema: { total: coverageScore },
-            technical: { total: techScore },
-          },
-        };
-
-        finalAreas = [
-          { id: "sentiment", label: "How AI describes you", score: sentimentScore, statusText: "GOOD", statusColor: "#1e7d4f", statusBg: "#dcefe2", barColor: "#2e9e5b", iconName: "MessageSquare" },
-          { id: "sources", label: "Where AI gets its information", score: sourcesScore, statusText: "GOOD", statusColor: "#1e7d4f", statusBg: "#dcefe2", barColor: "#2e9e5b", iconName: "BookOpen" },
-          { id: "content", label: "Content quality", score: contentScore, statusText: "GOOD", statusColor: "#1e7d4f", statusBg: "#dcefe2", barColor: "#2e9e5b", iconName: "FileCode2" },
-          { id: "presence", label: "Presence across platforms", score: presenceScore, statusText: "GOOD", statusColor: "#1e7d4f", statusBg: "#dcefe2", barColor: "#2e9e5b", iconName: "Building2" },
-          { id: "coverage", label: "Topic coverage", score: coverageScore, statusText: "GOOD", statusColor: "#1e7d4f", statusBg: "#dcefe2", barColor: "#2e9e5b", iconName: "FileSearch" },
-          { id: "technical", label: "Technical health", score: techScore, statusText: "GOOD", statusColor: "#1e7d4f", statusBg: "#dcefe2", barColor: "#2e9e5b", iconName: "Cpu" },
-        ];
+        // The real scrape failed or came back without scores — do not
+        // fabricate a passing scorecard. Leave finalScan null so the UI
+        // shows an honest "analysis failed, try again" state instead of
+        // invented scores and invented contact details for a business
+        // that were never actually crawled.
+        finalScan = null;
+        finalAreas = [];
+        setScanError("We couldn't complete the website scan. The site may be unreachable, or something went wrong on our end.");
       }
 
       // ── 2. Process AI Insights ─────────────────────────────────────────────
@@ -436,28 +398,10 @@ export default function AnalyserPage() {
           };
         });
       } else {
-        finalInsights = [
-          {
-            model: "Perplexity", icon: "/icons/perplexity.svg", confidence: "High", confidenceColor: "#1e7d4f", confidenceBg: "#dcefe2",
-            summary: `${businessName} is a boutique coastal hotel & restaurant in Camber near Rye, opposite Camber Sands. Michelin Key recognized with strong local food messaging.`,
-            verifiedFields: ["Name", "URL", "Category", "Location", "Michelin Key"], missingFields: ["Hours"]
-          },
-          {
-            model: "ChatGPT", icon: "/icons/chatgpt.svg", confidence: "High", confidenceColor: "#1e7d4f", confidenceBg: "#dcefe2",
-            summary: `ChatGPT has indexed ${domain} and resolved core ${category} entity parameters for ${businessName}.`,
-            verifiedFields: ["Name", "URL", "Category", "Location"], missingFields: ["Hours"]
-          },
-          {
-            model: "Claude", icon: "/icons/claude.svg", confidence: "High", confidenceColor: "#1e7d4f", confidenceBg: "#dcefe2",
-            summary: `Claude recognizes ${businessName} as a beachside boutique hotel and restaurant destination in Camber Sands.`,
-            verifiedFields: ["Name", "URL", "Location"], missingFields: ["Hours"]
-          },
-          {
-            model: "Gemini", icon: "/icons/gemini.svg", confidence: "Medium", confidenceColor: "#9a6a12", confidenceBg: "#f7e7c4",
-            summary: `Gemini has mapped ${domain} entity records with verified LocalBusiness schemas.`,
-            verifiedFields: ["Name", "URL"], missingFields: ["Hours"]
-          }
-        ];
+        // Real AI-insights call failed or returned nothing — leave this
+        // empty rather than inventing quotes and attributing them to
+        // specific AI models that were never actually queried.
+        finalInsights = [];
       }
 
       // Record crawl score in scan history for trend comparison, and save
@@ -466,12 +410,15 @@ export default function AnalyserPage() {
       // if the user has since switched away from it.
       if (finalScan?.scores?.total) {
         recordScanHistory(domain, finalScan.scores.total);
+        // Only a genuinely successful scan is worth caching — caching a
+        // failure would mean the 2-hour TTL cache "successfully" serves
+        // back a null result on the next visit instead of retrying.
+        saveCachedAnalysis(domain, {
+          scanData: finalScan,
+          auditAreas: finalAreas,
+          aiInsights: finalInsights,
+        });
       }
-      saveCachedAnalysis(domain, {
-        scanData: finalScan,
-        auditAreas: finalAreas,
-        aiInsights: finalInsights,
-      });
       clearActiveAnalysis(domain);
 
       // Only touch what's actually ON SCREEN if this is still the latest
@@ -489,6 +436,7 @@ export default function AnalyserPage() {
       }
     } catch (err) {
       console.error("Analysis failed:", err);
+      setScanError("Something went wrong while analysing this website. Please try again.");
       if (isUserTriggered && analysisRequestIdRef.current === requestId) setIsScanComplete(true);
     } finally {
       if (analysisRequestIdRef.current === requestId) setIsLoadingInitial(false);
@@ -505,6 +453,12 @@ export default function AnalyserPage() {
     // to. Clean slate for whichever business is now active.
     setIsScanning(false);
     setIsScanComplete(false);
+    if (!domain) {
+      // No active business — nothing to analyse, and no scan already in
+      // flight to wait on, so don't leave the loading spinner spinning.
+      setIsLoadingInitial(false);
+      return;
+    }
     runLiveAnalysis(false);
   }, [domain, runLiveAnalysis]);
 
@@ -515,8 +469,30 @@ export default function AnalyserPage() {
   const handleScanComplete = () => {
     setIsScanning(false);
     setIsScanComplete(false);
-    showToast(`AI analysis completed! Brand details for ${businessName} updated sitewide.`, "success");
+    if (scanData) {
+      showToast(`AI analysis completed! Brand details for ${businessName} updated sitewide.`, "success");
+    }
   };
+
+  if (!domain) {
+    return (
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#f6f3ec] border border-[#ece3d1] flex items-center justify-center mb-4">
+          <Building2 className="w-6 h-6 text-[#9b927f]" />
+        </div>
+        <div className="font-spectral text-[19px] font-semibold text-[#23211b]">No business added yet</div>
+        <p className="text-[13px] text-[#8a8273] mt-1.5 max-w-[360px]">
+          Add a business profile to crawl its website and run the AI visibility analysis.
+        </p>
+        <Link
+          href="/settings?tab=entity"
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors"
+        >
+          + Add a business
+        </Link>
+      </div>
+    );
+  }
 
   if (isLoadingInitial && !scanData) {
     return (
@@ -526,6 +502,25 @@ export default function AnalyserPage() {
           label={`Analysing ${domain}`}
           note="This can take 1-5 minutes. We are checking the website, AI visibility, and business signals."
         />
+      </div>
+    );
+  }
+
+  if (!isLoadingInitial && !scanData && scanError) {
+    return (
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#fdeee7] border border-[#f0d4ce] flex items-center justify-center mb-4">
+          <AlertCircle className="w-6 h-6 text-[#b1442a]" />
+        </div>
+        <div className="font-spectral text-[19px] font-semibold text-[#23211b]">Analysis failed</div>
+        <p className="text-[13px] text-[#8a8273] mt-1.5 max-w-[360px]">{scanError}</p>
+        <button
+          type="button"
+          onClick={handleStartScan}
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors cursor-pointer border-none"
+        >
+          Try again
+        </button>
       </div>
     );
   }

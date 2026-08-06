@@ -135,9 +135,9 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
           <div className="text-[13px] text-[#4a4368] font-semibold mt-1.5">{readyCount} of 4 ready</div>
           <div className="flex items-center gap-2.5 mt-2">
             <div className="flex-1 h-[7px] bg-[#ddd2f0] rounded-full overflow-hidden">
-              <div className="h-full bg-[#2d2a6e] transition-all duration-500" style={{ width: `${pct || 15}%` }} />
+              <div className="h-full bg-[#2d2a6e] transition-all duration-500" style={{ width: `${pct}%` }} />
             </div>
-            <span className="num text-[12px] font-bold text-[#2d2a6e]">{pct || 15}%</span>
+            <span className="num text-[12px] font-bold text-[#2d2a6e]">{pct}%</span>
           </div>
         </div>
       </div>

@@ -77,24 +77,31 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
         )}
       </div>
 
-      {/* ── The Plan Continues ── */}
+      {/* ── The Plan Continues — derived from this business's actual
+          weakest audit areas, not a fixed generic roadmap ── */}
       <div className="bg-[#f6f1e8] border border-[#e8e1d0] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col justify-between">
         <div>
           <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#9a8a5e]">The plan continues</div>
           <div className="font-spectral text-[21px] font-semibold text-[#23211b] mt-1">Coming up</div>
-          <div className="flex flex-col mt-2.5">
-            {[
-              { week: "NEXT WEEK", color: "#1e7d4f", task: "Build your services feature page" },
-              { week: "WEEK 3",    color: "#9b927f", task: "Close the Gemini gap" },
-              { week: "WEEK 4",    color: "#9b927f", task: "Strengthen your top review sources" },
-              { week: "WEEK 5",    color: "#9b927f", task: "Press & directory citations" },
-            ].map(({ week, color, task }, i, arr) => (
-              <div key={week} className={`flex gap-4 items-baseline py-3 ${i < arr.length - 1 ? "border-b border-[#e8e1d0]" : ""}`}>
-                <span className="font-mono-spline text-[10px] tracking-wider w-[66px] shrink-0" style={{ color }}>{week}</span>
-                <span className="text-[14px] text-[#23211b]">{task}</span>
-              </div>
-            ))}
-          </div>
+          {!hasAnalyserData || auditAreas.length === 0 ? (
+            <div className="mt-4 p-4 rounded-lg bg-[#f2ebdb] text-center">
+              <p className="text-[12.5px] text-[#9a8a5e]">Run the Analyser to build your improvement plan.</p>
+              <Link href="/analyser" className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[#1e7d4f]">
+                Open Analyser <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          ) : (
+            <div className="flex flex-col mt-2.5">
+              {[...auditAreas].sort((a, b) => a.score - b.score).slice(0, 4).map((area, i, arr) => (
+                <div key={area.id} className={`flex gap-4 items-baseline py-3 ${i < arr.length - 1 ? "border-b border-[#e8e1d0]" : ""}`}>
+                  <span className="num font-mono-spline text-[10px] tracking-wider w-[52px] shrink-0" style={{ color: i === 0 ? "#1e7d4f" : "#9b927f" }}>
+                    {area.score}/100
+                  </span>
+                  <span className="text-[14px] text-[#23211b]">Improve: {area.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-2 pt-3.5 border-t border-[#e8e1d0]">
           <Link href="/plan" className="ul inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1e7d4f]">

@@ -64,7 +64,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
                       <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: colors.bar }} />
                     </div>
                     <span className="num text-[13.5px] font-bold w-[38px] text-right" style={{ color: colors.label }}>
-                      {mentioned}/{total || 20}
+                      {mentioned}/{total}
                     </span>
                   </div>
                 );
@@ -75,12 +75,12 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Strongest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "—"}</div>
-                <div className="num text-[12px] font-bold text-[#2e9e5b]">{strongest?.mentioned || 0}/{totalQueries || 20}</div>
+                <div className="num text-[12px] font-bold text-[#2e9e5b]">{strongest?.mentioned || 0}/{totalQueries}</div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#b1442a]">Weakest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{weakest?.model || "—"}</div>
-                <div className="num text-[12px] font-bold text-[#9a6a12]">{weakest?.mentioned || 0}/{totalQueries || 20}</div>
+                <div className="num text-[12px] font-bold text-[#9a6a12]">{weakest?.mentioned || 0}/{totalQueries}</div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Potential</div>

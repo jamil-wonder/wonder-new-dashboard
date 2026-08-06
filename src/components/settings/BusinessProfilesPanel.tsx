@@ -182,10 +182,10 @@ export default function BusinessProfilesPanel() {
           <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">Core Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { label: "Business Name", val: formName, set: setFormName, ph: "The Gallivant", req: true },
-              { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://thegallivant.co.uk/", req: true },
-              { label: "Category", val: formCategory, set: setFormCategory, ph: "Restaurant & Hotel" },
-              { label: "Location", val: formLocation, set: setFormLocation, ph: "Camber, Rye, UK" },
+              { label: "Business Name", val: formName, set: setFormName, ph: "Acme Inc.", req: true },
+              { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://example.com/", req: true },
+              { label: "Category", val: formCategory, set: setFormCategory, ph: "e.g. Restaurant, Consulting" },
+              { label: "Location", val: formLocation, set: setFormLocation, ph: "e.g. Austin, TX" },
             ].map(({ label, val, set, ph, req }) => (
               <div key={label}>
                 <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">{label}</label>
@@ -315,6 +315,18 @@ export default function BusinessProfilesPanel() {
           </button>
         </div>
       </div>
+
+      {businesses.length === 0 && (
+        <div className="flex flex-col items-center text-center py-10 gap-2">
+          <div className="w-11 h-11 rounded-xl bg-[#f6f3ec] border border-[#ece3d1] flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-[#9b927f]" />
+          </div>
+          <p className="text-[13.5px] font-semibold text-[#23211b]">No business profiles yet</p>
+          <p className="text-[12.5px] text-[#8a8273] max-w-[320px]">
+            Add your first business to start tracking its AI visibility.
+          </p>
+        </div>
+      )}
 
       {/* Grid of Minimal & Modern Business Profile Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Plus, ArrowRight, Globe } from "lucide-react";
+import { Check, ArrowRight, Globe } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
 
 function domainInitials(domain: string) {
@@ -28,9 +28,6 @@ function resolveSource(domain: string) {
 export default function SourcesSection({ data }: { data: OverviewData }) {
   const { citedSources, hasQueryData } = data;
 
-  // Suggest likely missing sources if no data or to supplement
-  const suggestedMissing = ["trustpilot", "yelp"].filter(s => !citedSources.some(c => c.includes(s)));
-
   return (
     <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col justify-between">
       <div>
@@ -49,54 +46,32 @@ export default function SourcesSection({ data }: { data: OverviewData }) {
             <Globe className="w-5 h-5 text-[#b3a98f] mx-auto mb-1" />
             <p className="text-[12.5px] text-[#9a8a5e]">Run AI Queries to see which sources get cited alongside you.</p>
           </div>
-        ) : (
+        ) : citedSources.length > 0 ? (
           <>
-            {citedSources.length > 0 && (
-              <>
-                <div className="font-mono-spline text-[9px] tracking-wider uppercase text-[#9a8a5e] mt-4">
-                  You're cited alongside
-                </div>
-                <div className="flex flex-col gap-2.5 mt-2.5">
-                  {citedSources.slice(0, 3).map((src, i) => {
-                    const s = resolveSource(src);
-                    return (
-                      <div key={i} className="flex items-center gap-2.5">
-                        <div className="w-[26px] h-[26px] rounded-md flex items-center justify-center font-bold text-[12px] shrink-0"
-                          style={{ background: s.bg, color: s.color }}>
-                          {s.text}
-                        </div>
-                        <span className="flex-1 text-[14px] text-[#23211b] truncate">{s.label}</span>
-                        <Check className="w-4 h-4 text-[#1e7d4f]" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {suggestedMissing.length > 0 && (
-              <>
-                <div className="font-mono-spline text-[9px] tracking-wider uppercase text-[#9a8a5e] mt-4">
-                  Not yet cited alongside
-                </div>
-                <div className="flex flex-col gap-2.5 mt-2.5">
-                  {suggestedMissing.slice(0, 2).map((src, i) => {
-                    const s = resolveSource(src);
-                    return (
-                      <div key={i} className="flex items-center gap-2.5">
-                        <div className="w-[26px] h-[26px] rounded-md flex items-center justify-center font-bold text-[12px] shrink-0"
-                          style={{ background: s.bg, color: s.color }}>
-                          {s.text}
-                        </div>
-                        <span className="flex-1 text-[14px] text-[#23211b] truncate">{s.label}</span>
-                        <Plus className="w-4 h-4 text-[#c2b69c]" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+            <div className="font-mono-spline text-[9px] tracking-wider uppercase text-[#9a8a5e] mt-4">
+              You're cited alongside
+            </div>
+            <div className="flex flex-col gap-2.5 mt-2.5">
+              {citedSources.slice(0, 3).map((src, i) => {
+                const s = resolveSource(src);
+                return (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <div className="w-[26px] h-[26px] rounded-md flex items-center justify-center font-bold text-[12px] shrink-0"
+                      style={{ background: s.bg, color: s.color }}>
+                      {s.text}
+                    </div>
+                    <span className="flex-1 text-[14px] text-[#23211b] truncate">{s.label}</span>
+                    <Check className="w-4 h-4 text-[#1e7d4f]" />
+                  </div>
+                );
+              })}
+            </div>
           </>
+        ) : (
+          <div className="mt-4 p-4 rounded-lg bg-[#f6efe0] text-center">
+            <Globe className="w-5 h-5 text-[#b3a98f] mx-auto mb-1" />
+            <p className="text-[12.5px] text-[#9a8a5e]">No sources cited yet for this business.</p>
+          </div>
         )}
       </div>
 

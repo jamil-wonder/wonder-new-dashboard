@@ -9,14 +9,22 @@ export interface UserProfile {
   full_name: string;
   role?: string;
   avatar_url?: string;
+  email_verified?: boolean;
 }
 
 interface UserContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
-  signup: (email: string, pass: string, name: string) => Promise<void>;
+  // login/signup no longer establish a session by themselves — both end
+  // with a code emailed to the address given, and resolve to that email
+  // (or throw on invalid credentials / a rejected email) so the caller can
+  // send the user to /verify-email. The only way to actually get a token
+  // is verifyOtp() below.
+  login: (email: string, pass: string) => Promise<{ email: string }>;
+  signup: (email: string, pass: string, name: string) => Promise<{ email: string }>;
+  verifyOtp: (email: string, code: string) => Promise<void>;
+  resendOtp: (email: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: { full_name: string; email: string }) => Promise<void>;
 }
@@ -49,6 +57,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 full_name: parsed.full_name || parsed.name || "User",
                 role: parsed.role || "user",
                 avatar_url: parsed.avatar_url || "",
+                email_verified: Boolean(parsed.email_verified),
               });
               setIsAuthenticated(true);
               setIsLoading(false);
@@ -73,6 +82,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           full_name: data.name || data.full_name || "User",
           role: data.role || "user",
           avatar_url: data.avatar_url || "",
+          email_verified: Boolean(data.email_verified),
         };
         setUser(prof);
         setIsAuthenticated(true);
@@ -100,71 +110,50 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserProfile]);
 
   const login = async (emailStr: string, passStr: string) => {
-    try {
-      const res = await fetchApi<any>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email: emailStr, password: passStr }),
-      });
-
-      if (res && res.access_token) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("wonder_token", res.access_token);
-        }
-        const prof: UserProfile = {
-          id: res.user?.id || "u-id",
-          email: res.user?.email || emailStr,
-          full_name: res.user?.name || res.user?.full_name || "User",
-          role: res.user?.role || "user",
-        };
-        setUser(prof);
-        setIsAuthenticated(true);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("wonder_user", JSON.stringify(prof));
-        }
-      }
-    } catch (err: any) {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("wonder_token");
-        localStorage.removeItem("wonder_user");
-      }
-      setUser(null);
-      setIsAuthenticated(false);
-      throw err;
-    }
+    const res = await fetchApi<any>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: emailStr, password: passStr }),
+    });
+    return { email: res?.email || emailStr };
   };
 
   const signup = async (emailStr: string, passStr: string, nameStr: string) => {
-    try {
-      const res = await fetchApi<any>("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({ email: emailStr, password: passStr, name: nameStr }),
-      });
+    const res = await fetchApi<any>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email: emailStr, password: passStr, name: nameStr }),
+    });
+    return { email: res?.email || emailStr };
+  };
 
-      if (res && res.access_token) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("wonder_token", res.access_token);
-        }
-        const prof: UserProfile = {
-          id: res.user?.id || "u-id",
-          email: res.user?.email || emailStr,
-          full_name: res.user?.name || nameStr,
-          role: res.user?.role || "user",
-        };
-        setUser(prof);
-        setIsAuthenticated(true);
-        if (typeof window !== "undefined") {
-          localStorage.setItem("wonder_user", JSON.stringify(prof));
-        }
-      }
-    } catch (err) {
+  const verifyOtp = async (emailStr: string, code: string) => {
+    const res = await fetchApi<any>("/api/auth/otp/verify", {
+      method: "POST",
+      body: JSON.stringify({ email: emailStr, code }),
+    });
+    if (res && res.access_token) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("wonder_token");
-        localStorage.removeItem("wonder_user");
+        localStorage.setItem("wonder_token", res.access_token);
       }
-      setUser(null);
-      setIsAuthenticated(false);
-      throw err;
+      const prof: UserProfile = {
+        id: res.user?.id || "u-id",
+        email: res.user?.email || emailStr,
+        full_name: res.user?.name || res.user?.full_name || "User",
+        role: res.user?.role || "user",
+        email_verified: Boolean(res.user?.email_verified),
+      };
+      setUser(prof);
+      setIsAuthenticated(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("wonder_user", JSON.stringify(prof));
+      }
     }
+  };
+
+  const resendOtp = async (emailStr: string) => {
+    await fetchApi<any>("/api/auth/otp/resend", {
+      method: "POST",
+      body: JSON.stringify({ email: emailStr }),
+    });
   };
 
   const logout = () => {
@@ -199,6 +188,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         ...user,
         email: updated.email || data.email,
         full_name: updated.name || updated.full_name || data.full_name,
+        email_verified: Boolean(updated.email_verified),
       };
       setUser(prof);
       if (typeof window !== "undefined") {
@@ -223,6 +213,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         signup,
+        verifyOtp,
+        resendOtp,
         logout,
         updateProfile,
       }}

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
+import { Building2 } from "lucide-react";
 import ModelSwitcher from "../../components/query/ModelSwitcher";
 import QueryFilterBar from "../../components/query/QueryFilterBar";
 import QueryTable from "../../components/query/QueryTable";
@@ -281,11 +283,11 @@ export default function QueryPage() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const questionProgressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const domain = activeBusiness?.url || "https://thegallivant.co.uk/";
-  const rawBusinessName = activeBusiness?.name || "The Gallivant";
+  const domain = activeBusiness?.url || "";
+  const rawBusinessName = activeBusiness?.name || "";
   const businessName = isGenericName(rawBusinessName) ? cleanBrandNameFromDomain(domain) : rawBusinessName;
-  const category = activeBusiness?.category || "Restaurant & Hotel";
-  const location = activeBusiness?.location || "Camber, Rye, UK";
+  const category = activeBusiness?.category || "";
+  const location = activeBusiness?.location || "";
   const savedQuestionMix = useMemo(
     () => normalizeQuestionMix(activeBusiness?.questionGeneration as Partial<QuestionMix> | undefined),
     [activeBusiness?.questionGeneration],
@@ -962,6 +964,26 @@ export default function QueryPage() {
     setIsScanComplete(false);
     showToast(`AI audit completed! All prompts now show live statuses, ranks, and citations.`, "success");
   }, [showToast]);
+
+  if (!activeBusiness?.id) {
+    return (
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#f6f3ec] border border-[#ece3d1] flex items-center justify-center mb-4">
+          <Building2 className="w-6 h-6 text-[#9b927f]" />
+        </div>
+        <div className="font-spectral text-[19px] font-semibold text-[#23211b]">No business added yet</div>
+        <p className="text-[13px] text-[#8a8273] mt-1.5 max-w-[360px]">
+          Add a business profile to generate AI visibility prompts and track mentions.
+        </p>
+        <Link
+          href="/settings?tab=entity"
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors"
+        >
+          + Add a business
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 relative pb-12">

@@ -1,28 +1,38 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
 
-function ScoreRing({ score }: { score: number }) {
+function ScoreRing({ score, delta }: { score: number; delta: number | null }) {
   const r = 33;
   const circ = 2 * Math.PI * r;
   const fill = (score / 100) * circ;
-  const isUp = true;
+
   return (
     <div className="relative w-[80px] h-[80px] shrink-0">
       <svg width="80" height="80" viewBox="0 0 80 80">
         <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
-        <circle
-          cx="40" cy="40" r={r} fill="none" stroke="#a8d860" strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={`${fill} ${circ}`}
-          transform="rotate(-90 40 40)"
-        />
+        {score > 0 && (
+          <circle
+            cx="40" cy="40" r={r} fill="none" stroke="#a8d860" strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${fill} ${circ}`}
+            transform="rotate(-90 40 40)"
+          />
+        )}
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <TrendingUp className="w-6 h-6 text-[#a8d860]" />
-      </div>
+      {score > 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          {delta === null || delta === 0 ? (
+            <Minus className="w-6 h-6 text-[#a8d860]" />
+          ) : delta > 0 ? (
+            <TrendingUp className="w-6 h-6 text-[#a8d860]" />
+          ) : (
+            <TrendingDown className="w-6 h-6 text-[#e08a6f]" />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -186,12 +196,6 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`
     : "Open the Analyser tab to crawl your site and get your score.";
 
-  const gradeBadgeLabel = grade === "A+" ? "Grade A+ · High Visibility"
-    : grade === "A" ? "Grade A · Good Visibility"
-    : grade === "B+" ? "Grade B+ · Growing Visibility"
-    : grade === "B" ? "Grade B · Moderate Visibility"
-    : "Grade C · Low Visibility";
-
   const ringFill = score;
 
   return (
@@ -215,7 +219,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
               </span>
               <span className="num font-spectral text-[17px] text-[#7fae97]">/100</span>
             </div>
-            <ScoreRing score={ringFill} />
+            <ScoreRing score={ringFill} delta={delta} />
           </div>
 
           {delta !== null && (
@@ -235,8 +239,12 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         </div>
 
         <div className="border-t border-white/15 pt-3.5 mt-4">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#86b89f]">Grade {grade}</div>
-          <div className="font-spectral text-[22px] font-medium text-white mt-1">{visibilityText}</div>
+          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#86b89f]">
+            {score > 0 ? `Grade ${grade}` : "Grade —"}
+          </div>
+          <div className="font-spectral text-[22px] font-medium text-white mt-1">
+            {score > 0 ? visibilityText : "Not yet scanned"}
+          </div>
         </div>
       </motion.div>
 

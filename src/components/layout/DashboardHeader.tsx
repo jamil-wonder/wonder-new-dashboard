@@ -12,6 +12,7 @@ import { fetchApi, getScanHistory } from "../../lib/api";
 
 export default function DashboardHeader() {
   const { activeBusiness } = useBusiness();
+  const hasBusiness = Boolean(activeBusiness?.id);
   const [historyPrevScore, setHistoryPrevScore] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
 
@@ -85,32 +86,51 @@ export default function DashboardHeader() {
 
             {/* Active Business Info & Dynamic Score Trend — Expanded Layout */}
             <div className="hidden lg:block flex-1 min-w-0 pl-3.5 border-l border-[#efe7d6]">
-              <div className="text-[15.5px] font-semibold text-[#23211b] leading-snug truncate">
-                {activeBusiness.name}
-              </div>
-              <div className="text-[12px] text-[#9b927f] leading-tight mb-1 truncate">
-                <span>{activeBusiness.category}</span>
-                <span className="mx-1 text-[#d8cfbd]">·</span>
-                <span>{activeBusiness.location}</span>
-              </div>
+              {hasBusiness ? (
+                <>
+                  <div className="text-[15.5px] font-semibold text-[#23211b] leading-snug truncate">
+                    {activeBusiness.name}
+                  </div>
+                  <div className="text-[12px] text-[#9b927f] leading-tight mb-1 truncate">
+                    <span>{activeBusiness.category}</span>
+                    <span className="mx-1 text-[#d8cfbd]">·</span>
+                    <span>{activeBusiness.location}</span>
+                  </div>
 
-              {/* Dynamic Score Status Pill */}
-              {scoreDisplay === null ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-0.5 rounded-full">
-                  — Not Scanned
-                </span>
-              ) : scoreDisplay >= 80 ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#1e7d4f] px-2.5 py-0.5 rounded-full">
-                  ▲ High Score
-                </span>
-              ) : scoreDisplay >= 50 ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#9a6a12] px-2.5 py-0.5 rounded-full">
-                  — Score Steady
-                </span>
+                  {/* Dynamic Score Status Pill */}
+                  {scoreDisplay === null ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-0.5 rounded-full">
+                      — Not Scanned
+                    </span>
+                  ) : scoreDisplay >= 80 ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#1e7d4f] px-2.5 py-0.5 rounded-full">
+                      ▲ High Score
+                    </span>
+                  ) : scoreDisplay >= 50 ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#9a6a12] px-2.5 py-0.5 rounded-full">
+                      — Score Steady
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#b1442a] px-2.5 py-0.5 rounded-full">
+                      ▼ Low Score
+                    </span>
+                  )}
+                </>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#b1442a] px-2.5 py-0.5 rounded-full">
-                  ▼ Low Score
-                </span>
+                <>
+                  <div className="text-[13.5px] font-semibold text-[#8a8273] leading-snug">
+                    No business added yet
+                  </div>
+                  <div className="text-[12px] text-[#b3a98f] leading-tight mb-1">
+                    Add one to start tracking AI visibility
+                  </div>
+                  <Link
+                    href="/settings?tab=entity"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#15463b] hover:underline"
+                  >
+                    + Add a business
+                  </Link>
+                </>
               )}
             </div>
 

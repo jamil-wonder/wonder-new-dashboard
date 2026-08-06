@@ -7,10 +7,14 @@ import BlogReaderModal from "../../components/blogs/BlogReaderModal";
 import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi } from "../../lib/api";
-import { Settings, ArrowRight } from "lucide-react";
+import { Settings, ArrowRight, Building2 } from "lucide-react";
 
 async function getValidMongoBusinessId(business: any): Promise<string | null> {
-  if (!business) return null;
+  // No real business (including the "no business yet" placeholder, whose
+  // url is always "") must never be synced to the database — there's
+  // nothing real to save, and doing so anyway would silently create a
+  // business record out of empty/placeholder data.
+  if (!business?.url) return null;
   if (business.id && /^[0-9a-fA-F]{24}$/.test(business.id)) {
     return business.id;
   }
@@ -18,10 +22,10 @@ async function getValidMongoBusinessId(business: any): Promise<string | null> {
     const res = await fetchApi<any>("/api/user/businesses", {
       method: "POST",
       body: JSON.stringify({
-        url: business.url || "https://thegallivant.co.uk/",
-        category: business.category || "Restaurant & Hotel",
-        location: business.location || "Camber, Rye, UK",
-        businessName: business.name || "The Gallivant",
+        url: business.url,
+        category: business.category || "",
+        location: business.location || "",
+        businessName: business.name || "",
       }),
     });
     if (res && res.id && /^[0-9a-fA-F]{24}$/.test(res.id)) {
@@ -50,7 +54,7 @@ export default function BlogsPage() {
 
   // Ensure or force-regenerate weekly blogs stored in MongoDB
   const ensureWeeklyBlogs = useCallback(async (force = false, targetMongoId?: string) => {
-    if (!activeBusiness) {
+    if (!activeBusiness?.id) {
       showToast("Please select a valid business profile first.", "info");
       return;
     }
@@ -108,7 +112,7 @@ export default function BlogsPage() {
 
   // Load weekly blogs directly from MongoDB database
   const loadWeeklyBlogs = useCallback(async () => {
-    if (!activeBusiness) return;
+    if (!activeBusiness?.id) return;
     const requestId = ++weeklyRequestIdRef.current;
     // Clear immediately — otherwise the PREVIOUS business's blog drafts
     // stay on screen, mislabeled, for however long this fetch takes.
@@ -148,7 +152,7 @@ export default function BlogsPage() {
   }, [loadWeeklyBlogs]);
 
   useEffect(() => {
-    if (!activeBusiness) return;
+    if (!activeBusiness?.id) return;
     let interval: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
 
@@ -194,6 +198,26 @@ export default function BlogsPage() {
       if (interval) clearInterval(interval);
     };
   }, [activeBusiness, showToast]);
+
+  if (!activeBusiness?.id) {
+    return (
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#f6f3ec] border border-[#ece3d1] flex items-center justify-center mb-4">
+          <Building2 className="w-6 h-6 text-[#9b927f]" />
+        </div>
+        <div className="font-spectral text-[19px] font-semibold text-[#23211b]">No business added yet</div>
+        <p className="text-[13px] text-[#8a8273] mt-1.5 max-w-[360px]">
+          Add a business profile to generate weekly blog drafts.
+        </p>
+        <Link
+          href="/settings?tab=entity"
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors"
+        >
+          + Add a business
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pb-10">

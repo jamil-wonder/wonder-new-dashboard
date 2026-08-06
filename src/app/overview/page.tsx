@@ -13,8 +13,6 @@ import OverviewSkeleton from "../../components/overview/OverviewSkeleton";
 import { useOverviewData } from "../../hooks/useOverviewData";
 import { buildRankedCompetitors } from "../../lib/competitorRanking";
 import { fetchApi } from "../../lib/api";
-import Link from "next/link";
-import { ArrowRight, SearchCheck, Sparkles } from "lucide-react";
 
 function ordinal(n: number): string {
   if (n === 1) return "1st";
@@ -133,38 +131,6 @@ export default function OverviewPage() {
   return (
     <div className="space-y-5 pb-10">
       <HeroSection data={enrichedData} />
-
-      {!hasAnyOverviewData && (
-        <div className="bg-white border border-[#ece3d1] rounded-[16px] p-5 md:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#eef3f0] border border-[#d0e4d6] text-[#15463b] flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="font-spectral text-[20px] font-semibold text-[#15463b]">No overview data yet</div>
-                <p className="mt-1 text-[13px] leading-relaxed text-[#6f6757] max-w-[620px]">
-                  Start with a website scan, then run Query to fill the market, AI visibility, sources, and weekly action sections.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/analyser"
-                className="inline-flex items-center justify-center gap-1.5 rounded-[9px] bg-[#15463b] px-4 py-2.5 text-[12.5px] font-semibold text-white hover:bg-[#10362d]"
-              >
-                Run Analyser <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-              <Link
-                href="/query"
-                className="inline-flex items-center justify-center gap-1.5 rounded-[9px] border border-[#d8cfbd] bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#23211b] hover:bg-[#f5f0e6]"
-              >
-                <SearchCheck className="w-3.5 h-3.5" /> Open Query
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       <SprintSection data={enrichedData} businessName={activeBusiness?.name} />
 

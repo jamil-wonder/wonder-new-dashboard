@@ -10,20 +10,35 @@ import { WonderscoreSpinner } from "../ui/WonderscoreSpinner";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isLoading: isUserLoading } = useUser();
+  const { isAuthenticated, isLoading: isUserLoading, user } = useUser();
   const { hasLoadedOnce: hasBusinessesLoadedOnce } = useBusiness();
 
   const isAuthPage = pathname === "/auth";
+  const isVerifyPage = pathname === "/verify-email";
+  // /verify-email must work for someone who isn't signed in on this device
+  // at all — signup and login both end with an emailed code and no token
+  // exists until it's entered, so this page has to be reachable pre-auth.
+  const isPublicPage = isAuthPage || isVerifyPage;
 
-  // Route protection guard
+  const needsVerification = isAuthenticated && !isUserLoading && !!user && !user.email_verified;
+
+  // Route protection guard. There is no such thing as an authenticated-but-
+  // unverified session that gets dashboard access — signup, login, and a
+  // later email change all funnel through the same rule: no verified email,
+  // no access, full stop. This redirect is the only enforcement of that.
   useEffect(() => {
-    if (!isUserLoading && !isAuthenticated && !isAuthPage) {
+    if (isUserLoading) return;
+    if (!isAuthenticated && !isPublicPage) {
       router.push("/auth");
+      return;
     }
-  }, [isAuthenticated, isUserLoading, isAuthPage, router]);
+    if (needsVerification && !isVerifyPage) {
+      router.push(`/verify-email?email=${encodeURIComponent(user!.email)}`);
+    }
+  }, [isAuthenticated, isUserLoading, isPublicPage, isVerifyPage, needsVerification, user, router]);
 
-  // If on the /auth route, render the auth page directly without dashboard header
-  if (isAuthPage) {
+  // Public pages render directly, without the dashboard header/auth gate.
+  if (isPublicPage) {
     return (
       <div className="min-h-screen bg-[#faf8f3] text-[#23211b]">
         {children}
@@ -32,15 +47,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   // Never render dashboard content — header included — until we've
-  // confirmed who's actually logged in and their real data has loaded at
-  // least once for this identity. Rendering early here is exactly what let
-  // a previous account's cached state flash on screen after switching
-  // users. Deliberately keys off hasLoadedOnce, NOT isLoading — isLoading
-  // flips true again on every routine refetch (e.g. Settings refetches on
-  // every tab change), and gating on that unmounts+remounts this whole
-  // layout each time, which re-triggers a page's own mount-time refetch
-  // and loops forever.
-  if (isUserLoading || !isAuthenticated || !hasBusinessesLoadedOnce) {
+  // confirmed who's actually logged in, that their email is verified, and
+  // their real data has loaded at least once for this identity. Rendering
+  // early here is exactly what let a previous account's cached state flash
+  // on screen after switching users, and blocking on needsVerification is
+  // what stops a one-frame flash of dashboard content before the redirect
+  // above actually fires. Deliberately keys off hasLoadedOnce, NOT
+  // isLoading — isLoading flips true again on every routine refetch (e.g.
+  // Settings refetches on every tab change), and gating on that
+  // unmounts+remounts this whole layout each time, which re-triggers a
+  // page's own mount-time refetch and loops forever.
+  if (isUserLoading || !isAuthenticated || !hasBusinessesLoadedOnce || needsVerification) {
     return (
       <div className="min-h-screen bg-[#fdfcf8] flex items-center justify-center">
         <WonderscoreSpinner size={40} label="Loading your workspace…" />
