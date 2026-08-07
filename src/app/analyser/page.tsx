@@ -446,6 +446,25 @@ export default function AnalyserPage() {
             areas: finalAreas.map((a) => ({ id: a.id, label: a.label, score: a.score })),
           }),
         }).catch(() => {});
+
+        // Persist the score server-side too — until now only the Sunday
+        // auto-scheduler ever wrote latest_phase1_score/weekly_scores to
+        // the business doc, so a manual scan's score lived ONLY in this
+        // browser's localStorage cache and vanished on logout or on a
+        // different device. Fire-and-forget: BusinessContext already
+        // reflects the new score locally via updateActiveBusinessRef
+        // above, this just makes it durable.
+        fetchApi("/api/user/businesses", {
+          method: "POST",
+          body: JSON.stringify({
+            url: domain,
+            business_id: activeBusinessRef.current?.id || undefined,
+            businessName: finalScan.businessName || businessName,
+            category: finalScan.category,
+            location: finalScan.location,
+            latest_scrape_result: finalScan,
+          }),
+        }).catch(() => {});
       }
       clearActiveAnalysis(domain);
 

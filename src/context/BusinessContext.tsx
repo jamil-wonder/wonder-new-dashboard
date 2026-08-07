@@ -214,13 +214,20 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
           const cachedScore = getCachedScoreForDomain(rawDomain);
 
+          // cachedScore (this browser's localStorage) is checked first only
+          // because it can be a few seconds fresher immediately after a scan,
+          // before the save round-trip to the backend finishes. The real
+          // fallback is latest_phase1_score — the field the backend actually
+          // returns (see _public_business_doc) — persisted from both manual
+          // scans and the Sunday scheduler, so it survives logout, a cleared
+          // cache, or a different device. `completeness`/`phase1_score` were
+          // never real backend fields; matching them here always fell
+          // through to 0.
           const finalScore =
             typeof cachedScore === "number" && cachedScore > 0
               ? cachedScore
-              : typeof b.completeness === "number" && b.completeness > 0
-              ? b.completeness
-              : typeof b.phase1_score === "number" && b.phase1_score > 0
-              ? b.phase1_score
+              : typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
+              ? b.latest_phase1_score
               : 0;
 
           return {

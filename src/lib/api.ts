@@ -83,9 +83,11 @@ export async function fetchApi<T>(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
-    throw new Error(
+    const err = new Error(
       `API Error (${response.status}): ${errorText || response.statusText}`
-    );
+    ) as Error & { status?: number };
+    err.status = response.status;
+    throw err;
   }
 
   return response.json() as Promise<T>;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { getScanHistory } from "../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { fetchApi, getScanHistory, type ScanPoint } from "../lib/api";
 import { getAllSourcesForQueries } from "../lib/querySources";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
@@ -265,14 +265,46 @@ function ordinal(n: number) {
   return `${n}th`;
 }
 
-export function useOverviewData(url: string, refreshSignal?: unknown): OverviewData {
+export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number): OverviewData {
+  // The score/grade above normally come from a 2-hour, localStorage-only
+  // scan cache — great for a live "just scanned" session, but it means the
+  // score and trend chart go blank after 2 hours, after logout (which wipes
+  // all wonder_-prefixed localStorage), or on a different device, even
+  // though the score is genuinely still current. This is the durable
+  // fallback: the same weekly_scores history persisted server-side by both
+  // manual scans and the Sunday scheduler (see /api/user/history/site-trend
+  // and DashboardHeader, which already does this same fallback for the
+  // header's delta).
+  const [dbTrend, setDbTrend] = useState<ScanPoint[]>([]);
+  useEffect(() => {
+    setDbTrend([]);
+    if (!url) return;
+    let cancelled = false;
+    fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}`)
+      .then((res) => {
+        if (cancelled || !res || !Array.isArray(res.points)) return;
+        const points: ScanPoint[] = res.points
+          .filter((p: any) => typeof p.score === "number")
+          .map((p: any) => ({ score: p.score, timestamp: p.created_at || p.week_id || "" }));
+        setDbTrend(points);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
   return useMemo(() => {
     const analyserCache = loadAnalyserCache(url);
     const queryQueries: any[] | null = loadQueryCache(url);
-    const scanPoints = getScanHistory(url);
+    const localScanPoints = getScanHistory(url);
+    const scanPoints = localScanPoints.length > 0 ? localScanPoints : dbTrend;
 
     const scanData = analyserCache?.scanData;
-    const score = scanData?.scores?.total ?? 0;
+    const score = scanData?.scores?.total
+      ?? (scanPoints.length > 0 ? Math.round(scanPoints[scanPoints.length - 1].score) : null)
+      ?? fallbackScore
+      ?? 0;
     const grade = getGrade(score);
     const visibilityText = getVisibility(score);
 
@@ -401,7 +433,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown): OverviewD
       queryModelEvidence,
       blogDrafts,
       quickWins,
-      hasAnalyserData: Boolean(scanData),
+      hasAnalyserData: Boolean(scanData) || score > 0,
       hasQueryData: Boolean(queryQueries && queryQueries.length > 0),
     };
     // refreshSignal isn't read above — it's a proxy for "a Query run just
@@ -411,5 +443,5 @@ export function useOverviewData(url: string, refreshSignal?: unknown): OverviewD
     // never see that the underlying cache changed and every figure here
     // (missingCount, citedSources, modelMentions, ...) would stay frozen at
     // whatever it was the first time this hook ran for this url.
-  }, [url, refreshSignal]);
+  }, [url, refreshSignal, fallbackScore, dbTrend]);
 }

@@ -44,33 +44,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Best-effort read of the last-known profile from localStorage. Used both
+  // when there's no token yet and as a fallback when a profile fetch fails
+  // for a reason that isn't actually "this token is invalid" (see below).
+  const hydrateFromStoredUser = useCallback((): boolean => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("wonder_user");
+    if (!stored) return false;
+    try {
+      const parsed = JSON.parse(stored);
+      if (!parsed.email) return false;
+      setUser({
+        id: parsed.id || "user-local",
+        email: parsed.email,
+        full_name: parsed.full_name || parsed.name || "User",
+        role: parsed.role || "user",
+        avatar_url: parsed.avatar_url || "",
+        email_verified: Boolean(parsed.email_verified),
+        notify_scan_complete: parsed.notify_scan_complete ?? true,
+      });
+      setIsAuthenticated(true);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const fetchUserProfile = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("wonder_user");
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            if (parsed.email) {
-              setUser({
-                id: parsed.id || "user-local",
-                email: parsed.email,
-                full_name: parsed.full_name || parsed.name || "User",
-                role: parsed.role || "user",
-                avatar_url: parsed.avatar_url || "",
-                email_verified: Boolean(parsed.email_verified),
-                notify_scan_complete: parsed.notify_scan_complete ?? true,
-              });
-              setIsAuthenticated(true);
-              setIsLoading(false);
-              return;
-            }
-          } catch {}
-        }
+      if (!hydrateFromStoredUser()) {
+        setUser(null);
+        setIsAuthenticated(false);
       }
-      setUser(null);
-      setIsAuthenticated(false);
       setIsLoading(false);
       return;
     }
@@ -97,17 +103,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setIsAuthenticated(false);
       }
-    } catch {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("wonder_token");
-        localStorage.removeItem("wonder_user");
+    } catch (err) {
+      // A 401/403 means the token is genuinely invalid/expired — that's a
+      // real logout. Anything else (network blip, backend cold-start
+      // timeout, a 5xx) is NOT proof the token is bad, and used to wipe the
+      // token + force a fresh OTP every time regardless — e.g. after just
+      // closing and reopening a tab, if the host happened to be spinning
+      // back up from idle on that first request. Now those cases keep the
+      // token and fall back to the last-known cached profile instead of
+      // logging the user out.
+      const status = (err as { status?: number } | undefined)?.status;
+      if (status === 401 || status === 403) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("wonder_token");
+          localStorage.removeItem("wonder_user");
+        }
+        setUser(null);
+        setIsAuthenticated(false);
+      } else if (!hydrateFromStoredUser()) {
+        // No cached profile to fall back to either — leave the token in
+        // place and let the next request retry rather than logging out.
+        setIsAuthenticated(Boolean(getAuthToken()));
       }
-      setUser(null);
-      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [hydrateFromStoredUser]);
 
   useEffect(() => {
     fetchUserProfile();
