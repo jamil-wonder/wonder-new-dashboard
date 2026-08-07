@@ -438,6 +438,12 @@ export default function AnalyserPage() {
             businessName: finalScan.businessName || businessName,
             scrape: finalScan,
             aiInsights: insightsRes?.insights || [],
+            // finalScan.scores has already been overwritten with these same
+            // transformed values by this point, so the email can't safely
+            // re-derive them itself (e.g. coreIdentity.total is no longer
+            // the raw /25 score sentimentScore was computed from) — send
+            // the already-correct areas straight from where they were built.
+            areas: finalAreas.map((a) => ({ id: a.id, label: a.label, score: a.score })),
           }),
         }).catch(() => {});
       }
