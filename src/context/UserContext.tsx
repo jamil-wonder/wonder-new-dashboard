@@ -10,6 +10,7 @@ export interface UserProfile {
   role?: string;
   avatar_url?: string;
   email_verified?: boolean;
+  notify_scan_complete?: boolean;
 }
 
 interface UserContextType {
@@ -27,6 +28,7 @@ interface UserContextType {
   resendOtp: (email: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: { full_name: string; email: string }) => Promise<void>;
+  updateNotificationPreferences: (notifyScanComplete: boolean) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | null>(null);
@@ -58,6 +60,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 role: parsed.role || "user",
                 avatar_url: parsed.avatar_url || "",
                 email_verified: Boolean(parsed.email_verified),
+                notify_scan_complete: parsed.notify_scan_complete ?? true,
               });
               setIsAuthenticated(true);
               setIsLoading(false);
@@ -83,6 +86,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           role: data.role || "user",
           avatar_url: data.avatar_url || "",
           email_verified: Boolean(data.email_verified),
+          notify_scan_complete: data.notify_scan_complete ?? true,
         };
         setUser(prof);
         setIsAuthenticated(true);
@@ -140,6 +144,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         full_name: res.user?.name || res.user?.full_name || "User",
         role: res.user?.role || "user",
         email_verified: Boolean(res.user?.email_verified),
+        notify_scan_complete: res.user?.notify_scan_complete ?? true,
       };
       setUser(prof);
       setIsAuthenticated(true);
@@ -189,6 +194,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         email: updated.email || data.email,
         full_name: updated.name || updated.full_name || data.full_name,
         email_verified: Boolean(updated.email_verified),
+        notify_scan_complete: updated.notify_scan_complete ?? user?.notify_scan_complete ?? true,
       };
       setUser(prof);
       if (typeof window !== "undefined") {
@@ -205,6 +211,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateNotificationPreferences = async (notifyScanComplete: boolean) => {
+    const updated = await fetchApi<any>("/api/user/notification-preferences", {
+      method: "PUT",
+      body: JSON.stringify({ notify_scan_complete: notifyScanComplete }),
+    });
+    setUser((prev) => {
+      const prof: UserProfile = {
+        ...(prev as UserProfile),
+        notify_scan_complete: updated?.notify_scan_complete ?? notifyScanComplete,
+      };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("wonder_user", JSON.stringify(prof));
+      }
+      return prof;
+    });
+  };
+
   return (
     <UserContext.Provider
       value={{
@@ -217,6 +240,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         resendOtp,
         logout,
         updateProfile,
+        updateNotificationPreferences,
       }}
     >
       {children}
