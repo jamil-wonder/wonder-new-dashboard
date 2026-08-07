@@ -47,7 +47,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // Best-effort read of the last-known profile from localStorage. Used both
   // when there's no token yet and as a fallback when a profile fetch fails
   // for a reason that isn't actually "this token is invalid" (see below).
-  const hydrateFromStoredUser = useCallback((): boolean => {
+  const hydrateFromStoredUser = useCallback((trustExistingToken = false): boolean => {
     if (typeof window === "undefined") return false;
     const stored = localStorage.getItem("wonder_user");
     if (!stored) return false;
@@ -60,7 +60,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         full_name: parsed.full_name || parsed.name || "User",
         role: parsed.role || "user",
         avatar_url: parsed.avatar_url || "",
-        email_verified: Boolean(parsed.email_verified),
+        // A stored profile is only a display fallback. If a token exists but
+        // the first profile request has a transient failure, an old cached
+        // email_verified:false value must not push the user back into OTP.
+        email_verified: trustExistingToken ? parsed.email_verified !== false : Boolean(parsed.email_verified),
         notify_scan_complete: parsed.notify_scan_complete ?? true,
       });
       setIsAuthenticated(true);
@@ -73,10 +76,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const fetchUserProfile = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
-      if (!hydrateFromStoredUser()) {
-        setUser(null);
-        setIsAuthenticated(false);
-      }
+      // A cached profile is not a session. Without a token, the user must
+      // sign in again rather than being treated as partially authenticated
+      // and sent to the OTP page.
+      setUser(null);
+      setIsAuthenticated(false);
       setIsLoading(false);
       return;
     }
@@ -120,7 +124,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         setUser(null);
         setIsAuthenticated(false);
-      } else if (!hydrateFromStoredUser()) {
+      } else if (!hydrateFromStoredUser(true)) {
         // No cached profile to fall back to either — leave the token in
         // place and let the next request retry rather than logging out.
         setIsAuthenticated(Boolean(getAuthToken()));
