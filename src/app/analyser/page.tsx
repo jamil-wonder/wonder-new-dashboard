@@ -7,7 +7,7 @@ import {
   Phone, Mail, Clock, Link2, FileCode2, Cpu, ShieldCheck, Smartphone,
   FileSearch, Bot, BrainCircuit, MessageSquare, Sparkles, ArrowRight,
   Building2, Languages, Image as ImageIcon, BookOpen, TrendingUp, TrendingDown,
-  X, Info
+  X, Info, Contact
 } from "lucide-react";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { WonderscoreSpinner, WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -323,13 +323,16 @@ export default function AnalyserPage() {
           robotsTxtFound: hasRobots,
           emails: scrapeRes.emails?.length ? scrapeRes.emails : [userEmailFallback(domain)],
           phones: scrapeRes.phones || [],
-          addresses: scrapeRes.addresses?.length ? scrapeRes.addresses : [location],
+          // No location-stuffing — an address genuinely not found on the
+          // site must read as not found downstream, not silently become
+          // the business's city/region as if it were a real street address.
+          addresses: scrapeRes.addresses || [],
           openingHours: scrapeRes.openingHours || [],
           socialLinks: scrapeRes.socialLinks || {},
           schemas: scrapeRes.schemas || [],
-          hasBooking: scrapeRes.hasBooking ?? true,
-          logoFound: scrapeRes.logoFound ?? true,
-          technologies: scrapeRes.technologies || ["WordPress", "Schema.org", "Google Analytics", "HTTPS"],
+          hasContactPath: scrapeRes.hasContactPath ?? false,
+          logoFound: Boolean(scrapeRes.logoUrl),
+          technologies: scrapeRes.technologies || [],
           scores: {
             total: totalScore,
             grade,
@@ -626,7 +629,7 @@ export default function AnalyserPage() {
       <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 md:p-[28px_32px] shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#ece3d1] pb-5 mb-5">
           <div>
-            <h1 className="font-spectral text-[28px] font-semibold text-[#15463b]">AI Visibility Analyser</h1>
+            <h1 className="font-spectral text-[28px] font-semibold text-[#15463b]">AI Visibility Analyzer</h1>
             <p className="text-[14px] text-[#6f6757] mt-1 max-w-[520px] leading-relaxed">
               Sitemaps, schema, entity signals, crawler permissions, and how each AI model sees your business.
             </p>
@@ -885,12 +888,12 @@ export default function AnalyserPage() {
               { icon: Building2,  label: "Business name",    value: s.businessName || businessName, ok: true },
               { icon: MessageSquare, label: "Description",   value: (s.description || `${businessName} in ${location}`).slice(0, 60) + "…", ok: true },
               { icon: ImageIcon,  label: "Logo detected",    value: s.logoFound ? "Logo found in markup" : "No logo tag", ok: !!s.logoFound },
-              { icon: Phone,      label: "Phone",            value: s.phones?.[0] || "01797 225 057", ok: true },
+              { icon: Phone,      label: "Phone",            value: s.phones?.[0] || "Not found on site", ok: !!s.phones?.[0], warn: !s.phones?.[0] },
               { icon: Mail,       label: "Email",            value: s.emails?.[0] || userEmailFallback(domain), ok: true },
-              { icon: MapPin,     label: "Address",          value: s.addresses?.[0] || location, ok: true },
-              { icon: Clock,      label: "Opening hours",    value: s.openingHours?.[0] || "Mon–Sun 08:00–23:00", ok: true },
-              { icon: Link2,      label: "Social links",     value: Object.keys(s.socialLinks || {}).join(", ") || "Instagram, Facebook", ok: true },
-              { icon: BookOpen,   label: "Booking path",     value: s.hasBooking ? "Found" : "Not detected", ok: s.hasBooking, warn: !s.hasBooking },
+              { icon: MapPin,     label: "Address",          value: s.addresses?.[0] || "Not found on site", ok: !!s.addresses?.[0], warn: !s.addresses?.[0] },
+              { icon: Clock,      label: "Opening hours",    value: s.openingHours?.[0] || "Not found on site", ok: !!s.openingHours?.[0], warn: !s.openingHours?.[0] },
+              { icon: Link2,      label: "Social links",     value: Object.keys(s.socialLinks || {}).join(", ") || "Not found on site", ok: Object.keys(s.socialLinks || {}).length > 0, warn: Object.keys(s.socialLinks || {}).length === 0 },
+              { icon: Contact,    label: "Contact path",     value: s.hasContactPath ? "Found" : "Not detected", ok: s.hasContactPath, warn: !s.hasContactPath },
             ].map(({ icon: Icon, label, value, ok, warn }) => (
               <div key={label} className="flex items-start gap-3 py-2 border-b border-[#f0ebe0] last:border-0">
                 <div className="w-7 h-7 rounded-lg bg-[#f5f0e6] flex items-center justify-center shrink-0 mt-0.5">
@@ -979,9 +982,13 @@ export default function AnalyserPage() {
               <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Technologies detected</div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(s.technologies || ["WordPress", "HTTPS", "Schema.org"]).map((tech: string) => (
-                <span key={tech} className="text-[12px] font-medium text-[#3a352b] bg-[#f0ebe0] border border-[#e4ddd0] px-2.5 py-1 rounded-lg">{tech}</span>
-              ))}
+              {(s.technologies || []).length > 0 ? (
+                s.technologies.map((tech: string) => (
+                  <span key={tech} className="text-[12px] font-medium text-[#3a352b] bg-[#f0ebe0] border border-[#e4ddd0] px-2.5 py-1 rounded-lg">{tech}</span>
+                ))
+              ) : (
+                <span className="text-[12px] text-[#9b927f]">No technologies detected</span>
+              )}
             </div>
           </div>
         </div>

@@ -43,9 +43,9 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
 
         {!hasAnalyserData || auditAreas.length === 0 ? (
           <div className="mt-4 p-4 rounded-lg bg-[#f9e9ec] text-center">
-            <p className="text-[12.5px] text-[#a86d7e]">Run the Analyser to see all six scored areas.</p>
+            <p className="text-[12.5px] text-[#a86d7e]">Run the Analyzer to see all six scored areas.</p>
             <Link href="/analyser" className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[#1e7d4f]">
-              Open Analyser <ArrowRight className="w-3 h-3" />
+              Open Analyzer <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
         ) : (
@@ -85,9 +85,9 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
           <div className="font-spectral text-[21px] font-semibold text-[#23211b] mt-1">Coming up</div>
           {!hasAnalyserData || auditAreas.length === 0 ? (
             <div className="mt-4 p-4 rounded-lg bg-[#f2ebdb] text-center">
-              <p className="text-[12.5px] text-[#9a8a5e]">Run the Analyser to build your improvement plan.</p>
+              <p className="text-[12.5px] text-[#9a8a5e]">Run the Analyzer to build your improvement plan.</p>
               <Link href="/analyser" className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[#1e7d4f]">
-                Open Analyser <ArrowRight className="w-3 h-3" />
+                Open Analyzer <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
           ) : (
@@ -131,7 +131,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
               );
             })}
             {quickWins.length === 0 && aiInsights.length === 0 && (
-              <p className="text-[11.5px] text-[#8a8273]">Run the Analyser to generate personalised quick wins.</p>
+              <p className="text-[11.5px] text-[#8a8273]">Run the Analyzer to generate personalised quick wins.</p>
             )}
           </div>
         </div>

@@ -59,7 +59,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
   if (!hasData) {
     return (
       <div className="flex-1 flex items-center justify-center text-[12px] text-[#a8b8a0] text-center px-2">
-        Run the Analyser to build your weekly trend history.
+        Run the Analyzer to build your weekly trend history.
       </div>
     );
   }
@@ -98,103 +98,131 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
   );
 }
 
+// Softer, less saturated than a typical alert palette on purpose — these
+// sit next to each other constantly on the page users see most, so they
+// need to read clearly as "good" vs "needs attention" without shouting.
+const GOOD = { bg: "#eaf6f0", color: "#2f8a5b" };
+const BAD = { bg: "#fdefec", color: "#c06749" };
+const PENDING = { bg: "#f5f0e6", color: "#9b8f74" };
+
+type ChangeCandidate = {
+  sentiment: "good" | "bad";
+  metric: "rank" | "mentions" | "audit";
+  priority: number; // higher = more important signal, wins the limited slots first
+  icon: string;
+  title: string;
+  sub: string;
+};
+
+type ChangeItem = { icon: string; bg: string; color: string; title: string; sub: string; metric: "rank" | "mentions" | "audit" };
+
 export default function HeroSection({ data }: { data: OverviewData }) {
-  const { score, grade, visibilityText, previousScore, scanPoints, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries } = data;
+  const { score, grade, visibilityText, previousScore, scanPoints, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
 
   const delta = previousScore !== null ? score - previousScore : null;
-
-  // Build dynamic card items from live data
-  const changes: { icon: string; bg: string; color: string; title: string; sub: string }[] = [];
-
   const locText = data.location ? ` in ${data.location}` : "";
 
-  // 1. Competitor / Rank Card
+  // Every metric that has real data contributes one candidate insight,
+  // tagged honestly as good or bad based on where it actually stands — never
+  // forced. Rank is the headline signal (highest priority); AI mentions and
+  // audit areas each contribute both their weakest and strongest read where
+  // data exists, so there's always a genuine "needs work" and a genuine
+  // "doing well" candidate to draw from once real data exists.
+  const candidates: ChangeCandidate[] = [];
+
   if (competitors.length > 0) {
     const userComp = competitors.find(c => c.isUser);
     const userScore = userComp ? userComp.score : score;
-
     if (userRank > 1) {
       const aheadComp = competitors[userRank - 2]; // Competitor directly above (higher score)
       const gap = aheadComp ? aheadComp.score - userScore : null;
-      changes.push({
-        icon: "▼",
-        bg: "#fbeee6",
-        color: "#b1442a",
-        title: aheadComp ? `Behind ${aheadComp.name}` : `Room to grow`,
+      candidates.push({
+        sentiment: "bad", metric: "rank", priority: 3, icon: "▼",
+        title: aheadComp ? `Behind ${aheadComp.name}` : "Room to grow",
         sub: `Ranked ${data.userRankOrdinal}${locText}${gap !== null && gap > 0 ? ` · ${gap} pts behind #${userRank - 1}` : ""}`,
       });
     } else {
-      changes.push({
-        icon: "▲",
-        bg: "#e7f4ea",
-        color: "#1e7d4f",
+      candidates.push({
+        sentiment: "good", metric: "rank", priority: 3, icon: "▲",
         title: "Market Leader",
         sub: `Ranked 1st${locText} · Top visibility score (${userScore}/100)`,
       });
     }
-  } else {
-    changes.push({
-      icon: "▲",
-      bg: "#e7f4ea",
-      color: "#1e7d4f",
-      title: "Market position",
-      sub: `Run Analyser to compute rank${locText}`,
+  }
+
+  if (totalQueries > 0 && modelMentions.length > 0) {
+    const sortedModels = [...modelMentions].sort((a, b) => a.mentioned - b.mentioned);
+    const weakestModel = sortedModels[0];
+    const strongestModel = sortedModels[sortedModels.length - 1];
+    if (weakestModel) {
+      candidates.push({
+        sentiment: "bad", metric: "mentions", priority: 2, icon: "▼",
+        title: `${weakestModel.model} mentions you least`,
+        sub: `Appearing in only ${weakestModel.mentioned} of ${totalQueries} audited queries`,
+      });
+    }
+    if (strongestModel) {
+      candidates.push({
+        sentiment: "good", metric: "mentions", priority: 2, icon: "▲",
+        title: `${strongestModel.model} mention strength`,
+        sub: `Appearing in ${strongestModel.mentioned} of ${totalQueries} audited queries`,
+      });
+    }
+  }
+
+  if (auditAreas.length > 0) {
+    const sortedAreas = [...auditAreas].sort((a, b) => a.score - b.score);
+    const weakestArea = sortedAreas[0];
+    const strongestArea = sortedAreas[sortedAreas.length - 1];
+    candidates.push({
+      sentiment: "bad", metric: "audit", priority: 1, icon: "▼",
+      title: `Improve: ${weakestArea.label}`,
+      sub: `Scored ${weakestArea.score}/100 — lowest of 6 audit areas`,
+    });
+    candidates.push({
+      sentiment: "good", metric: "audit", priority: 1, icon: "▲",
+      title: `Strong: ${strongestArea.label}`,
+      sub: `Scored ${strongestArea.score}/100`,
     });
   }
 
-  // 2. AI Engine Mentions Card (Live from Queries)
-  const totalMentionedQueries = totalQueries > 0
-    ? modelMentions.reduce((max, m) => Math.max(max, m.mentioned), 0)
-    : 0;
+  const badPicks = candidates.filter(c => c.sentiment === "bad").sort((a, b) => b.priority - a.priority).slice(0, 2);
+  const goodPicks = candidates.filter(c => c.sentiment === "good").sort((a, b) => b.priority - a.priority).slice(0, 1);
 
-  const topModel = [...modelMentions].sort((a, b) => b.mentioned - a.mentioned)[0];
+  let changes: ChangeItem[] = [
+    ...badPicks.map(c => ({ ...c, ...BAD })),
+    ...goodPicks.map(c => ({ ...c, ...GOOD })),
+  ];
 
-  if (totalQueries > 0) {
-    changes.push({
-      icon: "▲",
-      bg: "#e7f4ea",
-      color: "#1e7d4f",
-      title: topModel && topModel.mentioned > 0 ? `${topModel.model} mention` : "AI Query mentions",
-      sub: `Appearing in ${totalMentionedQueries} of ${totalQueries} audited search queries`,
-    });
-  } else {
-    changes.push({
-      icon: "▲",
-      bg: "#e7f4ea",
-      color: "#1e7d4f",
-      title: "AI Search engine mentions",
-      sub: `Run Query tab to audit mentions across ChatGPT, Claude, Perplexity & Gemini`,
-    });
+  // Fill any remaining slots with an honest "nothing run yet" card for
+  // whichever metric genuinely has no data — never a fabricated red or
+  // green to force the count, only ever for a metric not already shown.
+  const usedMetrics = new Set(changes.map(c => c.metric));
+  const pending: ChangeItem[] = [];
+  if (competitors.length === 0 && !usedMetrics.has("rank")) {
+    pending.push({ ...PENDING, metric: "rank", icon: "○", title: "Market position", sub: `Run Query to compute rank${locText}` });
   }
-
-  // 3. New Competitor or Trend / Insight Card
-  const trailingComp = competitors.length > 1 ? competitors[competitors.length - 1] : null;
-  if (trailingComp && !trailingComp.isUser && trailingComp.score <= score) {
-    const leadGap = score - trailingComp.score;
-    changes.push({
-      icon: "▲",
-      bg: "#e7f4ea",
-      color: "#1e7d4f",
-      title: `Ahead of ${trailingComp.name}`,
-      sub: `${leadGap} pt${leadGap === 1 ? "" : "s"} ahead · ranked last of ${competitors.length}${locText}`,
-    });
-  } else {
-    changes.push({
-      icon: "▲",
-      bg: "#e7f4ea",
-      color: "#1e7d4f",
-      title: "Visibility index",
-      sub: score > 0 ? `Scored ${score}/100 across 6 audit categories` : `Run Analyser to compute category breakdown`,
-    });
+  if (totalQueries === 0 && !usedMetrics.has("mentions")) {
+    pending.push({ ...PENDING, metric: "mentions", icon: "○", title: "AI Search engine mentions", sub: "Run Query tab to audit mentions across ChatGPT, Claude, Perplexity & Gemini" });
   }
+  if (auditAreas.length === 0 && !usedMetrics.has("audit")) {
+    pending.push({ ...PENDING, metric: "audit", icon: "○", title: "Visibility index", sub: "Run Analyzer to compute category breakdown" });
+  }
+  changes = [...changes, ...pending].slice(0, 3);
+
+  // Stable display order — rank, then mentions, then audit — so a card's
+  // position always maps to the same kind of insight; only its color and
+  // content change with the real data.
+  const metricOrder: Record<ChangeItem["metric"], number> = { rank: 0, mentions: 1, audit: 2 };
+  changes.sort((a, b) => metricOrder[a.metric] - metricOrder[b.metric]);
 
   // Headline text
-  let headline = score > 0 ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.` : "Run your first scan.";
-  let subtext = nearestAboveName && nearestAboveGap !== null
+  const headline = score > 0 ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.` : "Run your first scan.";
+  const subtext = nearestAboveName && nearestAboveGap !== null
     ? `You're just ${nearestAboveGap} points behind ${nearestAboveName}. A focused week could close the gap.`
     : score > 0
     ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`
-    : "Open the Analyser tab to crawl your site and get your score.";
+    : "Open the Analyzer tab to crawl your site and get your score.";
 
   const ringFill = score;
 

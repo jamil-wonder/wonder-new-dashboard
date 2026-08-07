@@ -181,7 +181,7 @@ export default function DashboardHeader() {
                 ) : (
                   <>
                     <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet analysed</div>
-                    <div className="text-[11px] text-[#b3a98f]">Click Analyser to crawl</div>
+                    <div className="text-[11px] text-[#b3a98f]">Click Analyzer to crawl</div>
                   </>
                 )}
               </div>

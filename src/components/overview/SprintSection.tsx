@@ -97,10 +97,10 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
       title: weakArea ? `Fix: ${weakArea.label}` : "Review website scan",
       desc: weakArea
         ? `This area scored ${weakArea.score}/100. Improve it to strengthen AI visibility.`
-        : "Open the analyser to review score balance, content, schema, and trust signals.",
-      note: weakArea ? "Code and fixes ready" : "Open analyser",
+        : "Open the analyzer to review score balance, content, schema, and trust signals.",
+      note: weakArea ? "Code and fixes ready" : "Open analyzer",
       link: "/analyser",
-      btn: "View Analyser",
+      btn: "View Analyzer",
     },
   ];
 

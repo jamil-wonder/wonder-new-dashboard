@@ -7,7 +7,7 @@ import { useUser } from "../../context/UserContext";
 import { useBusiness } from "../../context/BusinessContext";
 
 const TOPIC_OPTIONS = [
-  { id: "analyser", label: "Website Analyser issue" },
+  { id: "analyser", label: "Website Analyzer issue" },
   { id: "query", label: "AI Query / mentions issue" },
   { id: "blogs", label: "Blog generation issue" },
   { id: "billing", label: "Billing / plan" },
@@ -59,7 +59,7 @@ export default function ContactPage() {
               Stuck on something the plan couldn&rsquo;t fix?
             </div>
             <p className="text-[13px] text-[#d9eee7] mt-2.5 leading-relaxed">
-              If the weekly plan, an Analyser fix, or a Query result isn&rsquo;t adding up, tell us exactly what
+              If the weekly plan, an Analyzer fix, or a Query result isn&rsquo;t adding up, tell us exactly what
               happened here. A real person on the team reads every message and follows up directly at the email
               you give us — no bots, no support-ticket maze, no waiting on an auto-reply.
             </p>
