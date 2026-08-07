@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Loader2, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -8,7 +8,7 @@ import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
 export default function AuthPage() {
-  const { login, signup } = useUser();
+  const { login, signup, isAuthenticated, isLoading } = useUser();
   const { showToast } = useToast();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -17,6 +17,12 @@ export default function AuthPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      window.location.replace("/overview");
+    }
+  }, [isAuthenticated, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
