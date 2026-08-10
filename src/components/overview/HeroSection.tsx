@@ -52,6 +52,26 @@ function ChangeRow({ icon, bg, color, title, sub }: { icon: string; bg: string; 
   );
 }
 
+// Points can come from a real ISO timestamp (both manual scans and the
+// Sunday scheduler write one when the score is saved) or, on the rare
+// fallback path, a bare week_id like "2026-W32" with no real timestamp —
+// this must never render as "Invalid Date" for that case.
+function formatPointTimestamp(ts: string, weekId?: string): string {
+  if (ts) {
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+  }
+  return weekId ? `Week ${weekId}` : "Unknown date";
+}
+
 function TrendChart({ points }: { points: { score: number; timestamp: string; week_id?: string }[] }) {
   const latest = points.length > 0 ? points[points.length - 1].score : 0;
   const hasData = points.length >= 1;
@@ -92,7 +112,9 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
       <polyline points={pts} fill="none" stroke="#1e7d4f" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       {points.map((p, i) => (
         <circle key={i} cx={toX(i)} cy={toY(p.score)} r={i === points.length - 1 ? 5 : 3.2}
-          fill={i === points.length - 1 ? "#1e7d4f" : "#fff"} stroke="#1e7d4f" strokeWidth="2" />
+          fill={i === points.length - 1 ? "#1e7d4f" : "#fff"} stroke="#1e7d4f" strokeWidth="2">
+          <title>{`${formatPointTimestamp(p.timestamp, p.week_id)} — score ${p.score}`}</title>
+        </circle>
       ))}
     </svg>
   );
@@ -318,6 +340,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         {scanPoints.length > 0 && (
           <div className="text-[10px] text-[#b3a98f] mt-1">
             {scanPoints.length} scan{scanPoints.length !== 1 ? "s" : ""} recorded
+            {" · "}Last analysed {formatPointTimestamp(scanPoints[scanPoints.length - 1].timestamp, scanPoints[scanPoints.length - 1].week_id)}
           </div>
         )}
       </motion.div>

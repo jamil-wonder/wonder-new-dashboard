@@ -187,7 +187,10 @@ export interface OverviewData {
 
   // Scan trend
   previousScore: number | null;
-  scanPoints: { score: number; timestamp: string }[];
+  // timestamp is a real ISO date/time whenever it's known (both manual
+  // scans and the Sunday scheduler save one) — week_id (e.g. "2026-W32")
+  // is only a display fallback for the rare case a point predates that.
+  scanPoints: { score: number; timestamp: string; week_id?: string }[];
 
   // Competitors — sourced from buildRankedCompetitors() and merged in at
   // the page level; only { name, score, isUser } are read by these components.
@@ -275,7 +278,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
   // manual scans and the Sunday scheduler (see /api/user/history/site-trend
   // and DashboardHeader, which already does this same fallback for the
   // header's delta).
-  const [dbTrend, setDbTrend] = useState<ScanPoint[]>([]);
+  const [dbTrend, setDbTrend] = useState<(ScanPoint & { week_id?: string })[]>([]);
   useEffect(() => {
     setDbTrend([]);
     if (!url) return;
@@ -283,9 +286,9 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}`)
       .then((res) => {
         if (cancelled || !res || !Array.isArray(res.points)) return;
-        const points: ScanPoint[] = res.points
+        const points: (ScanPoint & { week_id?: string })[] = res.points
           .filter((p: any) => typeof p.score === "number")
-          .map((p: any) => ({ score: p.score, timestamp: p.created_at || p.week_id || "" }));
+          .map((p: any) => ({ score: p.score, timestamp: p.created_at || "", week_id: p.week_id || undefined }));
         setDbTrend(points);
       })
       .catch(() => {});
