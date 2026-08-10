@@ -113,21 +113,6 @@ function saveLiveCompetitorsToSession(url: string | undefined, data: any[]) {
   } catch {}
 }
 
-export function getCachedScoreForDomain(url: string): number | null {
-  if (typeof window === "undefined" || !url) return null;
-  const clean = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-  const cacheKey = `wonder_analyser_cache_${clean}`;
-  try {
-    const raw = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.scanData && typeof parsed.scanData.scores?.total === "number") {
-      return parsed.scanData.scores.total;
-    }
-  } catch {}
-  return null;
-}
-
 // What activeBusiness resolves to when the account genuinely has zero saved
 // businesses (a real, fetched-and-confirmed empty list — not "still
 // loading"). Every consumer of activeBusiness expects a non-null object, so
@@ -212,21 +197,21 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             displayName = cleanBrandNameFromDomain(cleanDomain || rawDomain);
           }
 
-          const cachedScore = getCachedScoreForDomain(rawDomain);
-
-          // cachedScore (this browser's localStorage) is checked first only
-          // because it can be a few seconds fresher immediately after a scan,
-          // before the save round-trip to the backend finishes. The real
-          // fallback is latest_phase1_score — the field the backend actually
-          // returns (see _public_business_doc) — persisted from both manual
-          // scans and the Sunday scheduler, so it survives logout, a cleared
-          // cache, or a different device. `completeness`/`phase1_score` were
-          // never real backend fields; matching them here always fell
-          // through to 0.
+          // Score comes from latest_phase1_score alone — the field the
+          // backend actually returns (see _public_business_doc), persisted
+          // from both manual scans and the Sunday scheduler, so it's
+          // correctly scoped to THIS saved business and survives logout, a
+          // cleared cache, or a different device. This used to also check a
+          // `wonder_analyser_cache_{domain}` localStorage entry first for a
+          // "few seconds fresher" read — but that cache is keyed on the raw
+          // domain string alone, with no link to a business id, account, or
+          // even a TTL. The bug this caused: add a brand-new business whose
+          // domain happens to match anything ever scanned in this browser
+          // (a previous business, a deleted-and-re-added one, a different
+          // account) and its real, never-scanned score would immediately
+          // show that old cached number instead of "not scanned yet".
           const finalScore =
-            typeof cachedScore === "number" && cachedScore > 0
-              ? cachedScore
-              : typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
+            typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
               ? b.latest_phase1_score
               : 0;
 

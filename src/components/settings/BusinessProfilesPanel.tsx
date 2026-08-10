@@ -151,13 +151,21 @@ export default function BusinessProfilesPanel() {
 
     try {
       setIsSubmitting(true);
-      await fetchApi("/api/user/businesses", {
+      const saved = await fetchApi<{ id?: string }>("/api/user/businesses", {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
       showToast(editId ? "Business profile updated!" : "New business profile created!", "success");
       await refetchBusinesses();
+      // Adding a new profile (not editing the existing one) never switched
+      // to it — the active business stayed whatever it was before, so
+      // navigating to Overview right after "adding a new business" was
+      // actually still showing the previous business's real, already-scanned
+      // data. A newly created profile should become the active one.
+      if (!editId && saved?.id) {
+        switchBusiness(saved.id);
+      }
       setIsEditing(false);
     } catch (err) {
       console.error("Save business error:", err);
@@ -332,7 +340,7 @@ export default function BusinessProfilesPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
         {businesses.map((p, idx) => {
           const isActive = p.id === activeBusiness.id;
-          const pct = p.completeness || 88;
+          const pct = p.completeness || 0;
           const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
           const formattedUrl = p.url.startsWith("http") ? p.url : `https://${p.url}`;
 
