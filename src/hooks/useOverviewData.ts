@@ -300,8 +300,31 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
   return useMemo(() => {
     const analyserCache = loadAnalyserCache(url);
     const queryQueries: any[] | null = loadQueryCache(url);
+    // localScanPoints only ever holds scans run from THIS browser this
+    // session — recordScanHistory() is only ever called from the Analyser
+    // page, so a scheduler run (server-side, no browser involved) can only
+    // ever show up via dbTrend. Preferring local outright (the previous
+    // behavior) meant the instant a single manual scan happened in this
+    // browser, every earlier DB-only point — including any Sunday
+    // scheduler score — vanished from the chart entirely. Merge both,
+    // de-duping points that are really the same scan (same score, saved
+    // within a few minutes of each other) once the local one has also
+    // round-tripped into the DB history.
     const localScanPoints = getScanHistory(url);
-    const scanPoints = localScanPoints.length > 0 ? localScanPoints : dbTrend;
+    const scanPoints = [...dbTrend, ...localScanPoints]
+      .map((p) => ({ ...p, _t: new Date(p.timestamp).getTime() }))
+      .filter((p) => !Number.isNaN(p._t))
+      .sort((a, b) => a._t - b._t)
+      .reduce<typeof dbTrend>((acc, p) => {
+        const prev = acc[acc.length - 1];
+        if (prev && prev.score === p.score && Math.abs(p._t - new Date(prev.timestamp).getTime()) < 5 * 60 * 1000) {
+          return acc;
+        }
+        const point = { ...p };
+        delete (point as { _t?: number })._t;
+        acc.push(point);
+        return acc;
+      }, []);
 
     const scanData = analyserCache?.scanData;
     const score = scanData?.scores?.total
