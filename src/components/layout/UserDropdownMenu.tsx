@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { User, Building2, KeyRound, LogOut, ChevronDown } from "lucide-react";
+import { User, Building2, KeyRound, LogOut, ChevronDown, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
@@ -76,6 +76,18 @@ export default function UserDropdownMenu() {
                 {user?.role || "Active Account"}
               </span>
             </div>
+
+            {/* Admin Portal — only ever shown to an admin, redirects to /admin */}
+            {user?.role === "admin" && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-bold text-[#15463b] hover:bg-[#f5f0e6] transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#15463b]" />
+                <span>Admin Portal</span>
+              </Link>
+            )}
 
             {/* Menu Links */}
             <Link

@@ -21,6 +21,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isPublicPage = isAuthPage || isVerifyPage;
 
   const needsVerification = isAuthenticated && !isUserLoading && !!user && !user.email_verified;
+  const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isAdminUser = user?.role === "admin";
 
   // Route protection guard. There is no such thing as an authenticated-but-
   // unverified session that gets dashboard access — signup, login, and a
@@ -34,8 +36,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     if (needsVerification && !isVerifyPage) {
       router.push(`/verify-email?email=${encodeURIComponent(user!.email)}`);
+      return;
     }
-  }, [isAuthenticated, isUserLoading, isPublicPage, isVerifyPage, needsVerification, user, router]);
+    // Admin routes aren't just hidden from the nav for a non-admin — they
+    // must not be reachable by typing the URL either. isAdminUser only
+    // becomes trustworthy once the user profile has actually loaded, so
+    // this waits on isUserLoading the same way the checks above do.
+    if (isAdminPage && isAuthenticated && !isUserLoading && !isAdminUser) {
+      router.push("/overview");
+    }
+  }, [isAuthenticated, isUserLoading, isPublicPage, isVerifyPage, needsVerification, user, router, isAdminPage, isAdminUser]);
 
   // Public pages render directly, without the dashboard header/auth gate.
   if (isPublicPage) {

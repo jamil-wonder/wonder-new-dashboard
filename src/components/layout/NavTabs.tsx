@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { NAV_ITEMS } from "../../constants/navigation";
+import { NAV_ITEMS, ADMIN_NAV_ITEM } from "../../constants/navigation";
+import { useUser } from "../../context/UserContext";
 
 function getWeeklyCycleInfo() {
   const now = new Date();
@@ -52,16 +53,19 @@ function getWeeklyCycleInfo() {
 
 export default function NavTabs() {
   const pathname = usePathname();
+  const { user } = useUser();
   const [cycleInfo, setCycleInfo] = useState({ relativeText: "Updated today", detailText: "Sunday 6:00 AM" });
 
   useEffect(() => {
     setCycleInfo(getWeeklyCycleInfo());
   }, []);
 
+  const items = user?.role === "admin" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+
   return (
     <div className="flex items-center justify-between gap-5 px-6 border-t border-[#efe7d6]">
       <div className="flex gap-7 font-medium text-[14.5px] text-[#8a8273]">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive = pathname === item.href || (item.href === "/overview" && pathname === "/");
 
           return (
