@@ -93,6 +93,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const data = await fetchApi<any>("/api/user/profile");
       if (data && (data.email || data.name)) {
+        // Sliding expiration: the backend re-mints a fresh 7-day token on
+        // every successful profile check and hands it back here. Swap it
+        // in so an actively-used session (opened at least once every few
+        // days) never actually reaches the hard 7-day expiry.
+        if (data.access_token && typeof window !== "undefined") {
+          localStorage.setItem("wonder_token", data.access_token);
+        }
         const prof: UserProfile = {
           id: data.id || "",
           email: data.email || "",
