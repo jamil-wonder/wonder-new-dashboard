@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
 export default function AuthPage() {
-  const { login, signup, isAuthenticated, isLoading } = useUser();
+  const { login, signup, loginWithGoogle, isAuthenticated, isLoading } = useUser();
   const { showToast } = useToast();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -17,12 +18,44 @@ export default function AuthPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [canUseGoogleAuth, setCanUseGoogleAuth] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       window.location.replace("/overview");
     }
   }, [isAuthenticated, isLoading]);
+
+  useEffect(() => {
+    // Google rejects a bare "localhost" origin unless it's been explicitly
+    // added to the OAuth client's allowed origins, which produces a console
+    // error on every local dev load — same fix the old dashboard and the
+    // landing site already use: only render the button on localhost when
+    // that's been deliberately opted into.
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+    const allowLocalGoogle = process.env.NEXT_PUBLIC_ALLOW_LOCAL_GOOGLE_AUTH === "true";
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+    setCanUseGoogleAuth(Boolean(clientId) && (!isLocalhost || allowLocalGoogle));
+  }, []);
+
+  const handleGoogleSuccess = async (response: CredentialResponse) => {
+    if (!response.credential) {
+      setErrorMsg("Google did not return a valid sign-in credential.");
+      return;
+    }
+    setErrorMsg("");
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle(response.credential);
+      // loginWithGoogle already sets isAuthenticated; the redirect effect
+      // above handles navigation once it flips.
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Google sign-in failed.");
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +222,37 @@ export default function AuthPage() {
             )}
           </button>
         </form>
+
+        {canUseGoogleAuth && (
+          <>
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-[#ece3d1]" />
+              <span className="text-[11px] font-medium text-[#9b927f] uppercase tracking-wider">or continue with</span>
+              <div className="flex-1 h-px bg-[#ece3d1]" />
+            </div>
+
+            {googleLoading ? (
+              <div className="w-full flex items-center justify-center gap-2 py-3 border border-[#ece3d1] rounded-xl text-[13.5px] font-medium text-[#6f6757]">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Connecting your Google account
+              </div>
+            ) : (
+              <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+                <div className="flex justify-center [&>div]:w-full">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setErrorMsg("Google sign-in was cancelled or failed.")}
+                    theme="outline"
+                    size="large"
+                    shape="rectangular"
+                    text="continue_with"
+                    width="360"
+                  />
+                </div>
+              </GoogleOAuthProvider>
+            )}
+          </>
+        )}
       </motion.div>
 
       {/* Footer copyright */}

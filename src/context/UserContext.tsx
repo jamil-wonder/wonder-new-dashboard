@@ -26,6 +26,10 @@ interface UserContextType {
   signup: (email: string, pass: string, name: string) => Promise<{ email: string }>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   resendOtp: (email: string) => Promise<void>;
+  // Google sign-in skips the OTP step entirely — the backend already trusts
+  // Google's own email verification, so /api/auth/google returns a real
+  // access_token directly instead of an OtpRequiredResponse.
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: { full_name: string; email: string }) => Promise<void>;
   updateNotificationPreferences: (notifyScanComplete: boolean) => Promise<void>;
@@ -154,29 +158,36 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return { email: res?.email || emailStr };
   };
 
+  // Shared by verifyOtp and loginWithGoogle — both hit an endpoint that
+  // returns the same Token shape ({ access_token, user }) and both mean
+  // "a real session now exists", just reached via a different challenge.
+  const applyTokenResponse = (res: any, fallbackEmail: string) => {
+    if (!res || !res.access_token) return false;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("wonder_token", res.access_token);
+    }
+    const prof: UserProfile = {
+      id: res.user?.id || "u-id",
+      email: res.user?.email || fallbackEmail,
+      full_name: res.user?.name || res.user?.full_name || "User",
+      role: res.user?.role || "user",
+      email_verified: Boolean(res.user?.email_verified),
+      notify_scan_complete: res.user?.notify_scan_complete ?? true,
+    };
+    setUser(prof);
+    setIsAuthenticated(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("wonder_user", JSON.stringify(prof));
+    }
+    return true;
+  };
+
   const verifyOtp = async (emailStr: string, code: string) => {
     const res = await fetchApi<any>("/api/auth/otp/verify", {
       method: "POST",
       body: JSON.stringify({ email: emailStr, code }),
     });
-    if (res && res.access_token) {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("wonder_token", res.access_token);
-      }
-      const prof: UserProfile = {
-        id: res.user?.id || "u-id",
-        email: res.user?.email || emailStr,
-        full_name: res.user?.name || res.user?.full_name || "User",
-        role: res.user?.role || "user",
-        email_verified: Boolean(res.user?.email_verified),
-        notify_scan_complete: res.user?.notify_scan_complete ?? true,
-      };
-      setUser(prof);
-      setIsAuthenticated(true);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("wonder_user", JSON.stringify(prof));
-      }
-    }
+    applyTokenResponse(res, emailStr);
   };
 
   const resendOtp = async (emailStr: string) => {
@@ -184,6 +195,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       method: "POST",
       body: JSON.stringify({ email: emailStr }),
     });
+  };
+
+  const loginWithGoogle = async (credential: string) => {
+    const res = await fetchApi<any>("/api/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    });
+    applyTokenResponse(res, "");
   };
 
   const logout = () => {
@@ -263,6 +282,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         signup,
         verifyOtp,
         resendOtp,
+        loginWithGoogle,
         logout,
         updateProfile,
         updateNotificationPreferences,
