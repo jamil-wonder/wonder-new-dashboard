@@ -1033,29 +1033,37 @@ export default function QueryPage() {
           </div>
         ) : (
           <>
-            {/* Table Header */}
-            <div className="grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]">
-              <div>No.</div>
-              <div>Type</div>
-              <div>Generated Search Query</div>
-              <div className="text-center">Status</div>
-              <div className="text-center">Rank</div>
-              <button
-                type="button"
-                onClick={handleOpenAllSources}
-                className="bg-transparent border-none p-0 m-0 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] text-right hover:text-[#15463b] hover:underline cursor-pointer transition-colors"
-                title="View every source cited across all queries in this run"
-              >
-                Sources
-              </button>
-            </div>
+            {/* Header row and QueryTable's rows share this one scroll
+                container (rather than each scrolling independently) so a
+                phone screen — too narrow for 6 fixed-ish columns — scrolls
+                the header and body together instead of letting them drift
+                out of alignment. Desktop never triggers the scroll since
+                720px fits comfortably. */}
+            <div className="overflow-x-auto">
+              {/* Table Header */}
+              <div className="grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] min-w-[720px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]">
+                <div>No.</div>
+                <div>Type</div>
+                <div>Generated Search Query</div>
+                <div className="text-center">Status</div>
+                <div className="text-center">Rank</div>
+                <button
+                  type="button"
+                  onClick={handleOpenAllSources}
+                  className="bg-transparent border-none p-0 m-0 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] text-right hover:text-[#15463b] hover:underline cursor-pointer transition-colors"
+                  title="View every source cited across all queries in this run"
+                >
+                  Sources
+                </button>
+              </div>
 
-            <QueryTable
-              queries={filteredQueries}
-              selectedModel={selectedModel}
-              onSelectQuery={setSelectedQuery}
-              onOpenSources={handleOpenQuerySources}
-            />
+              <QueryTable
+                queries={filteredQueries}
+                selectedModel={selectedModel}
+                onSelectQuery={setSelectedQuery}
+                onOpenSources={handleOpenQuerySources}
+              />
+            </div>
           </>
         )}
       </div>

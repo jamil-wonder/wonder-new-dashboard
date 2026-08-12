@@ -63,8 +63,13 @@ export default function NavTabs() {
   const items = user?.role === "admin" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
-    <div className="flex items-center justify-between gap-5 px-6 border-t border-[#efe7d6]">
-      <div className="flex gap-7 font-medium text-[14.5px] text-[#8a8273]">
+    <div className="flex items-center justify-between gap-5 px-3 sm:px-6 border-t border-[#efe7d6]">
+      {/* Below sm, this is narrower than the full tab set (6-7 items with
+          icon + label) — instead of wrapping/squishing, it scrolls
+          horizontally so every tab stays reachable and legible. Desktop
+          (sm+) never overflows so overflow-x-auto has no visible effect
+          there — the row already fits. */}
+      <div className="flex gap-4 sm:gap-7 font-medium text-[13px] sm:text-[14.5px] text-[#8a8273] overflow-x-auto no-scrollbar">
         {items.map((item) => {
           const isActive = pathname === item.href || (item.href === "/overview" && pathname === "/");
 
@@ -72,7 +77,7 @@ export default function NavTabs() {
             <Link
               key={item.id}
               href={item.href}
-              className={`relative inline-flex items-center gap-2 py-3.5 cursor-pointer transition-colors ${
+              className={`relative inline-flex items-center gap-1.5 sm:gap-2 py-3.5 shrink-0 whitespace-nowrap cursor-pointer transition-colors ${
                 isActive ? "text-[#15463b] font-medium" : "hover:text-[#23211b]"
               }`}
             >

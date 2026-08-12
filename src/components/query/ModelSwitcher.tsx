@@ -33,8 +33,12 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
     <div className="bg-white border border-[#ece3d1] rounded-xl p-4 md:p-5 shadow-xs">
       <div className="flex items-center justify-between gap-4 flex-wrap">
 
-        {/* ── Segmented glider tabs ── */}
-        <div className="flex bg-[#f5f0e6] p-1 border border-[#e8dfc8] rounded-lg relative gap-0.5">
+        {/* ── Segmented glider tabs ──
+            4 buttons (icon + label) never fit a 375px card on their own —
+            outer flex-wrap only helps once this whole block doesn't fit
+            next to the score card; it can't shrink the block itself. Below
+            sm this scrolls horizontally instead of clipping the last tab. */}
+        <div className="flex bg-[#f5f0e6] p-1 border border-[#e8dfc8] rounded-lg relative gap-0.5 max-w-full overflow-x-auto no-scrollbar">
           {modelList.map((mName) => {
             const m = DEFAULT_MODELS_CFG[mName];
             const isActive = selectedModel === mName;
@@ -42,7 +46,7 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
               <button
                 key={mName}
                 onClick={() => onSelectModel(mName)}
-                className="relative flex items-center gap-2 px-3.5 py-1.5 rounded-md text-[13px] font-medium cursor-pointer border-none bg-transparent z-10 transition-colors duration-150"
+                className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-md text-[12px] sm:text-[13px] font-medium cursor-pointer border-none bg-transparent z-10 transition-colors duration-150 shrink-0 whitespace-nowrap"
                 style={{ color: isActive ? "#fff" : "#6f6757" }}
               >
                 {/* ── Sliding background pill ── */}

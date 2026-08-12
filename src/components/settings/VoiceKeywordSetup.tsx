@@ -142,7 +142,7 @@ export default function VoiceKeywordSetup() {
   };
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 md:p-[24px_26px] shadow-[0_1px_2px_rgba(60,48,28,0.04)] mb-5.5">
+    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 md:p-[24px_26px] shadow-[0_1px_2px_rgba(60,48,28,0.04)] mb-5.5">
       {/* Main Section Header */}
       <div className="mb-4 pb-3 border-b border-[#efe7d6]">
         <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">

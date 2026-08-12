@@ -76,13 +76,33 @@ export default function DashboardHeader() {
             {/* Logo */}
             <Link
               href="/overview"
-              className="flex items-center gap-2.5 shrink-0"
+              className="flex items-center gap-2 sm:gap-2.5 shrink-0"
             >
-              <WonderscoreLogo size={32} color="#15463b" />
-              <span className="font-spectral text-[25px] font-medium tracking-tight text-[#15463b]">
+              <WonderscoreLogo size={28} color="#15463b" className="sm:hidden" />
+              <WonderscoreLogo size={32} color="#15463b" className="hidden sm:block" />
+              <span className="font-spectral text-[20px] sm:text-[25px] font-medium tracking-tight text-[#15463b]">
                 Wonderscore
               </span>
             </Link>
+
+            {/* Mobile-only compact score pill — the full ring badge below stays
+                sm:+ only (hidden sm:flex), so this is the one place a mobile
+                visitor can see their score at all without it colliding with
+                the logo + bell/avatar row. */}
+            {hasBusiness && (
+              <div className="flex sm:hidden items-center gap-1.5 shrink-0">
+                {scoreDisplay !== null ? (
+                  <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-1 rounded-full">
+                    {scoreDisplay}
+                    <span className="text-[9px] font-medium text-[#6f8f7f]">/100</span>
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-1 rounded-full">
+                    Not Scanned
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Active Business Info & Dynamic Score Trend — Expanded Layout */}
             <div className="hidden lg:block flex-1 min-w-0 pl-3.5 border-l border-[#efe7d6]">
@@ -216,8 +236,13 @@ export default function DashboardHeader() {
               </div>
             </Link>
 
-            {/* User Profile Dropdown Menu */}
-            <div className="hidden sm:flex items-center gap-4 shrink-0 ml-auto pl-4 border-l border-[#efe7d6]">
+            {/* User Profile Dropdown Menu — was hidden entirely below sm with
+                no substitute, leaving mobile with no way to reach account/
+                sign-out at all. Now always visible; UserDropdownMenu already
+                hides the name/email text below md on its own, so this stays
+                compact (bell + avatar) on mobile and identical to before at
+                sm and up. */}
+            <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-auto pl-3 sm:pl-4 border-l border-[#efe7d6]">
               <div className="relative cursor-pointer text-[#9b927f] hover:text-[#15463b] transition-colors">
                 <Bell className="w-5 h-5" />
                 <span className="num absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#15463b] text-white text-[9.5px] font-medium flex items-center justify-center">

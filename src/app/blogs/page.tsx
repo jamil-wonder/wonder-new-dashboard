@@ -224,9 +224,9 @@ export default function BlogsPage() {
       {/* Voice & Keywords Link directly targeting Settings AI Voice tab */}
       <Link
         href="/settings?tab=voice"
-        className="flex items-center justify-between gap-3 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 group transition-colors hover:bg-[#efe9db]"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 group transition-colors hover:bg-[#efe9db]"
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <Settings className="w-4 h-4 text-[#8a8273] shrink-0" />
           <span className="text-[13px] text-[#6f6757]">
             <span className="font-semibold text-[#23211b]">AI Voice &amp; Focus Keywords</span>

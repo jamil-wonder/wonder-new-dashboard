@@ -71,7 +71,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
               })}
             </div>
 
-            <div className="grid grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-auto pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-auto pt-0">
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Strongest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "—"}</div>

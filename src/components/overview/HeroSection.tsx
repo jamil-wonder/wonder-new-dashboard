@@ -10,8 +10,8 @@ function ScoreRing({ score, delta }: { score: number; delta: number | null }) {
   const fill = (score / 100) * circ;
 
   return (
-    <div className="relative w-[80px] h-[80px] shrink-0">
-      <svg width="80" height="80" viewBox="0 0 80 80">
+    <div className="relative w-[56px] h-[56px] sm:w-[80px] sm:h-[80px] shrink-0">
+      <svg width="80" height="80" viewBox="0 0 80 80" className="w-full h-full">
         <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
         {score > 0 && (
           <circle
@@ -264,10 +264,10 @@ export default function HeroSection({ data }: { data: OverviewData }) {
 
           <div className="flex items-center justify-between gap-2 mt-3.5">
             <div className="flex items-baseline gap-0.5">
-              <span className="num font-spectral font-semibold text-[72px] leading-none text-white">
+              <span className="num font-spectral font-semibold text-[48px] sm:text-[72px] leading-none text-white">
                 {score > 0 ? score : "—"}
               </span>
-              <span className="num font-spectral text-[17px] text-[#7fae97]">/100</span>
+              <span className="num font-spectral text-[13px] sm:text-[17px] text-[#7fae97]">/100</span>
             </div>
             <ScoreRing score={ringFill} delta={delta} />
           </div>

@@ -66,6 +66,18 @@ body {
   border-color: #dcd4c3 !important;
 }
 
+/* Used for the mobile nav-tab strip and other small horizontally-scrolling
+   rows (e.g. Settings tab nav) where a visible scrollbar would look broken
+   next to the app's own chrome. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

@@ -131,15 +131,92 @@ export default function SundayCalendar({
 
   const currentSundayWeek = startOfSundayWeek(today);
 
+  // The 7x5 grid only ever shows real content on Sunday cells — every other
+  // day is a bare "-". Rather than squeezing that whole grid into a phone
+  // screen (illegible at ~35px/column), mobile gets a simple stacked list
+  // of just the Sundays, reusing this exact same content logic so desktop
+  // and mobile can never drift out of sync.
+  const renderSundayCellContent = (day: Date, isCurrentSundayWeek: boolean, isFutureSunday: boolean, isPastSunday: boolean, inMonth: boolean) => (
+    <>
+      {isCurrentSundayWeek && (
+        drafts.length > 0 ? (
+          <div className="space-y-1.5">
+            {drafts.slice(0, 2).map((draft: any, index: number) => {
+              const score = draft.humanizedScore || draft.score || 94;
+              const wordCnt = draft.wordCount || (draft.sections ? draft.sections.reduce((acc: number, s: any) => acc + (s.content || "").split(/\s+/).length, 0) : 1200);
+
+              return (
+                <motion.div
+                  key={draft.id || index}
+                  whileHover={{ y: -1 }}
+                  onClick={() => onSelectBlog(draft)}
+                  className="bg-white border border-[#d4e8dc] hover:border-[#15463b] rounded-md p-2.5 cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className="font-mono-spline text-[8px] font-medium text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.2 rounded-sm uppercase tracking-wider">
+                      Blog {index + 1} · {index === 0 ? "Advisory" : "Strategic"}
+                    </span>
+                    <MiniScoreRing score={score} />
+                  </div>
+
+                  <h4 className="font-spectral text-[14px] font-bold text-[#15463b] leading-tight line-clamp-2 group-hover:underline">
+                    {draft.title}
+                  </h4>
+
+                  <p className="text-[11px] text-[#554e41] mt-1 line-clamp-1 leading-normal font-normal">
+                    {draft.excerpt || draft.metaDescription || "Structured AI article"}
+                  </p>
+
+                  <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-[#f0f7f2] text-[10.5px] text-[#6f6757]">
+                    <span className="font-normal">{wordCnt} words</span>
+                    <span className="text-[#1e7d4f] font-medium inline-flex items-center gap-1">
+                      Read article <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <button
+            onClick={() => onEnsureWeekly(true)}
+            className="w-full text-center p-2 rounded-md border border-dashed border-[#d4e8dc] bg-white text-[11px] font-medium text-[#15463b] hover:bg-[#eef3f0] transition-colors cursor-pointer"
+          >
+            + Generate Weekly Articles
+          </button>
+        )
+      )}
+
+      {isFutureSunday && (
+        <div className="p-2 rounded-md border border-dashed border-[#e6d3a8] bg-[#fcfaf5] text-center">
+          <div className="flex items-center justify-center gap-1 text-[9.5px] font-medium text-[#9a6a12] uppercase tracking-wider mb-0.5">
+            <Lock className="w-3 h-3" />
+            <span>Locked</span>
+          </div>
+          <span className="block text-[10px] text-[#8a8273] font-normal leading-tight">
+            2 articles unlock Sun {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </span>
+        </div>
+      )}
+
+      {isPastSunday && inMonth && (
+        <div className="p-1.5 rounded-md border border-[#efe7d6] bg-[#fdfcf8] text-center text-[10px] text-[#9b927f]">
+          <BookOpen className="w-3 h-3 text-[#b3a98f] mx-auto mb-0.5 opacity-60" />
+          <span>Completed Cycle</span>
+        </div>
+      )}
+    </>
+  );
+
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-lg p-5 md:p-6 shadow-[0_1px_2px_rgba(60,48,28,0.03)] space-y-4">
+    <div className="bg-white border border-[#ece3d1] rounded-lg p-3 sm:p-5 md:p-6 shadow-[0_1px_2px_rgba(60,48,28,0.03)] space-y-4">
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-[#efe7d6]">
-        
+      <div className="flex items-center justify-between gap-3 sm:gap-4 flex-wrap pb-3 border-b border-[#efe7d6]">
+
         {/* Month Navigation & Today Button */}
-        <div className="flex items-center gap-3">
-          <h3 className="font-spectral text-[19px] font-medium text-[#15463b]">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap gap-y-2">
+          <h3 className="font-spectral text-[15px] sm:text-[19px] font-medium text-[#15463b]">
             Weekly Blog Calendar
           </h3>
 
@@ -222,9 +299,12 @@ export default function SundayCalendar({
           </p>
         </div>
       ) : (
-        /* Full 7-Day Sun-Sat Month Grid (Sunday column wider) */
-        <div className="border border-[#ece3d1] rounded-md overflow-hidden bg-white">
-          
+        <>
+        {/* Full 7-Day Sun-Sat Month Grid (Sunday column wider) — desktop
+            only below; a phone can't fit 7 columns legibly, so it gets a
+            simple stacked list of just the Sundays instead (see below). */}
+        <div className="hidden sm:block border border-[#ece3d1] rounded-md overflow-hidden bg-white">
+
           {/* Day Headers (Sun - Sat) */}
           <div className="grid border-b border-[#ece3d1] bg-[#fdfcf8]" style={{ gridTemplateColumns: "2.4fr 1fr 1fr 1fr 1fr 1fr 1fr" }}>
             {DAY_LABELS.map((day, idx) => (
@@ -290,85 +370,13 @@ export default function SundayCalendar({
 
                   {/* Cell Content */}
                   <div className="flex-1 flex flex-col justify-center">
-                    
-                    {/* CURRENT SUNDAY: Display Sleek Minimal Blog Cards */}
-                    {isCurrentSundayWeek && (
-                      drafts.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {drafts.slice(0, 2).map((draft: any, index: number) => {
-                            const score = draft.humanizedScore || draft.score || 94;
-                            const wordCnt = draft.wordCount || (draft.sections ? draft.sections.reduce((acc: number, s: any) => acc + (s.content || "").split(/\s+/).length, 0) : 1200);
-
-                            return (
-                              <motion.div
-                                key={draft.id || index}
-                                whileHover={{ y: -1 }}
-                                onClick={() => onSelectBlog(draft)}
-                                className="bg-white border border-[#d4e8dc] hover:border-[#15463b] rounded-md p-2.5 cursor-pointer transition-all group"
-                              >
-                                <div className="flex items-center justify-between gap-1.5 mb-1">
-                                  <span className="font-mono-spline text-[8px] font-medium text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.2 rounded-sm uppercase tracking-wider">
-                                    Blog {index + 1} · {index === 0 ? "Advisory" : "Strategic"}
-                                  </span>
-                                  <MiniScoreRing score={score} />
-                                </div>
-                                
-                                <h4 className="font-spectral text-[14px] font-bold text-[#15463b] leading-tight line-clamp-2 group-hover:underline">
-                                  {draft.title}
-                                </h4>
-
-                                <p className="text-[11px] text-[#554e41] mt-1 line-clamp-1 leading-normal font-normal">
-                                  {draft.excerpt || draft.metaDescription || "Structured AI article"}
-                                </p>
-
-                                <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-[#f0f7f2] text-[10.5px] text-[#6f6757]">
-                                  <span className="font-normal">{wordCnt} words</span>
-                                  <span className="text-[#1e7d4f] font-medium inline-flex items-center gap-1">
-                                    Read article <ArrowRight className="w-3 h-3" />
-                                  </span>
-                                </div>
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => onEnsureWeekly(true)}
-                          className="w-full text-center p-2 rounded-md border border-dashed border-[#d4e8dc] bg-white text-[11px] font-medium text-[#15463b] hover:bg-[#eef3f0] transition-colors cursor-pointer"
-                        >
-                          + Generate Weekly Articles
-                        </button>
-                      )
-                    )}
-
-                    {/* FUTURE SUNDAY: Locked Upcoming Teaser */}
-                    {isFutureSunday && (
-                      <div className="p-2 rounded-md border border-dashed border-[#e6d3a8] bg-[#fcfaf5] text-center">
-                        <div className="flex items-center justify-center gap-1 text-[9.5px] font-medium text-[#9a6a12] uppercase tracking-wider mb-0.5">
-                          <Lock className="w-3 h-3" />
-                          <span>Locked</span>
-                        </div>
-                        <span className="block text-[10px] text-[#8a8273] font-normal leading-tight">
-                          2 articles unlock Sun {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* PAST SUNDAY: Past Generated History */}
-                    {isPastSunday && inMonth && (
-                      <div className="p-1.5 rounded-md border border-[#efe7d6] bg-[#fdfcf8] text-center text-[10px] text-[#9b927f]">
-                        <BookOpen className="w-3 h-3 text-[#b3a98f] mx-auto mb-0.5 opacity-60" />
-                        <span>Completed Cycle</span>
-                      </div>
-                    )}
-
-                    {/* Non-Sunday days */}
-                    {!isSunday && (
+                    {isSunday ? (
+                      renderSundayCellContent(day, isCurrentSundayWeek, isFutureSunday, isPastSunday, inMonth)
+                    ) : (
                       <div className="h-full flex items-center justify-center">
                         <span className="text-[10px] text-[#d8cfbd] font-normal italic">-</span>
                       </div>
                     )}
-
                   </div>
                 </div>
               );
@@ -376,6 +384,45 @@ export default function SundayCalendar({
           </div>
 
         </div>
+
+        {/* Mobile: stacked list of just this month's Sundays — the only
+            cells with real content. */}
+        <div className="sm:hidden space-y-3">
+          {daysGrid
+            .filter((day) => day.getDay() === 0)
+            .map((day) => {
+              const inMonth = day.getMonth() === currentMonthDate.getMonth();
+              const isCurrentSundayWeek = isSameDate(day, currentSundayWeek);
+              const isFutureSunday = day > currentSundayWeek;
+              const isPastSunday = day < currentSundayWeek;
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`border border-[#ece3d1] rounded-md p-3 ${inMonth ? "bg-white" : "bg-[#fcfbf8] opacity-50"} ${isCurrentSundayWeek ? "bg-[#f4faf6] border-[#d4e8dc]" : ""}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-spectral font-medium text-[14px] text-[#15463b]">
+                      Sun, {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                    <span
+                      className={`text-[8.5px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
+                        isCurrentSundayWeek
+                          ? "bg-[#15463b] text-white"
+                          : isFutureSunday
+                          ? "bg-[#f7e7c4] text-[#9a6a12]"
+                          : "bg-[#efe7d6] text-[#8a8273]"
+                      }`}
+                    >
+                      {isCurrentSundayWeek ? "Active Cycle" : isFutureSunday ? "Locked" : "Past"}
+                    </span>
+                  </div>
+                  {renderSundayCellContent(day, isCurrentSundayWeek, isFutureSunday, isPastSunday, inMonth)}
+                </div>
+              );
+            })}
+        </div>
+        </>
       )}
     </div>
   );

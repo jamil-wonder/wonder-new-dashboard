@@ -42,7 +42,17 @@ export default function QueryTable({
   }
 
   return (
-    <div className="flex flex-col gap-2.5 mt-2.5 relative overflow-hidden">
+    // The row's 5 fixed-width columns (40+86+118+54+200 = 498px) alone are
+    // already wider than a phone screen — the flexible query-text column
+    // has nowhere left to shrink to and the browser was wrapping it one
+    // character per line to fit. Rather than trying to cram a 6-column
+    // dense data table into ~340px (not attempting a mobile redesign of
+    // Query per earlier direction), each row keeps its natural width via
+    // min-w-[720px] below and scrolls horizontally instead — the actual
+    // scroll container is in query/page.tsx, wrapping this together with
+    // the column-header row so both move in sync instead of scrolling
+    // independently and drifting out of alignment.
+    <div className="flex flex-col gap-2.5 mt-2.5 relative">
       <AnimatePresence mode="popLayout">
         {queries.map((q) => {
           let typeColor = "#5b4f86";
@@ -91,7 +101,7 @@ export default function QueryTable({
                   onSelectQuery(q);
                 }
               }}
-              className={`row-hover grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
+              className={`row-hover grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] min-w-[720px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
                 isAudited ? "hover:border-[#d9cbaf] hover:shadow-xs cursor-pointer" : "cursor-default opacity-90"
               }`}
             >

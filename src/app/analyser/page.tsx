@@ -670,10 +670,10 @@ export default function AnalyserPage() {
       )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 md:p-[28px_32px] shadow-sm">
+      <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 md:p-[28px_32px] shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#ece3d1] pb-5 mb-5">
           <div>
-            <h1 className="font-spectral text-[28px] font-semibold text-[#15463b]">AI Visibility Analyzer</h1>
+            <h1 className="font-spectral text-[22px] sm:text-[28px] font-semibold text-[#15463b]">AI Visibility Analyzer</h1>
             <p className="text-[14px] text-[#6f6757] mt-1 max-w-[520px] leading-relaxed">
               Sitemaps, schema, entity signals, crawler permissions, and how each AI model sees your business.
             </p>
@@ -759,13 +759,13 @@ export default function AnalyserPage() {
                 
                 <div className="flex items-center justify-between gap-2 mt-3.5">
                   <div className="flex items-baseline gap-0.5">
-                    <span className="font-spectral text-[72px] leading-none font-semibold">{currentTotalScore}</span>
-                    <span className="font-spectral text-[17px] text-[#7fae97]">/100</span>
+                    <span className="font-spectral text-[48px] sm:text-[72px] leading-none font-semibold">{currentTotalScore}</span>
+                    <span className="font-spectral text-[13px] sm:text-[17px] text-[#7fae97]">/100</span>
                   </div>
 
                   {/* Dynamic circle progress ring */}
-                  <div className="relative w-[80px] h-[80px] shrink-0">
-                    <svg width="80" height="80" viewBox="0 0 80 80" className="block">
+                  <div className="relative w-[56px] h-[56px] sm:w-[80px] sm:h-[80px] shrink-0">
+                    <svg width="80" height="80" viewBox="0 0 80 80" className="block w-full h-full">
                       <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
                       <circle
                         cx="40"
@@ -824,7 +824,7 @@ export default function AnalyserPage() {
         })()}
 
         {/* 6 Audit Area bars */}
-        <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px]">
+        <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-[18px] p-3 sm:p-5 md:p-[22px_26px]">
           <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-5">
             Score Breakdown · 6 Weighted Audit Areas
           </div>
@@ -832,13 +832,13 @@ export default function AnalyserPage() {
             {auditAreas.map((item) => {
               const IconComponent = ICON_MAP[item.iconName] || FileCode2;
               return (
-                <div key={item.id} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: item.statusBg }}>
+                <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
+                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: item.statusBg }}>
                     <IconComponent className="w-4 h-4" style={{ color: item.statusColor }} />
                   </div>
                   <div className="group relative flex items-center gap-1 flex-1 min-w-0">
-                    <span className="text-[13.5px] text-[#23211b] font-medium">{item.label}</span>
-                    <Info className="w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
+                    <span className="text-[11.5px] sm:text-[13.5px] text-[#23211b] font-medium truncate">{item.label}</span>
+                    <Info className="hidden sm:block w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
 
                     {/* Floating Tooltip Popover */}
                     <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-[240px] bg-[#15463b] text-white text-[11.5px] leading-snug p-2.5 rounded-xl shadow-xl z-30 pointer-events-none transition-all">
@@ -847,13 +847,13 @@ export default function AnalyserPage() {
                       <div className="absolute left-2 -bottom-1 w-2 h-2 bg-[#15463b] rotate-45"></div>
                     </div>
                   </div>
-                  <div className="w-[140px] sm:w-[200px] h-[7px] bg-[#eee9de] rounded-full overflow-hidden shrink-0">
+                  <div className="w-[70px] sm:w-[140px] md:w-[200px] h-[7px] bg-[#eee9de] rounded-full overflow-hidden shrink-0">
                     <div className="h-full rounded-full transition-all" style={{ width: `${item.score}%`, backgroundColor: item.barColor }} />
                   </div>
-                  <span className="num text-[13px] font-bold text-[#23211b] w-[50px] text-right shrink-0">
+                  <span className="num text-[11px] sm:text-[13px] font-bold text-[#23211b] w-9 sm:w-[50px] text-right shrink-0">
                     {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
                   </span>
-                  <span className="font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[68px] shrink-0"
+                  <span className="hidden sm:inline-block font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[68px] shrink-0"
                     style={{ color: item.statusColor, backgroundColor: item.statusBg }}>
                     {item.statusText}
                   </span>

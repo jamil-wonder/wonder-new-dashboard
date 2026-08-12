@@ -179,7 +179,7 @@ export default function BusinessProfilesPanel() {
   // ── Edit / Add Form ──────────────────────────────────────────────────────────
   if (isEditing) {
     return (
-      <form onSubmit={handleSave} className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-xs space-y-6">
+      <form onSubmit={handleSave} className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-xs space-y-6">
         <div className="flex justify-between items-center border-b border-[#efe7d6] pb-4">
           <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">{editId ? "Edit Business Profile" : "New Business Profile"}</h3>
           <button type="button" onClick={() => setIsEditing(false)} className="text-[13px] text-[#8a8273] hover:text-[#23211b] cursor-pointer">Cancel</button>
@@ -239,7 +239,7 @@ export default function BusinessProfilesPanel() {
               {qgTotal}/20
             </span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <QGSlider label="Branded" desc="Uses business name." value={formQG.branded} onChange={(v) => updateQG("branded", v)} />
             <QGSlider label="Non-Branded" desc="Category searches." value={formQG.nonBranded} onChange={(v) => updateQG("nonBranded", v)} />
             <QGSlider label="Local SEO" desc="Location-focused." value={formQG.localSeo} onChange={(v) => updateQG("localSeo", v)} />
@@ -294,7 +294,7 @@ export default function BusinessProfilesPanel() {
 
   // ── Sleek, Minimal, Modern Card Grid ───────────────────────────────────────
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[22px] p-6 shadow-xs">
+    <div className="bg-white border border-[#ece3d1] rounded-[22px] p-4 sm:p-6 shadow-xs">
       {/* Header Container */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-[#efe7d6] pb-5">
         <div>

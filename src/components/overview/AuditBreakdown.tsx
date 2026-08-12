@@ -36,7 +36,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
     <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_0.92fr] gap-4 mt-4 mb-5">
 
       {/* ── Six Audit Areas Card ── */}
-      <div className="bg-[#fdeef1] border border-[#f6d9e0] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col">
+      <div className="bg-[#fdeef1] border border-[#f6d9e0] rounded-[14px] p-3 sm:p-5 md:p-[22px_24px] flex flex-col">
         <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#a86d7e]">
           The full picture · six areas behind your score
         </div>
@@ -55,17 +55,17 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
               const barColor = item.barColor || getBarColor(item.score);
               const status = item.statusText ? { text: item.statusText, color: item.statusColor, bg: item.statusBg } : getStatus(item.score);
               return (
-                <div key={item.id} className="flex items-center gap-3">
-                  <IconComponent className="w-4 h-4 text-[#7a7363] shrink-0" />
-                  <span className="w-[170px] text-[13.5px] text-[#23211b] truncate shrink-0">{item.label}</span>
+                <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
+                  <IconComponent className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#7a7363] shrink-0" />
+                  <span className="w-[92px] sm:w-[170px] text-[11px] sm:text-[13.5px] text-[#23211b] truncate shrink-0">{item.label}</span>
                   <div className="flex-1 h-[6px] bg-[#f6dde4] rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${item.score}%`, backgroundColor: barColor }} />
                   </div>
-                  <span className="num text-[13px] font-bold text-[#23211b] w-12 text-right shrink-0">
+                  <span className="num text-[11px] sm:text-[13px] font-bold text-[#23211b] w-9 sm:w-12 text-right shrink-0">
                     {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
                   </span>
                   <span
-                    className="font-mono-spline text-[8.5px] font-medium tracking-wider px-1.5 py-1 rounded text-center w-[58px] shrink-0"
+                    className="font-mono-spline text-[7.5px] sm:text-[8.5px] font-medium tracking-wider px-1 sm:px-1.5 py-1 rounded text-center w-[42px] sm:w-[58px] shrink-0"
                     style={{ color: status.color, backgroundColor: status.bg }}
                   >
                     {status.text}

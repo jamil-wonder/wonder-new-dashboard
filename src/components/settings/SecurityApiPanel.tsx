@@ -46,7 +46,7 @@ export default function SecurityApiPanel() {
   };
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-6">
+    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-6">
       {/* Change Password */}
       <form onSubmit={handleChangePassword} className="space-y-4">
         <h3 className="font-spectral text-[20px] font-medium text-[#15463b]">Security &amp; Password</h3>

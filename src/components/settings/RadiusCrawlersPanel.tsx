@@ -8,7 +8,7 @@ export default function RadiusCrawlersPanel() {
   const [radius, setRadius] = useState("25");
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-6">
+    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-6">
       
       {/* Geo Radius */}
       <div className="space-y-3.5">

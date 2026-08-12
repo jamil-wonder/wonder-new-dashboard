@@ -57,7 +57,7 @@ function NotificationsPanel() {
   };
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm">
+    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm">
       <h3 className="font-spectral text-[20px] font-semibold text-[#15463b] mb-1">
         Notifications
       </h3>
@@ -112,7 +112,7 @@ export default function AccountInfoPanel() {
     <div className="space-y-5">
       <form
         onSubmit={handleSave}
-        className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-5"
+        className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-5"
       >
         <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">
           Account Information

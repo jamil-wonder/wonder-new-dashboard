@@ -53,7 +53,7 @@ export default function BlogGenerationPanel() {
   const strokeDashoffset = circumference - usedRatio * circumference;
 
   return (
-    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-6 shadow-sm space-y-6">
+    <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-6">
       
       {/* Blog Generation Limit Ring */}
       <div className="flex items-center justify-between border-b border-[#efe7d6] pb-5">
