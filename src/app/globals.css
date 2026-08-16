@@ -78,6 +78,18 @@ body {
   display: none;
 }
 
+/* recharts renders its chart root as keyboard-focusable (for
+   accessibility — arrow-key navigation between data points), so clicking
+   anywhere on a chart gives it the browser's default focus ring. That
+   shows up as a stray black/blue rectangle around the whole chart. The
+   chart stays focusable and keyboard-usable; this only removes the visual
+   ring, since the hover tooltip already gives clear visual feedback. */
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

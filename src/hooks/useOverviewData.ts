@@ -307,9 +307,16 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // behavior) meant the instant a single manual scan happened in this
     // browser, every earlier DB-only point — including any Sunday
     // scheduler score — vanished from the chart entirely. Merge both,
-    // de-duping points that are really the same scan (same score, saved
-    // within a few minutes of each other) once the local one has also
-    // round-tripped into the DB history.
+    // de-duping points that are really the SAME scan write showing up
+    // twice (once from the local recordScanHistory() call, once from the
+    // DB round-trip of that same runLiveAnalysis call — those land within
+    // the same request cycle, i.e. seconds apart, never minutes). This
+    // window used to be 5 minutes, which was long enough to also (wrongly)
+    // collapse two genuinely separate real scans a few minutes apart that
+    // just happened to produce the same score — e.g. a quick back-to-back
+    // re-scan of a site that hadn't changed. 30 seconds still catches the
+    // real duplicate without eating real distinct scans.
+    const SAME_SCAN_WRITE_WINDOW_MS = 30 * 1000;
     const localScanPoints = getScanHistory(url);
     const scanPoints = [...dbTrend, ...localScanPoints]
       .map((p) => ({ ...p, _t: new Date(p.timestamp).getTime() }))
@@ -317,7 +324,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       .sort((a, b) => a._t - b._t)
       .reduce<typeof dbTrend>((acc, p) => {
         const prev = acc[acc.length - 1];
-        if (prev && prev.score === p.score && Math.abs(p._t - new Date(prev.timestamp).getTime()) < 5 * 60 * 1000) {
+        if (prev && prev.score === p.score && Math.abs(p._t - new Date(prev.timestamp).getTime()) < SAME_SCAN_WRITE_WINDOW_MS) {
           return acc;
         }
         const point = { ...p };

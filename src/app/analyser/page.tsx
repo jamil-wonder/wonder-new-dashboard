@@ -9,7 +9,6 @@ import {
   Building2, Languages, Image as ImageIcon, BookOpen, TrendingUp, TrendingDown,
   X, Info, Contact
 } from "lucide-react";
-import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { WonderscoreSpinner, WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { useBusiness, isDomainString, isGenericName } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
@@ -75,7 +74,6 @@ export default function AnalyserPage() {
   const { showToast } = useToast();
 
   const [isScanning, setIsScanning] = useState(false);
-  const [isScanComplete, setIsScanComplete] = useState(false);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -199,6 +197,15 @@ export default function AnalyserPage() {
         }
         return; // Successfully served from 2-Hour cache without re-crawling!
       }
+      // No cache — a real crawl+AI-insights call used to fire automatically
+      // right here the instant this tab opened, which is exactly what ran
+      // twice for a brand-new business: once silently on page load, again
+      // when the user (unaware the first had already started) clicked
+      // "Run Analysis" themselves. The Sunday scheduler already covers
+      // automatic scanning; a first scan should only ever happen because
+      // the user explicitly asked for it.
+      setIsLoadingInitial(false);
+      return;
     }
 
     try {
@@ -209,7 +216,6 @@ export default function AnalyserPage() {
         setAiInsights([]);
         setAuditAreas([]);
         setIsScanning(true);
-        setIsScanComplete(false);
         markActiveAnalysis(domain);
         showToast(`Starting website analysis for ${domain}. This can take 1-5 minutes.`, "info");
       } else {
@@ -477,20 +483,27 @@ export default function AnalyserPage() {
       setScanData(finalScan);
       setAuditAreas(finalAreas);
       setAiInsights(finalInsights);
+      setIsScanning(false);
 
+      // Was previously only shown via ScanProgressModal's onClose callback
+      // (handleScanComplete) — now that there's no modal, the completion
+      // toast fires directly here, right where the scan actually finishes.
       if (isUserTriggered) {
-        setIsScanComplete(true);
+        showToast(`AI analysis completed! Brand details for ${businessName} updated sitewide.`, "success");
       }
     } catch (err) {
       console.error("Analysis failed:", err);
       setScanError("Something went wrong while analysing this website. Please try again.");
-      if (isUserTriggered && analysisRequestIdRef.current === requestId) setIsScanComplete(true);
+      setIsScanning(false);
     } finally {
       if (analysisRequestIdRef.current === requestId) setIsLoadingInitial(false);
     }
   }, [domain, businessName, category, location, showToast, loadCachedAnalysis, clearCachedAnalysis, saveCachedAnalysis, markActiveAnalysis, clearActiveAnalysis, getActiveAnalysisKey]);
 
-  // Execute analysis on mount or domain change
+  // On mount or domain change: load a cached result if one exists for this
+  // business, but never trigger a live scan on its own — runLiveAnalysis(false)
+  // is a no-op past the cache check (see above). The first scan for any
+  // business only ever happens because the user clicked "Run Analysis".
   useEffect(() => {
     // A scan left running on the PREVIOUS business is now correctly
     // prevented (via analysisRequestIdRef) from writing its result into
@@ -499,7 +512,6 @@ export default function AnalyserPage() {
     // completion no longer flips it off for a business it doesn't belong
     // to. Clean slate for whichever business is now active.
     setIsScanning(false);
-    setIsScanComplete(false);
     if (!domain) {
       // No active business — nothing to analyse, and no scan already in
       // flight to wait on, so don't leave the loading spinner spinning.
@@ -511,14 +523,6 @@ export default function AnalyserPage() {
 
   const handleStartScan = () => {
     runLiveAnalysis(true);
-  };
-
-  const handleScanComplete = () => {
-    setIsScanning(false);
-    setIsScanComplete(false);
-    if (scanData) {
-      showToast(`AI analysis completed! Brand details for ${businessName} updated sitewide.`, "success");
-    }
   };
 
   if (!domain) {
@@ -541,7 +545,15 @@ export default function AnalyserPage() {
     );
   }
 
-  if (isLoadingInitial && !scanData) {
+  // Covers both the initial mount check (isLoadingInitial) and a button-
+  // triggered scan (isScanning) with the same simple spinner card + the
+  // toast already shown from handleStartScan — no separate progress modal.
+  // Before this, a button-triggered scan set isScanning but not
+  // isLoadingInitial, so this branch never matched for it: the page just
+  // sat on the static "Not analysed yet" card for the full 1-5 minutes
+  // with nothing but a toast, which is exactly what makes someone click
+  // "Run Analysis" again thinking it didn't register.
+  if ((isLoadingInitial || isScanning) && !scanData) {
     return (
       <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
         <WonderscoreSpinner
@@ -572,18 +584,32 @@ export default function AnalyserPage() {
     );
   }
 
+  if (!isLoadingInitial && !scanData && !scanError) {
+    return (
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#f6f3ec] border border-[#ece3d1] flex items-center justify-center mb-4">
+          <Bot className="w-6 h-6 text-[#9b927f]" />
+        </div>
+        <div className="font-spectral text-[19px] font-semibold text-[#23211b]">Not analysed yet</div>
+        <p className="text-[13px] text-[#8a8273] mt-1.5 max-w-[360px]">
+          Run the AI visibility analysis for {businessName || domain} whenever you're ready — it takes 1-5 minutes.
+        </p>
+        <button
+          type="button"
+          onClick={handleStartScan}
+          className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors cursor-pointer border-none"
+        >
+          <Sparkles className="w-4 h-4" />
+          Run Analysis
+        </button>
+      </div>
+    );
+  }
+
   const s = scanData || {};
 
   return (
     <div className="space-y-5 pb-12 relative">
-      
-      {/* ── Scan Progress Modal ── */}
-      <ScanProgressModal
-        isOpen={isScanning}
-        isComplete={isScanComplete}
-        onClose={handleScanComplete}
-        title="Website Analysis"
-      />
 
       {selectedAiInsight && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">

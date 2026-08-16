@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { OverviewData } from "../../hooks/useOverviewData";
 
 function ScoreRing({ score, delta }: { score: number; delta: number | null }) {
@@ -72,51 +74,173 @@ function formatPointTimestamp(ts: string, weekId?: string): string {
   return weekId ? `Week ${weekId}` : "Unknown date";
 }
 
-function TrendChart({ points }: { points: { score: number; timestamp: string; week_id?: string }[] }) {
-  const latest = points.length > 0 ? points[points.length - 1].score : 0;
-  const hasData = points.length >= 1;
+function shortAxisDate(ts: string, weekId?: string): string {
+  if (ts) {
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+  }
+  return weekId ? weekId.replace(/^\d{4}-/, "") : "";
+}
 
-  if (!hasData) {
+function TrendDot(props: any) {
+  const { cx, cy, index, payload } = props;
+  const isLatest = index === payload.__lastIndex;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={isLatest ? 5.5 : 3.5}
+      fill={isLatest ? "#1e7d4f" : "#fff"}
+      stroke="#1e7d4f"
+      strokeWidth={2}
+    />
+  );
+}
+
+// Plot-area geometry — kept as named constants because they're used TWICE:
+// once as the actual margin/width values handed to recharts below, and
+// again to position the custom hover-tracking div so it lines up exactly
+// with where recharts draws the plot, without needing to measure the DOM.
+const PLOT_LEFT = 26; // matches YAxis width
+const PLOT_RIGHT = 24; // matches AreaChart margin.right
+const PLOT_TOP = 8; // matches AreaChart margin.top
+const PLOT_BOTTOM = 30; // space recharts reserves for the XAxis line + date labels
+
+// recharts v3's own Tooltip/hover wiring does not fire on this chart (verified:
+// the correct element — recharts-surface — sits under the cursor, so nothing
+// is blocking it; recharts' internal mouse-tracking simply isn't triggering).
+// Rather than keep fighting that, hover is handled directly here with plain
+// onMouseMove math over the same plot rectangle recharts renders into (see
+// PLOT_* constants above) — recharts still draws the line/axes/grid, this
+// only replaces the broken interactive layer.
+function TrendChart({ points }: { points: { score: number; timestamp: string; week_id?: string }[] }) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
+  if (points.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-[12px] text-[#a8b8a0] text-center px-2">
-        Run the Analyzer to build your weekly trend history.
+        Run the Analyzer to build your scan history trend.
       </div>
     );
   }
 
-  const w = 400, h = 200, padL = 38, padR = 6, padT = 20, padB = 20;
-  const plotW = w - padL - padR;
-  const plotH = h - padT - padB;
+  const n = points.length;
+  const lastIndex = n - 1;
+  const chartData = points.map((p, i) => ({
+    score: p.score,
+    date: shortAxisDate(p.timestamp, p.week_id),
+    fullDate: formatPointTimestamp(p.timestamp, p.week_id),
+    __lastIndex: lastIndex,
+    __i: i,
+  }));
+
   const scores = points.map(p => p.score);
-  const minS = Math.max(0, Math.min(...scores) - 5);
-  const maxS = Math.min(100, Math.max(...scores) + 5);
+  const minS = Math.max(0, Math.floor((Math.min(...scores) - 5) / 5) * 5);
+  const maxS = Math.min(100, Math.ceil((Math.max(...scores) + 5) / 5) * 5);
+  // recharts' own auto-generated ticks land on whatever the domain divides
+  // into (e.g. 57/64/71) — explicit, round-5 ticks read far more cleanly.
+  const midS = Math.round((minS + maxS) / 2 / 5) * 5;
+  const yTicks = midS > minS && midS < maxS ? [minS, midS, maxS] : [minS, maxS];
   const range = maxS - minS || 1;
 
-  const toX = (i: number) => padL + (i / (points.length - 1)) * plotW;
-  const toY = (s: number) => padT + plotH - ((s - minS) / range) * plotH;
+  const toXPct = (i: number) => (n <= 1 ? 50 : (i / (n - 1)) * 100);
+  const toYPct = (score: number) => 100 - ((score - minS) / range) * 100;
 
-  const pts = points.map((p, i) => `${toX(i)},${toY(p.score)}`).join(" ");
-  const polyPts = pts + ` ${toX(points.length - 1)},${padT + plotH} ${padL},${padT + plotH}`;
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const relX = (e.clientX - rect.left) / rect.width;
+    const idx = Math.round(relX * (n - 1));
+    setHoverIndex(Math.max(0, Math.min(n - 1, idx)));
+  };
 
-  const ticks = [minS, Math.round((minS + maxS) / 2), maxS];
+  const hovered = hoverIndex !== null ? points[hoverIndex] : null;
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full" preserveAspectRatio="none">
-      {ticks.map(t => (
-        <g key={t}>
-          <line x1={padL} y1={toY(t)} x2={w - padR} y2={toY(t)} stroke="#efe7d6" strokeWidth="1" />
-          <text x={padL - 4} y={toY(t) + 4} textAnchor="end" fontSize="9" fill="#b3a98f">{t}</text>
-        </g>
-      ))}
-      <polygon points={polyPts} fill="rgba(30,125,79,0.08)" />
-      <polyline points={pts} fill="none" stroke="#1e7d4f" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-      {points.map((p, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(p.score)} r={i === points.length - 1 ? 5 : 3.2}
-          fill={i === points.length - 1 ? "#1e7d4f" : "#fff"} stroke="#1e7d4f" strokeWidth="2">
-          <title>{`${formatPointTimestamp(p.timestamp, p.week_id)} — score ${p.score}`}</title>
-        </circle>
-      ))}
-    </svg>
+    <div className="relative w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: PLOT_TOP, right: PLOT_RIGHT, bottom: 0, left: 0 }} accessibilityLayer={false}>
+          <defs>
+            <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1e7d4f" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="#1e7d4f" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid horizontal vertical={false} stroke="#e5ddd0" strokeDasharray="3 3" />
+          <XAxis
+            dataKey="date"
+            // Force every date to show only while they still comfortably fit
+            // — this chart sits in a ~400px column, so the threshold is
+            // lower than it would be for a full-width chart. Past that,
+            // fall back to recharts' own overlap-safe thinning instead of
+            // jamming every label in illegibly.
+            interval={points.length <= 6 ? 0 : "preserveStartEnd"}
+            axisLine={{ stroke: "#e5ddd0" }}
+            tickLine={false}
+            tick={{ fontSize: 11, fontWeight: 600, fill: "#8a8273" }}
+            dy={8}
+          />
+          <YAxis
+            domain={[minS, maxS]}
+            ticks={yTicks}
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 11, fill: "#b3a98f" }}
+            width={PLOT_LEFT}
+            tickMargin={2}
+            allowDecimals={false}
+          />
+          <Area
+            type="monotone"
+            dataKey="score"
+            stroke="#1e7d4f"
+            strokeWidth={2.5}
+            fill="url(#trendFill)"
+            dot={<TrendDot />}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+
+      {/* Custom hover layer — spans exactly the plot rectangle recharts
+          draws into (see PLOT_* constants), independent of recharts'
+          own broken interaction wiring. */}
+      <div
+        className="absolute cursor-crosshair"
+        style={{ left: PLOT_LEFT, right: PLOT_RIGHT, top: PLOT_TOP, bottom: PLOT_BOTTOM }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoverIndex(null)}
+      >
+        {hovered && (
+          <>
+            {/* Vertical guide line at the hovered point */}
+            <div
+              className="absolute top-0 bottom-0 w-px bg-[#d9cbaf]"
+              style={{ left: `${toXPct(hoverIndex!)}%`, borderLeft: "1px dashed #d9cbaf" }}
+            />
+            {/* Highlighted dot at the hovered point */}
+            <div
+              className="absolute w-3 h-3 rounded-full bg-[#1e7d4f] border-2 border-white shadow-sm -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ left: `${toXPct(hoverIndex!)}%`, top: `${toYPct(hovered.score)}%` }}
+            />
+            {/* Tooltip */}
+            <div
+              className="absolute -translate-x-1/2 pointer-events-none bg-[#15463b] text-white rounded-lg shadow-lg px-3 py-2 leading-tight whitespace-nowrap z-10"
+              style={{
+                left: `${toXPct(hoverIndex!)}%`,
+                top: `${toYPct(hovered.score)}%`,
+                marginTop: "-46px",
+              }}
+            >
+              <div className="num font-spectral font-bold text-[17px]">{hovered.score}</div>
+              <div className="text-[10.5px] text-[#a8c4ae] mt-0.5">{formatPointTimestamp(hovered.timestamp, hovered.week_id)}</div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -319,7 +443,13 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         </div>
       </motion.div>
 
-      {/* ── Scan History Trend Chart ── */}
+      {/* ── Scan History Trend Chart — back beside the Score/Changes
+          cards. Fixed pixel height (not flex-1/min-height): this card
+          sits in a CSS Grid with items-stretch, which gives it a
+          definite stretched height, but recharts' ResponsiveContainer
+          needs an unambiguous measured height to render at all — an
+          explicit height guarantees that regardless of how the grid
+          resolves everything else. */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -334,11 +464,11 @@ export default function HeroSection({ data }: { data: OverviewData }) {
             <div className="num font-spectral text-[30px] font-semibold text-[#1e7d4f] leading-none">{score}</div>
           )}
         </div>
-        <div className="flex-1 min-h-[140px]">
+        <div style={{ height: 180 }}>
           <TrendChart points={scanPoints} />
         </div>
         {scanPoints.length > 0 && (
-          <div className="text-[10px] text-[#b3a98f] mt-1">
+          <div className="text-[11px] text-[#b3a98f] mt-2">
             {scanPoints.length} scan{scanPoints.length !== 1 ? "s" : ""} recorded
             {" · "}Last analysed {formatPointTimestamp(scanPoints[scanPoints.length - 1].timestamp, scanPoints[scanPoints.length - 1].week_id)}
           </div>
