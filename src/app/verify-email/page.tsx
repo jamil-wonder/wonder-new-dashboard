@@ -154,7 +154,12 @@ function VerifyEmailContent() {
       await verifyOtp(email, code.trim());
       // Hard navigation — forces every provider (BusinessContext included)
       // to remount and fetch fresh with this session's brand-new token.
-      window.location.href = "/overview";
+      // Goes to /onboarding rather than straight to /overview — that page
+      // itself checks whether this account already has a business (a
+      // routine login, not a first-time signup) and redirects straight
+      // through to /overview on its own; only a genuinely new account
+      // with zero businesses sees the onboarding step.
+      window.location.href = "/onboarding";
     } catch (err) {
       setErrorMsg(parseErrorMessage(err));
       setIsVerifying(false);

@@ -23,7 +23,12 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      window.location.replace("/overview");
+      // Covers Google sign-in, which creates an account directly with no
+      // OTP step — /onboarding checks whether this account already has a
+      // business and redirects straight through to /overview on its own,
+      // so this is safe for both a brand-new Google signup and an
+      // existing user just re-visiting /auth while already logged in.
+      window.location.replace("/onboarding");
     }
   }, [isAuthenticated, isLoading]);
 

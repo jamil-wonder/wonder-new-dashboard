@@ -23,6 +23,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const needsVerification = isAuthenticated && !isUserLoading && !!user && !user.email_verified;
   const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
   const isAdminUser = user?.role === "admin";
+  // Still requires auth (goes through the loading/auth gate below like any
+  // other page) but renders without the header/nav — with the nav visible,
+  // a brand-new signup could just click away to Overview before ever
+  // giving business info, defeating the point of asking for it first.
+  const isOnboardingPage = pathname === "/onboarding";
 
   // Route protection guard. There is no such thing as an authenticated-but-
   // unverified session that gets dashboard access — signup, login, and a
@@ -71,6 +76,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div className="min-h-screen bg-[#fdfcf8] flex items-center justify-center">
         <WonderscoreSpinner size={40} label="Loading your workspace…" />
+      </div>
+    );
+  }
+
+  if (isOnboardingPage) {
+    return (
+      <div className="min-h-screen bg-[#faf8f3] text-[#23211b]">
+        {children}
       </div>
     );
   }
