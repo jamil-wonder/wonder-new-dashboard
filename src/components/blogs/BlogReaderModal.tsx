@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Copy, Check, FileText, Sparkles } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
+import { AiDisclaimer } from "../ui/AiDisclaimer";
 
 interface BlogReaderModalProps {
   blog: any | null;
@@ -74,6 +75,9 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
               <X className="w-4.5 h-4.5" />
             </button>
           </div>
+        </div>
+        <div className="px-6 py-2 border-b border-[#ece3d1] bg-[#fdfcf8]">
+          <AiDisclaimer />
         </div>
 
         {/* Article Body */}

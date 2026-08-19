@@ -10,6 +10,7 @@ import {
   X, Info, Contact
 } from "lucide-react";
 import { WonderscoreSpinner, WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
+import { AiDisclaimer } from "../../components/ui/AiDisclaimer";
 import { useBusiness, isDomainString, isGenericName } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi, recordScanHistory } from "../../lib/api";
@@ -690,6 +691,7 @@ export default function AnalyserPage() {
                   </pre>
                 </section>
               )}
+              <AiDisclaimer className="mt-4" />
             </div>
           </div>
         </div>
@@ -942,6 +944,7 @@ export default function AnalyserPage() {
             );
           })}
         </div>
+        <AiDisclaimer className="mt-4" />
       </div>
 
       {/* ── Entity & Contact Signals + Technical Readiness ─────────────── */}

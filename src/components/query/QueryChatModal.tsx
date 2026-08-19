@@ -4,6 +4,7 @@ import Image from "next/image";
 import { X, CheckCircle2, XCircle } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
 import { normalizeDomain, isValidSourceDomain } from "../../lib/querySources";
+import { AiDisclaimer } from "../ui/AiDisclaimer";
 
 interface QueryChatModalProps {
   query: SearchQueryItem | null;
@@ -195,6 +196,9 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+        <div className="px-6 py-2 border-b border-[#efe7d6] bg-[#fdfcf8]">
+          <AiDisclaimer />
         </div>
 
         {/* Content Body */}

@@ -10,6 +10,7 @@ import QueryChatModal from "../../components/query/QueryChatModal";
 import AddPromptModal from "../../components/query/AddPromptModal";
 import SourcesSidebar from "../../components/query/SourcesSidebar";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
+import { AiDisclaimer } from "../../components/ui/AiDisclaimer";
 import { SearchQueryItem } from "../../types/dashboard";
 import { useBusiness, isGenericName, cleanBrandNameFromDomain } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
@@ -1064,6 +1065,7 @@ export default function QueryPage() {
                 onOpenSources={handleOpenQuerySources}
               />
             </div>
+            <AiDisclaimer className="mt-4 px-4" />
           </>
         )}
       </div>
