@@ -61,20 +61,26 @@ export default function QueryTable({
           else if (q.type === "local-seo") { typeColor = "#1e7d4f"; typeBg = "#dcefe2"; }
           else if (q.type === "broad-seo") { typeColor = "#a86d7e"; typeBg = "#fdeef1"; }
 
-          // Resolve model specific status strictly for the selected model tab (NO fallback to ChatGPT)
+          // Resolve model specific status strictly for the selected model
+          // tab — NO fallback to the aggregate q.status/q.rank/q.matchType
+          // (an "any model mentioned it" summary across ALL models). That
+          // fallback used to leak through here: a query run before this
+          // model was ever added to the rotation has no entry in
+          // resultsByModel for it at all, and borrowing the aggregate
+          // status made the table claim a model answered a question it was
+          // literally never asked. If this model has no recorded result,
+          // that's "Pending Run" for it, full stop — not whatever another
+          // model happened to say.
           const modelRes = q.resultsByModel?.[selectedModel];
           const hasModelRes = modelRes !== undefined;
 
-          const isAudited = hasModelRes
-            ? (modelRes.status as string) !== "Pending"
-            : Boolean(q.status) && (q.status as string) !== "Pending";
-
-          const statusVal = hasModelRes ? modelRes.status : q.status;
+          const isAudited = hasModelRes && (modelRes.status as string) !== "Pending";
+          const statusVal = hasModelRes ? modelRes.status : "Pending";
           const isMentioned = statusVal === "Mentioned";
 
           // STRICT RULE: Rank is ONLY displayed if the entity is Mentioned for THIS specific model
-          const rankVal = isMentioned ? (modelRes?.rank ?? (hasModelRes ? null : q.rank)) : null;
-          
+          const rankVal = isMentioned ? (modelRes?.rank ?? null) : null;
+
           // Total truth: every source domain cited across ALL models for
           // this query, not just whichever model tab happens to be
           // selected — the same set the sidebar shows, so the two can
@@ -84,8 +90,8 @@ export default function QueryTable({
           const extraSourceCount = Math.max(0, sourcesVal.length - VISIBLE_SOURCE_COUNT);
 
           // Target Site Match Status Badge (Site matched, Partial match, Not matched)
-          const targetSiteData = modelRes?.targetSite || (q as any).targetSite;
-          const targetSiteStatus = targetSiteData?.status || (q.matchType === "site_matched" ? "matched" : q.matchType === "partial" ? "partial" : (isAudited ? "no_match" : null));
+          const targetSiteData = modelRes?.targetSite;
+          const targetSiteStatus = hasModelRes ? (targetSiteData?.status || (isAudited ? "no_match" : null)) : null;
 
           return (
             <motion.div
