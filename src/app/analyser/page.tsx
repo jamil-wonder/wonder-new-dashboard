@@ -429,30 +429,12 @@ export default function AnalyserPage() {
           auditAreas: finalAreas,
           aiInsights: finalInsights,
         });
-        // Fire-and-forget scan-complete email — only reachable here, right
-        // after a REAL fresh scan actually finished (the 2-hour cache-hit
-        // path above returns long before this point), so a cached page
-        // load never re-sends the email. Sends the raw backend insight
-        // shape (modelName/isKnown/summary), not the UI-remapped
-        // finalInsights, and finalScan is already the right shape for the
-        // email's own scoring/entity-signal reads. Silently no-ops if
-        // notifications are off or the request fails — never surfaced to
-        // the user, this is a background nicety, not part of the scan flow.
-        fetchApi("/api/notify/scan-complete", {
-          method: "POST",
-          body: JSON.stringify({
-            url: domain,
-            businessName: finalScan.businessName || businessName,
-            scrape: finalScan,
-            aiInsights: insightsRes?.insights || [],
-            // finalScan.scores has already been overwritten with these same
-            // transformed values by this point, so the email can't safely
-            // re-derive them itself (e.g. coreIdentity.total is no longer
-            // the raw /25 score sentimentScore was computed from) — send
-            // the already-correct areas straight from where they were built.
-            areas: finalAreas.map((a) => ({ id: a.id, label: a.label, score: a.score })),
-          }),
-        }).catch(() => {});
+        // No email on a manual re-crawl anymore — the user is watching this
+        // scan happen live in the UI, so a "your scan is ready" email is
+        // redundant. Real notification emails are now reserved for the
+        // automated weekly run and for Search Tracker completions, and the
+        // weekly run combines Analyser + Search Tracker into a single email
+        // instead of sending one per surface.
 
         // Persist the score server-side too — until now only the Sunday
         // auto-scheduler ever wrote latest_phase1_score/weekly_scores to

@@ -362,9 +362,25 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   const metricOrder: Record<ChangeItem["metric"], number> = { rank: 0, mentions: 1, audit: 2 };
   changes.sort((a, b) => metricOrder[a.metric] - metricOrder[b.metric]);
 
+  // Low-signal state: a real scan ran (score > 0) but almost nothing came
+  // back from it — every audit area scored under 15/100, which in practice
+  // means the crawler was blocked, hit a JS-heavy site with no readable
+  // markup, or the page was otherwise unreadable, not that the business is
+  // genuinely doing badly everywhere at once (a real crawl normally shows
+  // more variance across the six areas than this). Distinct from "first
+  // visit" (no scan at all) and from a real good/tough week (which needs
+  // actual signal to judge against).
+  const isLowSignal = score > 0 && auditAreas.length > 0 && auditAreas.every((a) => a.score < 15);
+
   // Headline text
-  const headline = score > 0 ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.` : "Run your first scan.";
-  const subtext = nearestAboveName && nearestAboveGap !== null
+  const headline = isLowSignal
+    ? "We couldn't read everything on your site."
+    : score > 0
+    ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.`
+    : "Run your first scan.";
+  const subtext = isLowSignal
+    ? "Our crawler could only pull a thin signal from your site — this score may not reflect your real visibility yet. Try re-running the scan, or check that your site isn't blocking crawlers."
+    : nearestAboveName && nearestAboveGap !== null
     ? `You're just ${nearestAboveGap} points behind ${nearestAboveName}. A focused week could close the gap.`
     : score > 0
     ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`

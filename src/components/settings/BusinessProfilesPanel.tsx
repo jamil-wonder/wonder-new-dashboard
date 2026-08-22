@@ -63,6 +63,7 @@ export default function BusinessProfilesPanel() {
   const [formAudience, setFormAudience] = useState("");
   const [formCompetitors, setFormCompetitors] = useState<string[]>([]);
   const [formCompInput, setFormCompInput] = useState("");
+  const [formSystemCompetitors, setFormSystemCompetitors] = useState<NonNullable<Business["systemCompetitors"]>>([]);
   const [formPages, setFormPages] = useState<string[]>([]);
   const [formPageInput, setFormPageInput] = useState("");
   const [formQG, setFormQG] = useState<QG>(DEFAULT_QG);
@@ -99,6 +100,7 @@ export default function BusinessProfilesPanel() {
     setFormDesc(p.description || ""); setFormAiDesc(p.aiDescription || "");
     setFormServices(p.services || ""); setFormAudience(p.targetAudience || "");
     setFormCompetitors(p.competitors || []); setFormPages(p.trackedPages || []);
+    setFormSystemCompetitors(p.systemCompetitors || []);
     setFormQG(p.questionGeneration ?? DEFAULT_QG);
     setIsEditing(true);
   };
@@ -108,6 +110,7 @@ export default function BusinessProfilesPanel() {
     setFormName(""); setFormUrl(""); setFormCategory(""); setFormLocation(""); setFormLogoUrl("");
     setFormDesc(""); setFormAiDesc(""); setFormServices(""); setFormAudience("");
     setFormCompetitors([]); setFormPages([]); setFormQG(DEFAULT_QG);
+    setFormSystemCompetitors([]);
     setIsEditing(true);
   };
 
@@ -262,6 +265,23 @@ export default function BusinessProfilesPanel() {
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
+            {formSystemCompetitors.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-[#ece3d1]">
+                <p className="text-[11px] font-semibold text-[#9b927f] uppercase tracking-wide mb-1.5">
+                  Found by AI while tracking
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {formSystemCompetitors.map((c, i) => (
+                    <span key={c.domain || i} className="inline-flex items-center gap-1 text-[12px] font-medium text-[#4a4437] bg-[#f6f3ec] border border-[#ece3d1] px-2 py-0.5 rounded-lg">
+                      {c.domain}{typeof c.score === "number" ? ` · ${c.score}/100` : ""}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[10.5px] text-[#9b927f] mt-1.5">
+                  Updates automatically from your Search Tracker runs — not editable here.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

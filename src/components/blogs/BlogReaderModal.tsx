@@ -83,20 +83,18 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
         {/* Article Body */}
         <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-white space-y-6">
           
-          {/* Metadata Banner */}
+          {/* Metadata Banner — this article's own readability metric, deliberately
+              NOT styled as a ring/gauge like the Wonder Score elsewhere in the app.
+              A second circular /100 here reads as a rival headline score for the
+              same business; it's a detail about this one article, not the
+              business's AI-visibility score. */}
           <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-[#fcfaf5] border border-[#efe7d6] flex-wrap">
-            <div className="flex items-center gap-4">
-              <div className="relative w-[48px] h-[48px] shrink-0">
-                <svg width="48" height="48" viewBox="0 0 48 48">
-                  <circle cx="24" cy="24" r="20" fill="none" stroke="#eef0ec" strokeWidth="4" />
-                  <circle cx="24" cy="24" r="20" fill="none" stroke="#1e7d4f" strokeWidth="4" strokeLinecap="round" strokeDasharray="125.6 130" transform="rotate(-90 24 24)" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center font-spectral font-bold text-[15px] text-[#15463b]">
-                  {score}
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-[#f0ebe0] border border-[#e5ddd0] flex items-center justify-center">
+                <span className="font-mono-spline text-[13px] font-bold text-[#6f6757]">{score}</span>
               </div>
               <div>
-                <div className="text-[13px] font-bold text-[#1e7d4f]">Humanized Readability &amp; SEO Score</div>
+                <div className="text-[12px] font-semibold text-[#6f6757]">This article's readability score</div>
                 <div className="font-mono-spline text-[11px] text-[#8a8273] mt-0.5">{wordCount} Words · {sections.length} Sections</div>
               </div>
             </div>

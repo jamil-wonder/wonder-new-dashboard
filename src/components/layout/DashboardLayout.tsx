@@ -15,10 +15,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isAuthPage = pathname === "/auth";
   const isVerifyPage = pathname === "/verify-email";
+  // /scan runs the free, no-login preview (platform-flow spec Part 1:
+  // "value before every ask") — reached by redirect from the actual
+  // marketing landing page (a separate project) after the visitor already
+  // pasted their URL there, so this route never shows sell copy, just the
+  // scan-in-progress → result → email gate. Root "/" is NOT this page —
+  // it stays a plain redirect to /overview or /auth, matching the rest of
+  // the app. It handles its own redirect for already-signed-in visitors
+  // internally (straight to /overview).
+  const isScanPage = pathname === "/scan";
+  // /report/[token] is the recipient's side of Dashboard's "Share report" —
+  // a manager, owner, or client opening a forwarded link has no account at
+  // all, so this has to render with zero auth, same reasoning as /scan.
+  const isSharedReportPage = pathname.startsWith("/report/");
   // /verify-email must work for someone who isn't signed in on this device
   // at all — signup and login both end with an emailed code and no token
   // exists until it's entered, so this page has to be reachable pre-auth.
-  const isPublicPage = isAuthPage || isVerifyPage;
+  const isPublicPage = isAuthPage || isVerifyPage || isScanPage || isSharedReportPage;
 
   const needsVerification = isAuthenticated && !isUserLoading && !!user && !user.email_verified;
   const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");

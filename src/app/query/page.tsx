@@ -255,7 +255,7 @@ function QueryGenerationLoader({
 }
 
 export default function QueryPage() {
-  const { activeBusiness, liveDeepCompetitors, setLiveDeepCompetitors } = useBusiness();
+  const { activeBusiness, liveDeepCompetitors, setLiveDeepCompetitors, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
 
   const [selectedModel, setSelectedModel] = useState("ChatGPT");
@@ -279,6 +279,13 @@ export default function QueryPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [isScanComplete, setIsScanComplete] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
+  // Locked-20 mechanic (platform-flow spec Part 3): once a business locks
+  // its core 20 questions, editing them isn't silent anymore — adding a
+  // single question or bulk-regenerating both go through an explicit
+  // warning first, proportionate to the blast radius (one question starts
+  // fresh vs the whole set re-settling the score for a few weeks).
+  const [pendingLockedAction, setPendingLockedAction] = useState<"add" | "regenerate" | null>(null);
+  const [isLocking, setIsLocking] = useState(false);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -435,6 +442,32 @@ export default function QueryPage() {
     } catch {}
   }, [getCacheKey]);
 
+  // The real durable save — this is what makes the tracked/locked 20 a real
+  // stable baseline instead of something that lives only in the 2-hour
+  // browser cache above and can silently regenerate into a different set
+  // once that expires. Fire-and-forget: a failure here doesn't block the
+  // user from continuing to work with the locally-held list.
+  const persistTrackedQuestions = useCallback(async (items: SearchQueryItem[]) => {
+    if (!activeBusiness?.id) return;
+    try {
+      await fetchApi("/api/user/businesses", {
+        method: "POST",
+        body: JSON.stringify({
+          url: activeBusiness.url,
+          business_id: activeBusiness.id,
+          trackedQuestions: items.map((item) => ({
+            id: item.id,
+            type: item.type,
+            label: item.label,
+            query: item.query,
+          })),
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to persist tracked questions:", err);
+    }
+  }, [activeBusiness?.id, activeBusiness?.url]);
+
   // 2. Generate Questions (Using activeBusiness.questionGeneration Ratios)
   const loadOrGenerateQuestions = useCallback(async (forceRefresh = false) => {
     if (!domain) return;
@@ -563,6 +596,7 @@ export default function QueryPage() {
 
         setQueriesList(mapped);
         saveCachedQueries(domain, mapped);
+        persistTrackedQuestions(mapped);
 
         if (forceRefresh) {
           showToast(`Generated ${mapped.length} new AI search prompts matching ratio settings! Click "Run" to analyze.`, "success");
@@ -580,22 +614,95 @@ export default function QueryPage() {
     } finally {
       setIsLoadingQuestions(false);
     }
-  }, [domain, businessName, category, location, activeBusiness, savedQuestionMix, queriesList, showToast, loadCachedQueries, clearCachedQueries, saveCachedQueries, startQuestionProgressTimer, stopQuestionProgressTimer]);
+  }, [domain, businessName, category, location, activeBusiness, savedQuestionMix, queriesList, showToast, loadCachedQueries, clearCachedQueries, saveCachedQueries, persistTrackedQuestions, startQuestionProgressTimer, stopQuestionProgressTimer]);
+
+  const isLocked = Boolean(activeBusiness?.questionsLocked);
+
+  const requestOpenAddModal = useCallback(() => {
+    if (isLocked) {
+      setPendingLockedAction("add");
+    } else {
+      setIsAddModalOpen(true);
+    }
+  }, [isLocked]);
+
+  const requestRegenerate = useCallback(() => {
+    if (isLocked) {
+      setPendingLockedAction("regenerate");
+    } else {
+      loadOrGenerateQuestions(true);
+    }
+  }, [isLocked, loadOrGenerateQuestions]);
+
+  const confirmPendingLockedAction = useCallback(() => {
+    const action = pendingLockedAction;
+    setPendingLockedAction(null);
+    if (action === "add") setIsAddModalOpen(true);
+    else if (action === "regenerate") loadOrGenerateQuestions(true);
+  }, [pendingLockedAction, loadOrGenerateQuestions]);
+
+  const handleLockQuestions = useCallback(async () => {
+    if (!activeBusiness?.id || isLocking) return;
+    setIsLocking(true);
+    try {
+      // Locking is the one moment the user explicitly says "this is my
+      // real baseline" — save the current list right here as a guaranteed
+      // backstop, not just trusting that generation-time persistence
+      // already succeeded. Sequenced before the lock call so a business
+      // never ends up flagged "locked" with nothing actually saved under it.
+      await persistTrackedQuestions(queriesList);
+      await fetchApi(`/api/user/businesses/${activeBusiness.id}/lock-questions`, { method: "POST" });
+      await refetchBusinesses();
+      showToast("Your 20 questions are locked in — this is now your stable weekly baseline.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Couldn't lock your questions. Please try again.", "error");
+    } finally {
+      setIsLocking(false);
+    }
+  }, [activeBusiness?.id, isLocking, queriesList, persistTrackedQuestions, refetchBusinesses, showToast]);
 
   useEffect(() => {
-    const cached = loadCachedQueries(domain);
     setQuestionGenerationTargets(savedQuestionMix);
 
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      setQueriesList(cached);
-      const cachedCounts = cached.reduce<QuestionMix>((acc: QuestionMix, item: SearchQueryItem) => {
+    // The server-persisted tracked/locked set is the real source of truth
+    // — the 2-hour browser cache below is only a fast-load mirror of it,
+    // never authoritative. Without this, an expired cache (or a fresh
+    // login on a different device/browser) would show an empty list and
+    // invite regenerating a DIFFERENT 20 questions even though the real
+    // ones are already locked in on the server.
+    const serverQuestions = activeBusiness?.trackedQuestions;
+    let initial: SearchQueryItem[] | null = null;
+    if (Array.isArray(serverQuestions) && serverQuestions.length > 0) {
+      initial = serverQuestions.map((item, idx) => ({
+        id: typeof item.id === "number" ? item.id : idx + 1,
+        type: item.type as SearchQueryItem["type"],
+        label: item.label,
+        query: item.query,
+        status: "Pending" as any,
+        rank: null,
+        sources: [],
+        score: "-",
+        answerSnippet: `Prompt generated. Click "Run" to execute live AI search engine audit.`,
+        resultsByModel: undefined,
+      }));
+      // Keep the local cache in sync so a same-session reload stays fast
+      // without a round-trip, but the server copy above is what decided
+      // what to show.
+      saveCachedQueries(domain, initial);
+    } else {
+      initial = loadCachedQueries(domain);
+    }
+
+    if (initial && Array.isArray(initial) && initial.length > 0) {
+      setQueriesList(initial);
+      const counts = initial.reduce<QuestionMix>((acc: QuestionMix, item: SearchQueryItem) => {
         if (item.type === "branded") acc.branded += 1;
         if (item.type === "non-branded") acc.nonBranded += 1;
         if (item.type === "local-seo") acc.localSeo += 1;
         if (item.type === "broad-seo") acc.broadSeo += 1;
         return acc;
       }, { branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
-      setQuestionGenerationCounts(cachedCounts);
+      setQuestionGenerationCounts(counts);
     } else {
       setQueriesList([]);
       setQuestionGenerationCounts({ branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
@@ -614,7 +721,43 @@ export default function QueryPage() {
     setSourcesQuery(null);
 
     setIsLoadingQuestions(false);
-  }, [domain, savedQuestionMix, loadCachedQueries]);
+  }, [domain, savedQuestionMix, loadCachedQueries, saveCachedQueries, activeBusiness?.trackedQuestions]);
+
+  // Every row above defaults to "Pending" regardless of whether these
+  // questions have actually been run before — that default was only ever
+  // corrected by a run started live in THIS browser tab. Anything that ran
+  // elsewhere (the weekly Sunday scheduler, a manually-triggered backend
+  // run, a different device) left the page showing no evidence it had ever
+  // run at all, with no way to tell the difference between "never run" and
+  // "ran somewhere else." This loads the business's real latest completed
+  // run on open — skipped only when a job is already actively resuming for
+  // this domain, so it never clobbers genuinely live-in-progress state.
+  useEffect(() => {
+    if (!activeBusiness?.id || queriesList.length === 0) return;
+    let activeJobPending = false;
+    try {
+      const raw = localStorage.getItem(getActiveJobKey(domain));
+      const parsed = raw ? JSON.parse(raw) : null;
+      activeJobPending = Boolean(parsed?.jobId) && Date.now() - Number(parsed.startedAt || 0) <= ACTIVE_QUERY_JOB_MAX_AGE_MS;
+    } catch {}
+    if (activeJobPending) return;
+
+    let cancelled = false;
+    fetchApi<any>(`/api/phase5/latest-job?business_id=${encodeURIComponent(activeBusiness.id)}`)
+      .then((res) => {
+        if (cancelled || !res?.found || !res.results) return;
+        applyJobResultsToQueries(res.results);
+        if (Array.isArray(res.deep_competitors) && res.deep_competitors.length > 0) {
+          setLiveDeepCompetitors(res.deep_competitors);
+        }
+        setIsScanComplete(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBusiness?.id, domain, queriesList.length]);
 
   // Tear down any in-flight polling/SSE whenever the active business
   // changes — not just on true unmount. Switching business via the header
@@ -711,6 +854,7 @@ export default function QueryPage() {
     const updated = [...queriesList, newQuery];
     setQueriesList(updated);
     saveCachedQueries(domain, updated);
+    persistTrackedQuestions(updated);
     showToast("New prompt added to list! Click 'Run' to analyze.");
   };
 
@@ -1005,6 +1149,87 @@ export default function QueryPage() {
         modelScores={modelScores}
       />
 
+      {/* Top summary — "appeared X/20, rank, closing N gaps could help you
+          catch the competitor right above you" per the platform-flow spec's
+          Search Tracker section. Every number here is real: appearedCount
+          from each query's own aggregate status, rank + the next-rank-up
+          competitor's name from this session's actual deep_competitors —
+          no fabricated predicted score/rank jump, since we have no scoring
+          simulation to back a specific "you'd become #2" claim. */}
+      {!isLoadingQuestions && queriesList.length > 0 && (() => {
+        const totalQ = queriesList.length;
+        // "Pending" (never run) is not the same thing as "Not Mentioned"
+        // (actually checked and genuinely missing) — conflating the two
+        // claims you're absent from questions nobody has asked yet, which
+        // isn't true. Gaps can only be counted among questions that have
+        // real results.
+        const runCount = queriesList.filter((q) => (q.status as string) !== "Pending").length;
+        const appearedCount = queriesList.filter((q) => q.status === "Mentioned").length;
+        const gapsCount = runCount - appearedCount;
+        const userRow = competitorRows.find((c) => c.isUser);
+        const aboveRow = userRow ? competitorRows.find((c) => c.rank === userRow.rank - 1) : null;
+
+        if (runCount === 0) {
+          return (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 text-[13px]">
+              <span className="text-[#6f6757]">
+                None of your {totalQ} questions have been run yet — click <strong className="text-[#15463b]">Run</strong> to see how AI models actually respond.
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 text-[13px]">
+            <span className="font-semibold text-[#23211b]">
+              Appeared <span className="text-[#15463b]">{appearedCount}/{runCount}</span>
+              {runCount < totalQ && <span className="text-[#9b927f] font-normal"> ({totalQ - runCount} not run yet)</span>}
+            </span>
+            {userRow && (
+              <span className="font-semibold text-[#23211b]">
+                Rank <span className="text-[#15463b]">#{userRow.rank}</span>
+              </span>
+            )}
+            {gapsCount > 0 && (
+              <span className="text-[#6f6757]">
+                {aboveRow
+                  ? <>Closing <strong className="text-[#15463b]">{gapsCount}</strong> gap{gapsCount === 1 ? "" : "s"} could help you catch <strong className="text-[#15463b]">#{aboveRow.rank} {aboveRow.name}</strong></>
+                  : <>Closing <strong className="text-[#15463b]">{gapsCount}</strong> gap{gapsCount === 1 ? "" : "s"} would strengthen every AI answer you're missing from</>
+                }
+              </span>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Locked-20 mechanic (Part 3): the core set is the stable baseline
+          the Wonder Score is measured against week to week — same basis
+          for every customer, so it stays comparable. Once locked, editing
+          isn't blocked, just never silent (see the warning modal below). */}
+      {!isLoadingQuestions && queriesList.length > 0 && (
+        isLocked ? (
+          <div className="flex items-center gap-2 bg-[#eef3f0] border border-[#d0e4d6] rounded-xl px-4 py-3 text-[13px]">
+            <span className="text-[#1e7d4f] font-bold">🔒</span>
+            <span className="text-[#15463b] font-semibold">Your 20 questions are locked in</span>
+            <span className="text-[#6f6757]">— this is your stable weekly baseline.</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#fdf8ec] border border-[#f0e2b8] rounded-xl px-4 py-3">
+            <div className="text-[13px] text-[#6f6757]">
+              <span className="font-semibold text-[#23211b]">Happy with these 20?</span> Lock them in as your stable baseline — your score gets measured against the same set every week.
+            </div>
+            <button
+              type="button"
+              onClick={handleLockQuestions}
+              disabled={isLocking}
+              className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold bg-[#15463b] text-white hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isLocking ? "Locking…" : "🔒 Lock in my 20 questions"}
+            </button>
+          </div>
+        )
+      )}
+
       {/* Main Table Card */}
       <div className="bg-white border border-[#ece3d1] rounded-xl p-5 md:p-6 shadow-xs transition-all duration-300">
         <QueryFilterBar
@@ -1015,9 +1240,9 @@ export default function QueryPage() {
           onCategoryChange={setActiveCategory}
           onStatusChange={setActiveStatus}
           onCopyAll={handleCopyAll}
-          onOpenAddModal={() => setIsAddModalOpen(true)}
+          onOpenAddModal={requestOpenAddModal}
           onRunAudit={handleStartScan}
-          onRegeneratePrompts={() => loadOrGenerateQuestions(true)}
+          onRegeneratePrompts={requestRegenerate}
           showActions={queriesList.length > 0}
         />
 
@@ -1170,6 +1395,44 @@ export default function QueryPage() {
         onClose={() => setIsAddModalOpen(false)}
         onAddPrompt={handleAddPrompt}
       />
+
+      {/* Locked-20 edit warning — proportionate to blast radius per Part 3:
+          adding one question only resets that question; regenerating
+          touches the whole set, so the score needs a few weeks to settle.
+          Never a silent change once locked. */}
+      {pendingLockedAction && (
+        <div
+          className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setPendingLockedAction(null); }}
+        >
+          <div className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[420px] p-6">
+            <div className="font-spectral text-[18px] font-semibold text-[#15463b]">
+              Your 20 questions are locked
+            </div>
+            <p className="text-[13.5px] text-[#4a4437] mt-2 leading-relaxed">
+              {pendingLockedAction === "add"
+                ? "Adding a new question is fine — it just starts fresh, with no history to measure against yet. Your other 19 stay exactly as they are."
+                : "Regenerating changes your whole tracked set. Your score may move for a few weeks while the new set settles — this isn't silent, so you're seeing this first."}
+            </p>
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setPendingLockedAction(null)}
+                className="flex-1 h-10 rounded-xl border border-[#ece3d1] text-[13.5px] font-semibold text-[#6f6757] hover:bg-[#f6f3ec] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmPendingLockedAction}
+                className="flex-1 h-10 rounded-xl bg-[#15463b] text-white text-[13.5px] font-semibold hover:bg-[#1a5c44] transition-colors cursor-pointer"
+              >
+                {pendingLockedAction === "add" ? "Add anyway" : "Regenerate anyway"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

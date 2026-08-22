@@ -4,11 +4,12 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SettingsTabNav from "../../components/settings/SettingsTabNav";
 import AccountInfoPanel from "../../components/settings/AccountInfoPanel";
+import SubscriptionCard from "../../components/plan/SubscriptionCard";
+import { PaymentMethod, BillingHistory } from "../../components/plan/BillingComponents";
 import BusinessProfilesPanel from "../../components/settings/BusinessProfilesPanel";
 import VoiceKeywordSetup from "../../components/settings/VoiceKeywordSetup";
-import BlogGenerationPanel from "../../components/settings/BlogGenerationPanel";
+import SavedSearchTrackerPanel from "../../components/settings/SavedSearchTrackerPanel";
 import IntegrationsPanel from "../../components/settings/IntegrationsPanel";
-import SecurityApiPanel from "../../components/settings/SecurityApiPanel";
 import RadiusCrawlersPanel from "../../components/settings/RadiusCrawlersPanel";
 import { useBusiness } from "../../context/BusinessContext";
 
@@ -16,15 +17,15 @@ const TAB_ALIASES: Record<string, string> = {
   business: "entity",
   "business-profiles": "entity",
   keywords: "voice",
+  "blog-generation": "saved-queries",
 };
-
 const VALID_TABS = new Set([
   "account",
+  "billing",
   "entity",
   "voice",
-  "blog-generation",
+  "saved-queries",
   "integrations",
-  "security",
   "crawlers",
 ]);
 
@@ -63,11 +64,19 @@ function SettingsContent() {
 
       <div key={activeSub}>
         {activeSub === "account" && <AccountInfoPanel />}
+        {activeSub === "billing" && (
+          <div className="space-y-6">
+            <SubscriptionCard />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <PaymentMethod />
+              <BillingHistory />
+            </div>
+          </div>
+        )}
         {activeSub === "entity" && <BusinessProfilesPanel />}
         {activeSub === "voice" && <VoiceKeywordSetup />}
-        {activeSub === "blog-generation" && <BlogGenerationPanel />}
+        {activeSub === "saved-queries" && <SavedSearchTrackerPanel />}
         {activeSub === "integrations" && <IntegrationsPanel />}
-        {activeSub === "security" && <SecurityApiPanel />}
         {activeSub === "crawlers" && <RadiusCrawlersPanel />}
       </div>
     </div>

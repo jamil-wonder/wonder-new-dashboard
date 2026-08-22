@@ -21,8 +21,19 @@ export interface Business {
   services?: string;
   targetAudience?: string;
   competitors?: string[];
+  // Real competitors the AI actually found and scored while running
+  // Search Tracker jobs (persisted server-side as businesses.systemCompetitors)
+  // — distinct from `competitors`, which is the user's own manually-typed
+  // tag list. Read-only in the UI; the system keeps it current on its own.
+  systemCompetitors?: { domain?: string; url?: string; name?: string; score?: number; status?: string; evidence?: string }[];
   trackedPages?: string[];
   questionGeneration?: { branded: number; nonBranded: number; localSeo: number; broadSeo: number };
+  questionsLocked?: boolean;
+  questionsLockedAt?: string | null;
+  // The real locked/tracked 20 (id/type/label/query only) — the durable
+  // source of truth for what's actually being tracked. Query's own
+  // browser cache is just a fast-load mirror of this, never authoritative.
+  trackedQuestions?: { id: number; type: string; label: string; query: string }[];
   blogVoice?: string;
   blogKeywords?: string[];
 }
@@ -210,10 +221,20 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           // (a previous business, a deleted-and-re-added one, a different
           // account) and its real, never-scanned score would immediately
           // show that old cached number instead of "not scanned yet".
+          // Score reconciliation: the headline "Wonder Score" everywhere
+          // this field is read is now the visibility score (mention
+          // rate/position/citation — same formula competitors are scored
+          // on), not the Phase 1 technical score. Matches the backend's own
+          // precedent for this exact fallback (part_02.py's own-row
+          // insertion into competitor rankings). Falls back to the
+          // technical score only for a business that's never had a real
+          // Search Tracker run yet, so it isn't stuck at "0" the whole time.
           const finalScore =
-            typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
-              ? b.latest_phase1_score
-              : 0;
+            typeof b.latest_phase5_score === "number" && b.latest_phase5_score > 0
+              ? Math.round(b.latest_phase5_score)
+              : typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
+                ? b.latest_phase1_score
+                : 0;
 
           return {
             id: String(b.id || b._id || b.domain || displayName),
@@ -225,13 +246,17 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             completeness: finalScore,
             initial: displayName.charAt(0).toUpperCase(),
             isUserEdited,
-            description: b.description || "",
+            description: b.businessDescription || b.business_description || b.description || "",
             aiDescription: b.ai_description || b.aiDescription || "",
             services: b.services || "",
             targetAudience: b.target_audience || b.targetAudience || "",
             competitors: b.competitors || [],
+            systemCompetitors: Array.isArray(b.systemCompetitors) ? b.systemCompetitors : [],
             trackedPages: b.tracked_pages || b.trackedPages || ["/"],
             questionGeneration: b.questionGeneration || b.question_generation || { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 },
+            questionsLocked: Boolean(b.questionsLocked),
+            questionsLockedAt: b.questionsLockedAt || null,
+            trackedQuestions: Array.isArray(b.trackedQuestions) ? b.trackedQuestions : [],
           };
         });
         setBusinesses(mapped);

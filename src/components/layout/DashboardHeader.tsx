@@ -41,7 +41,7 @@ export default function DashboardHeader() {
 
     // Fallback: query backend (only if we have a real score to compare against)
     if (rawScore > 0) {
-      fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(activeBusiness.url)}`)
+      fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(activeBusiness.url)}&metric=visibility`)
         .then((res) => {
           if (res && Array.isArray(res.points) && res.points.length >= 2) {
             setHasScanned(true);
@@ -207,9 +207,12 @@ export default function DashboardHeader() {
               </div>
             </div>
 
-            {/* Plan Card */}
+            {/* Subscription card — moved here from the old top-level "Plan" nav
+                tab, which now points to the weekly action-plan page instead
+                (see Part 4 of the platform-flow spec: billing lives in the
+                account menu, not as its own nav tab). */}
             <Link
-              href="/plan"
+              href="/settings?tab=billing"
               className="ob hidden lg:flex items-center gap-3 shrink-0 bg-[#f6f3ec] border border-[#ece3d1] rounded-[13px] px-3.5 py-2.5 w-[160px] h-[74px] text-none hover:bg-[#eee9de] transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-[#e7f4ea] flex items-center justify-center shrink-0 text-[#1a5c44]">

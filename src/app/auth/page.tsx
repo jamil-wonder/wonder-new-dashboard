@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from "@react-oauth/google";
@@ -8,11 +9,18 @@ import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
-export default function AuthPage() {
+function AuthPageContent() {
   const { login, signup, loginWithGoogle, isAuthenticated, isLoading } = useUser();
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  // Links into this page (the landing site's "Get Started Free", the /scan
+  // preview's "Create free account") pass ?signup=true expecting to land
+  // straight on the signup form — this used to be silently ignored, always
+  // defaulting to login regardless of which button sent someone here.
+  const [mode, setMode] = useState<"login" | "signup">(
+    searchParams.get("signup") === "true" ? "signup" : "login"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -265,5 +273,13 @@ export default function AuthPage() {
         &copy; {new Date().getFullYear()} Wonderscore AI. All rights reserved.
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#fdfcf8] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#15463b]" /></div>}>
+      <AuthPageContent />
+    </Suspense>
   );
 }

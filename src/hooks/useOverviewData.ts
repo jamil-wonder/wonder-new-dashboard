@@ -279,8 +279,16 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
   // and DashboardHeader, which already does this same fallback for the
   // header's delta).
   const [dbTrend, setDbTrend] = useState<(ScanPoint & { week_id?: string })[]>([]);
+  // Score reconciliation: the headline Wonder Score and its trend are now
+  // the visibility score (mention rate/position/citation — same formula
+  // competitors are scored on), fetched via metric=visibility, instead of
+  // the Phase 1 technical score. The technical trend (dbTrend, unchanged)
+  // still feeds nothing but its own audit-area breakdown now, not the
+  // headline number.
+  const [dbVisibilityTrend, setDbVisibilityTrend] = useState<(ScanPoint & { week_id?: string })[]>([]);
   useEffect(() => {
     setDbTrend([]);
+    setDbVisibilityTrend([]);
     if (!url) return;
     let cancelled = false;
     fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}`)
@@ -290,6 +298,15 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
           .filter((p: any) => typeof p.score === "number")
           .map((p: any) => ({ score: p.score, timestamp: p.created_at || "", week_id: p.week_id || undefined }));
         setDbTrend(points);
+      })
+      .catch(() => {});
+    fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}&metric=visibility`)
+      .then((res) => {
+        if (cancelled || !res || !Array.isArray(res.points)) return;
+        const points: (ScanPoint & { week_id?: string })[] = res.points
+          .filter((p: any) => typeof p.score === "number")
+          .map((p: any) => ({ score: p.score, timestamp: p.created_at || "", week_id: p.week_id || undefined }));
+        setDbVisibilityTrend(points);
       })
       .catch(() => {});
     return () => {
@@ -334,14 +351,23 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       }, []);
 
     const scanData = analyserCache?.scanData;
-    const score = scanData?.scores?.total
-      ?? (scanPoints.length > 0 ? Math.round(scanPoints[scanPoints.length - 1].score) : null)
+    // Score reconciliation: the headline is the visibility trend (same
+    // formula competitors are scored on) — the technical scanData.scores
+    // .total no longer competes as its own standalone number here, it only
+    // still feeds auditAreas below. fallbackScore (activeBusiness
+    // .completeness) is itself now visibility-first with a technical
+    // fallback, so a business with no visibility history yet still shows
+    // something instead of a bare 0.
+    const score = (dbVisibilityTrend.length > 0 ? Math.round(dbVisibilityTrend[dbVisibilityTrend.length - 1].score) : null)
       ?? fallbackScore
+      ?? (scanPoints.length > 0 ? Math.round(scanPoints[scanPoints.length - 1].score) : null)
       ?? 0;
     const grade = getGrade(score);
     const visibilityText = getVisibility(score);
 
-    const previousScore = scanPoints.length >= 2 ? scanPoints[scanPoints.length - 2].score : null;
+    const previousScore = dbVisibilityTrend.length >= 2
+      ? dbVisibilityTrend[dbVisibilityTrend.length - 2].score
+      : (scanPoints.length >= 2 ? scanPoints[scanPoints.length - 2].score : null);
 
     // Competitors are no longer derived here from cached query "sources" —
     // that produced a different, inconsistent list from page to page. The
@@ -476,5 +502,5 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // never see that the underlying cache changed and every figure here
     // (missingCount, citedSources, modelMentions, ...) would stay frozen at
     // whatever it was the first time this hook ran for this url.
-  }, [url, refreshSignal, fallbackScore, dbTrend]);
+  }, [url, refreshSignal, fallbackScore, dbTrend, dbVisibilityTrend]);
 }

@@ -11,12 +11,12 @@ interface SettingsTabNavProps {
 export default function SettingsTabNav({ activeSub, onSelectSub }: SettingsTabNavProps) {
   const tabs = [
     { id: "account", label: "Account Info", icon: "/icons/sidebar/user.svg" },
+    { id: "billing", label: "Billing", icon: "/icons/sidebar/shield.svg" },
     { id: "entity", label: "Business Profiles", icon: "/icons/sidebar/business.svg" },
     { id: "voice", label: "AI Voice & Keywords", icon: "/icons/sidebar/ai.svg" },
-    { id: "blog-generation", label: "Blog Generation", icon: "/icons/sidebar/blogs.svg" },
+    { id: "saved-queries", label: "Saved Search Tracker", icon: "/icons/sidebar/ai.svg" },
     { id: "integrations", label: "Integrations", icon: "/icons/sidebar/integrate.svg" },
-    { id: "security", label: "Security & API", icon: "/icons/sidebar/adv-settings.svg" },
-    { id: "crawlers", label: "Radius & Crawlers", icon: "/icons/sidebar/browser.svg" },
+    { id: "crawlers", label: "Crawlers", icon: "/icons/sidebar/browser.svg" },
   ];
 
   return (

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Bot, Search, ArrowRight } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import HeroSection from "../../components/overview/HeroSection";
 import SprintSection from "../../components/overview/SprintSection";
@@ -126,6 +128,39 @@ export default function OverviewPage() {
 
   if (isBusinessLoading || showInitialSkeleton || (isBlogLoading && !hasAnyOverviewData)) {
     return <OverviewSkeleton />;
+  }
+
+  // A brand-new business has nothing real to report yet — the weekly-
+  // briefing dashboard this page is meant to be doesn't exist as a
+  // concept until at least one Analyzer or Search Tracker run has actually
+  // produced signal. Showing it anyway (mostly empty cards, a score of 0)
+  // reads as broken rather than "not started."
+  if (!hasAnyOverviewData) {
+    return (
+      <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#f6f3ec] border border-[#ece3d1] flex items-center justify-center mb-4">
+          <Bot className="w-6 h-6 text-[#9b927f]" />
+        </div>
+        <div className="font-spectral text-[20px] font-semibold text-[#23211b]">Your dashboard isn't ready yet</div>
+        <p className="text-[13.5px] text-[#8a8273] mt-1.5 max-w-[420px]">
+          Run the Analyzer or Search Tracker at least once for {activeBusiness?.name || "this business"} — once real results come in, this page fills in with your score, trend, and weekly plan.
+        </p>
+        <div className="flex items-center gap-3 mt-6">
+          <Link
+            href="/analyser"
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors"
+          >
+            Run Analyzer <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link
+            href="/query"
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#15463b] border border-[#ece3d1] hover:bg-[#f6f3ec] px-4 py-2.5 rounded-lg transition-colors"
+          >
+            <Search className="w-3.5 h-3.5" /> Open Search Tracker
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
