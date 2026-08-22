@@ -71,7 +71,7 @@ const AUDIT_AREA_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function AnalyserPage() {
-  const { activeBusiness, updateActiveBusiness } = useBusiness();
+  const { activeBusiness, updateActiveBusiness, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
 
   const [isScanning, setIsScanning] = useState(false);
@@ -190,12 +190,13 @@ export default function AnalyserPage() {
         setAiInsights(cached.aiInsights || []);
         setAuditAreas(cached.auditAreas || []);
         setIsLoadingInitial(false);
-        if (
-          typeof cached.scanData.scores?.total === "number" &&
-          activeBusinessRef.current?.completeness !== cached.scanData.scores.total
-        ) {
-          updateActiveBusinessRef.current({ completeness: cached.scanData.scores.total });
-        }
+        // Deliberately does NOT write this into activeBusiness.completeness
+        // anymore — completeness is now the reconciled Wonder Score (the
+        // visibility score, same formula competitors are scored on), read
+        // by the header/Dashboard everywhere. This technical score has its
+        // own local state (scanData) for the Analyzer page's own display;
+        // overwriting the shared field here is exactly what caused the
+        // header to flip to the technical number on every Analyzer visit.
         return; // Successfully served from 2-Hour cache without re-crawling!
       }
       // No cache — a real crawl+AI-insights call used to fire automatically
@@ -278,7 +279,11 @@ export default function AnalyserPage() {
           logoUrl: scrapeRes.logoUrl || scrapeRes.logo_url || activeBusinessRef.current?.logoUrl,
           category: scrapeRes.category || category,
           location: scrapeRes.location || location,
-          completeness: totalScore,
+          // completeness deliberately NOT patched here anymore — it's the
+          // reconciled Wonder Score (visibility-first) read by the header
+          // everywhere, and this technical score isn't it. It refreshes
+          // correctly from the server (visibility-preferred) once this
+          // scan's result is persisted below and refetchBusinesses() runs.
           description: scrapeRes.description || activeBusinessRef.current?.description,
         });
 
@@ -453,7 +458,9 @@ export default function AnalyserPage() {
             location: finalScan.location,
             latest_scrape_result: finalScan,
           }),
-        }).catch(() => {});
+        })
+          .then(() => refetchBusinesses())
+          .catch(() => {});
       }
       clearActiveAnalysis(domain);
 
