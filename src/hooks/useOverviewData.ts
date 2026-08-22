@@ -470,12 +470,20 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned}/${totalQueries} queries — a priority to fix.`, type: "warn" });
     }
 
+    // The trend CHART must plot the same score the headline number above
+    // it claims — otherwise the big number and the chart's own latest
+    // point visibly disagree (confirmed live: headline read 65 from the
+    // visibility trend while the chart plotted 78, a technical-score point,
+    // as its most recent entry). Same visibility-first, technical-fallback
+    // precedence as `score` above, not two different data sources.
+    const chartPoints = dbVisibilityTrend.length > 0 ? dbVisibilityTrend : scanPoints;
+
     return {
       score,
       grade,
       visibilityText,
       previousScore,
-      scanPoints,
+      scanPoints: chartPoints,
       competitors,
       userRank,
       userRankOrdinal,
