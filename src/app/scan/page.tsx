@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Loader2, ArrowRight, Lock } from "lucide-react";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
-import { fetchApi } from "../../lib/api";
+import { fetchApi, getNewScanId } from "../../lib/api";
 
 type Stage = "entry" | "scanning" | "result" | "unlocked";
 
@@ -194,6 +194,13 @@ function ScanContent() {
     setFindingsLimited(false);
     setScanMessageIndex(0);
     setStage("scanning");
+    // One scan_id for this entire attempt — the backend's public rate
+    // limiter uses it to recognize that /api/ai-insights, /api/public/
+    // competitors, etc. belong to the SAME successful scan that just ran,
+    // not a brand-new unrelated visitor. Without this, every one of those
+    // calls looked like an unrecognized scan_id and got 429'd immediately,
+    // even for a visitor's very first attempt.
+    getNewScanId();
     const cleanUrl = rawUrl.trim().startsWith("http") ? rawUrl.trim() : `https://${rawUrl.trim()}`;
 
     try {

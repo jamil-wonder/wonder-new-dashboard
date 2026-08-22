@@ -19,6 +19,43 @@ export const setActiveBusinessId = (id: string): void => {
   localStorage.setItem("wonder_active_business_id", id);
 };
 
+// The backend's anonymous-visitor rate limiter (/api/scrape, /api/ai-insights,
+// /api/public/*) keys off an X-Wonder-Device-Id + X-Wonder-Scan-Id pair — but
+// nothing on the frontend ever sent them. Every request fell back to a fixed
+// "unknown-device" (so every anonymous visitor behind the same IP shared one
+// rate-limit bucket) and a FRESH RANDOM scan_id per call (so the "was this
+// scan_id's earlier attempt actually successful" check could never match
+// across calls). That combination made every anonymous visitor's second
+// public call — /api/ai-insights, /api/public/competitors, the unlock
+// endpoint — 429 unconditionally, right after a scrape that had already
+// spent real AI cost. deviceId is one stable id per browser, generated once
+// and reused forever; scanId is generated fresh per scan attempt by the
+// caller (see getNewScanId) and reused across that one scan's calls only.
+function getOrCreateDeviceId(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    let id = localStorage.getItem("wonder_device_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("wonder_device_id", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
+let currentScanId: string | null = null;
+
+export function getNewScanId(): string {
+  currentScanId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  return currentScanId;
+}
+
+export function getCurrentScanId(): string | null {
+  return currentScanId;
+}
+
 export interface ScanPoint {
   score: number;
   timestamp: string;
@@ -74,6 +111,18 @@ export async function fetchApi<T>(
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  // Only relevant for anonymous calls (the backend ignores these once a
+  // real auth token is present), but sent unconditionally since it's
+  // harmless either way and simpler than threading "is this anonymous"
+  // through every caller.
+  const deviceId = getOrCreateDeviceId();
+  if (deviceId && !headers["X-Wonder-Device-Id"]) {
+    headers["X-Wonder-Device-Id"] = deviceId;
+  }
+  if (currentScanId && !headers["X-Wonder-Scan-Id"]) {
+    headers["X-Wonder-Scan-Id"] = currentScanId;
   }
 
   const response = await fetch(url, {
