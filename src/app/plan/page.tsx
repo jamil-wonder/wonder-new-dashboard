@@ -61,21 +61,25 @@ function getDoneKey(businessId: string) {
   return `wonder_plan_done_${businessId}_${weekKey}`;
 }
 
-function useDoneTracking(businessId: string) {
+function useDoneTracking(businessId: string, serverDoneIds: string[]) {
   const key = businessId ? getDoneKey(businessId) : "";
   const [done, setDone] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!key) return;
+    let localIds: string[] = [];
     try {
       const raw = localStorage.getItem(key);
-      setDone(new Set(raw ? JSON.parse(raw) : []));
-    } catch {
-      setDone(new Set());
-    }
-  }, [key]);
+      localIds = raw ? JSON.parse(raw) : [];
+    } catch {}
+    // Server is the durable source (survives cleared storage/a different
+    // device); localStorage is only a same-session fast mirror on top of
+    // it, same pattern as trackedQuestions elsewhere in this app.
+    setDone(new Set([...localIds, ...serverDoneIds]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, serverDoneIds.join(",")]);
 
-  const markDone = useCallback((id: string) => {
+  const markDone = useCallback((id: string, title: string, category: string) => {
     if (!key) return;
     setDone((prev) => {
       const next = new Set(prev);
@@ -85,7 +89,13 @@ function useDoneTracking(businessId: string) {
       } catch {}
       return next;
     });
-  }, [key]);
+    if (businessId) {
+      fetchApi(`/api/user/businesses/${businessId}/actions/complete`, {
+        method: "POST",
+        body: JSON.stringify({ action_id: id, title, category }),
+      }).catch(() => {});
+    }
+  }, [key, businessId]);
 
   return { done, markDone };
 }
@@ -94,7 +104,8 @@ export default function PlanPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
   const overviewData = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness);
-  const { done, markDone } = useDoneTracking(activeBusiness?.id || "");
+  const serverDoneIds = (activeBusiness?.completedActions || []).map((a) => a.action_id);
+  const { done, markDone } = useDoneTracking(activeBusiness?.id || "", serverDoneIds);
 
   const [weeklyData, setWeeklyData] = useState<any>(null);
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(true);
@@ -291,7 +302,7 @@ export default function PlanPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => markDone(action.id)}
+                    onClick={() => markDone(action.id, action.title, action.categoryLabel)}
                     disabled={isDone}
                     className="shrink-0 mt-0.5 cursor-pointer disabled:cursor-default"
                     title={isDone ? "Done" : "Mark as done"}

@@ -34,6 +34,10 @@ export interface Business {
   // source of truth for what's actually being tracked. Query's own
   // browser cache is just a fast-load mirror of this, never authoritative.
   trackedQuestions?: { id: number; type: string; label: string; query: string }[];
+  // Real server-side record of "Mark as done" on Plan actions — durable
+  // (survives cleared storage/a different device), and what the mid-week
+  // reminder and win-proof emails key off server-side.
+  completedActions?: { action_id: string; title: string; category?: string; completed_at: string; week_id: string; baseline_mentions?: number | null; reported_win?: boolean }[];
   blogVoice?: string;
   blogKeywords?: string[];
 }
@@ -257,6 +261,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             questionsLocked: Boolean(b.questionsLocked),
             questionsLockedAt: b.questionsLockedAt || null,
             trackedQuestions: Array.isArray(b.trackedQuestions) ? b.trackedQuestions : [],
+            completedActions: Array.isArray(b.completedActions) ? b.completedActions : [],
           };
         });
         setBusinesses(mapped);

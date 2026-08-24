@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bot, Search, ArrowRight } from "lucide-react";
+import { Bot, Search, ArrowRight, RefreshCw } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
+import { useToast } from "../../context/ToastContext";
 import HeroSection from "../../components/overview/HeroSection";
 import SprintSection from "../../components/overview/SprintSection";
 import MarketRankSection from "../../components/overview/MarketRankSection";
@@ -11,6 +12,7 @@ import PlatformVisSection from "../../components/overview/PlatformVisSection";
 import SourcesSection from "../../components/overview/SourcesSection";
 import CitationBand from "../../components/overview/CitationBand";
 import AuditBreakdown from "../../components/overview/AuditBreakdown";
+import TrainProfileSection from "../../components/overview/TrainProfileSection";
 import OverviewSkeleton from "../../components/overview/OverviewSkeleton";
 import { useOverviewData } from "../../hooks/useOverviewData";
 import { buildRankedCompetitors } from "../../lib/competitorRanking";
@@ -36,6 +38,31 @@ type OverviewBlogDraft = {
 
 export default function OverviewPage() {
   const { activeBusiness, isLoading: isBusinessLoading, liveDeepCompetitors } = useBusiness();
+  const { showToast } = useToast();
+  const [isRunningNow, setIsRunningNow] = useState(false);
+
+  const handleRunNow = async () => {
+    if (!activeBusiness?.id || isRunningNow) return;
+    setIsRunningNow(true);
+    try {
+      const res = await fetchApi<{ success: boolean; message?: string }>(
+        `/api/user/businesses/${activeBusiness.id}/run-now`,
+        { method: "POST" }
+      );
+      showToast(res?.message || "Your update is running now — this can take a few minutes.", "success");
+    } catch (err: any) {
+      if (err?.status === 429) {
+        showToast("You've already run this today — try again tomorrow.", "info");
+      } else {
+        showToast("Couldn't start the update. Please try again.", "error");
+      }
+    } finally {
+      // Stays disabled for a beat rather than snapping back immediately —
+      // the real work continues for minutes in the background regardless,
+      // this just prevents an accidental instant double-click.
+      setTimeout(() => setIsRunningNow(false), 4000);
+    }
+  };
   // liveDeepCompetitors updates the instant a Query run finishes for this
   // business — passing it through forces useOverviewData to re-read the
   // query cache instead of staying frozen at whatever it computed the
@@ -165,6 +192,24 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-5 pb-10">
+      {/* Part 5 of the flow spec: "No manual runs required (a 'run now'
+          exists for the impatient)." Triggers the same full weekly pipeline
+          the Sunday scheduler runs for this one business, on demand. */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[12.5px] text-[#8a8273]">
+          Your score updates automatically every Sunday night — click run now if you don't want to wait, 1 attempt per day is allowed.
+        </p>
+        <button
+          onClick={handleRunNow}
+          disabled={isRunningNow || !activeBusiness?.id}
+          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-3.5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default"
+          title="Re-run today's analysis now instead of waiting for Sunday night"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRunningNow ? "animate-spin" : ""}`} />
+          {isRunningNow ? "Starting…" : "Run now"}
+        </button>
+      </div>
+
       <HeroSection data={enrichedData} />
 
       <SprintSection data={enrichedData} businessName={activeBusiness?.name} />
@@ -178,6 +223,7 @@ export default function OverviewPage() {
 
       <CitationBand data={enrichedData} />
       <AuditBreakdown data={enrichedData} />
+      <TrainProfileSection business={activeBusiness} />
     </div>
   );
 }

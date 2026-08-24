@@ -37,7 +37,7 @@ function getWeeklyCycleInfo() {
     yesterday.getMonth() === lastSunday.getMonth() &&
     yesterday.getDate() === lastSunday.getDate();
 
-  let relativeText = "Updated last Sunday";
+  let relativeText = "Updated last week";
   if (isToday) relativeText = "Updated today";
   else if (isYesterday) relativeText = "Updated yesterday";
 
@@ -45,8 +45,8 @@ function getWeeklyCycleInfo() {
     month: "short",
     day: "numeric",
   });
-  
-  const detailText = isToday ? "Sunday 6:00 AM" : `Sunday (${dateStr}) 6:00 AM`;
+
+  const detailText = isToday ? "6:00 AM" : `(${dateStr}) 6:00 AM`;
 
   return { relativeText, detailText };
 }
@@ -54,7 +54,7 @@ function getWeeklyCycleInfo() {
 export default function NavTabs() {
   const pathname = usePathname();
   const { user } = useUser();
-  const [cycleInfo, setCycleInfo] = useState({ relativeText: "Updated today", detailText: "Sunday 6:00 AM" });
+  const [cycleInfo, setCycleInfo] = useState({ relativeText: "Updated today", detailText: "6:00 AM" });
 
   useEffect(() => {
     setCycleInfo(getWeeklyCycleInfo());

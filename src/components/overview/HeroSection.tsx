@@ -484,7 +484,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
           <TrendChart points={scanPoints} />
         </div>
         {scanPoints.length > 0 && (
-          <div className="text-[11px] text-[#b3a98f] mt-2">
+          <div className="text-[11px] text-[#b3a98f] mt-4">
             {scanPoints.length} scan{scanPoints.length !== 1 ? "s" : ""} recorded
             {" · "}Last analysed {formatPointTimestamp(scanPoints[scanPoints.length - 1].timestamp, scanPoints[scanPoints.length - 1].week_id)}
           </div>
