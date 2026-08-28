@@ -263,7 +263,7 @@ type ChangeCandidate = {
 type ChangeItem = { icon: string; bg: string; color: string; title: string; sub: string; metric: "rank" | "mentions" | "audit" };
 
 export default function HeroSection({ data }: { data: OverviewData }) {
-  const { score, grade, visibilityText, previousScore, scanPoints, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
+  const { score, grade, visibilityText, previousScore, scanPoints, latestPhase1At, latestPhase1Score, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
 
   const delta = previousScore !== null ? score - previousScore : null;
   const locText = data.location ? ` in ${data.location}` : "";
@@ -415,7 +415,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
           {delta !== null && (
             <div className="mt-2">
               <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#3a2e08] bg-[#f0d878] px-3 py-1 rounded-full">
-                {delta > 0 ? "▲" : delta < 0 ? "▼" : "→"} {Math.abs(delta)} points vs last scan
+                {delta > 0 ? "▲" : delta < 0 ? "▼" : "→"} {Math.abs(delta).toFixed(1)} points vs last scan
               </span>
             </div>
           )}
@@ -489,6 +489,23 @@ export default function HeroSection({ data }: { data: OverviewData }) {
             {" · "}Last analysed {formatPointTimestamp(scanPoints[scanPoints.length - 1].timestamp, scanPoints[scanPoints.length - 1].week_id)}
           </div>
         )}
+        {/* The score/trend above stay pinned to the Query (visibility) score
+            once one exists, so a standalone Analyzer re-crawl never moves
+            them — this line is the only place that reflects it happened. */}
+        {latestPhase1At && (() => {
+          const lastTrendPoint = scanPoints[scanPoints.length - 1];
+          const sameMoment = lastTrendPoint
+            && Math.abs(new Date(latestPhase1At).getTime() - new Date(lastTrendPoint.timestamp).getTime()) < 60_000;
+          if (sameMoment) return null;
+          return (
+            <div className="text-[11px] text-[#b3a98f] mt-1">
+              Website last re-scanned {formatPointTimestamp(latestPhase1At)}
+              {typeof latestPhase1Score === "number" && (
+                <> {"· "}Technical score {latestPhase1Score}</>
+              )}
+            </div>
+          );
+        })()}
       </motion.div>
 
     </div>

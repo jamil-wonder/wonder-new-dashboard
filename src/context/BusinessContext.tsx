@@ -40,6 +40,18 @@ export interface Business {
   completedActions?: { action_id: string; title: string; category?: string; completed_at: string; week_id: string; baseline_mentions?: number | null; reported_win?: boolean }[];
   blogVoice?: string;
   blogKeywords?: string[];
+  // When each score type last updated — separate from `completeness`
+  // (the headline, visibility-first) so the UI can show "the Analyzer
+  // just re-scanned" even on a business where the headline stays pinned
+  // to an existing Query/visibility score.
+  latestPhase1At?: string | null;
+  latestPhase5At?: string | null;
+  // The Analyzer's own (technical) score, separate from `completeness`
+  // (the headline, visibility-first once Query data exists) — shown
+  // alongside the "website re-scanned" timestamp so a standalone Analyzer
+  // re-crawl's result is visible somewhere, even though it doesn't move
+  // the headline number.
+  latestPhase1Score?: number | null;
 }
 
 interface BusinessContextType {
@@ -262,6 +274,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             questionsLockedAt: b.questionsLockedAt || null,
             trackedQuestions: Array.isArray(b.trackedQuestions) ? b.trackedQuestions : [],
             completedActions: Array.isArray(b.completedActions) ? b.completedActions : [],
+            latestPhase1At: b.latest_phase1_at || null,
+            latestPhase5At: b.latest_phase5_at || null,
+            latestPhase1Score: typeof b.latest_phase1_score === "number" ? b.latest_phase1_score : null,
           };
         });
         setBusinesses(mapped);

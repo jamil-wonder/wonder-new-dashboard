@@ -191,6 +191,12 @@ export interface OverviewData {
   // scans and the Sunday scheduler save one) — week_id (e.g. "2026-W32")
   // is only a display fallback for the rare case a point predates that.
   scanPoints: { score: number; timestamp: string; week_id?: string }[];
+  // When the Analyzer (technical, Phase 1) last ran on its own — separate
+  // from `scanPoints`/`score`, which stay visibility-first once Query data
+  // exists. Lets the UI show "website re-scanned" even when a standalone
+  // Analyzer re-crawl doesn't move the headline number.
+  latestPhase1At: string | null;
+  latestPhase1Score: number | null;
 
   // Competitors — sourced from buildRankedCompetitors() and merged in at
   // the page level; only { name, score, isUser } are read by these components.
@@ -268,7 +274,7 @@ function ordinal(n: number) {
   return `${n}th`;
 }
 
-export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number): OverviewData {
+export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number, latestPhase1At?: string | null, latestPhase1Score?: number | null): OverviewData {
   // The score/grade above normally come from a 2-hour, localStorage-only
   // scan cache — great for a live "just scanned" session, but it means the
   // score and trend chart go blank after 2 hours, after logout (which wipes
@@ -484,6 +490,8 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       visibilityText,
       previousScore,
       scanPoints: chartPoints,
+      latestPhase1At: latestPhase1At || null,
+      latestPhase1Score: typeof latestPhase1Score === "number" ? latestPhase1Score : null,
       competitors,
       userRank,
       userRankOrdinal,
@@ -510,5 +518,5 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // never see that the underlying cache changed and every figure here
     // (missingCount, citedSources, modelMentions, ...) would stay frozen at
     // whatever it was the first time this hook ran for this url.
-  }, [url, refreshSignal, fallbackScore, dbTrend, dbVisibilityTrend]);
+  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, dbTrend, dbVisibilityTrend]);
 }
