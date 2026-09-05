@@ -277,6 +277,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             latestPhase1At: b.latest_phase1_at || null,
             latestPhase5At: b.latest_phase5_at || null,
             latestPhase1Score: typeof b.latest_phase1_score === "number" ? b.latest_phase1_score : null,
+            blogVoice: b.blogVoice || b.blog_voice || "",
+            blogKeywords: Array.isArray(b.blogKeywords) ? b.blogKeywords : [],
           };
         });
         setBusinesses(mapped);

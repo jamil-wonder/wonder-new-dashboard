@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, FileText, MessageCircle, SearchCheck, X } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
+import BlogReaderModal from "../blogs/BlogReaderModal";
 
 const MODEL_ICONS: Record<string, string> = {
   ChatGPT: "/icons/chatgpt.svg",
@@ -59,7 +60,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
       title: blogDrafts[0]?.title || "Generate blog article 1",
       desc: blogDrafts[0]?.excerpt || "Create the first weekly article from your saved voice and keywords.",
       note: blogDrafts[0] ? "Blog draft ready" : "Not generated yet",
-      link: "/blogs",
+      link: "/plan",
       btn: blogDrafts[0] ? "Read blog" : "Go to Blogs",
       primary: true,
       blog: blogDrafts[0],
@@ -71,7 +72,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
       title: blogDrafts[1]?.title || "Generate blog article 2",
       desc: blogDrafts[1]?.excerpt || "Create the second weekly article for another search opportunity.",
       note: blogDrafts[1] ? "Blog draft ready" : "Not generated yet",
-      link: "/blogs",
+      link: "/plan",
       btn: blogDrafts[1] ? "Read blog" : "Go to Blogs",
       primary: true,
       blog: blogDrafts[1],
@@ -144,7 +145,9 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
 
       <div className="plan-cards grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 items-stretch mt-4">
         {cards.map((card, i) => {
-          const opensModal = card.kind === "query" && totalQueries > 0;
+          const opensModal =
+            (card.kind === "query" && totalQueries > 0) ||
+            (card.kind === "blog" && Boolean(card.blog));
           return (
           <div
             key={`${card.kind}-${i}`}
@@ -231,6 +234,10 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
+
+      {selectedCard?.kind === "blog" && selectedCard.blog && (
+        <BlogReaderModal blog={selectedCard.blog} onClose={() => setSelectedCard(null)} />
+      )}
 
       {selectedCard?.kind === "query" && (
         <div

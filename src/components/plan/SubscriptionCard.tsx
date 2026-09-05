@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ShieldCheck, Zap } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 
 export default function SubscriptionCard() {
   return (
@@ -8,24 +8,21 @@ export default function SubscriptionCard() {
       <div className="flex justify-between items-start flex-wrap gap-4 border-b border-white/15 pb-5 mb-6">
         <div>
           <span className="font-mono-spline text-[10px] tracking-[0.16em] uppercase text-[#86b89f]">
-            Current Subscription
+            Wonderscore Pro GEO Suite
           </span>
           <h1 className="font-spectral text-[30px] font-bold text-white leading-tight mt-1">
-            Wonderscore Pro GEO Suite
+            Free during early access
           </h1>
           <p className="text-[14px] text-[#7fae97] mt-1">
-            Complete Generative Engine Optimization for local business visibility.
+            Paid plans aren&apos;t live yet — billing will open here once available. Nothing is
+            being charged to your account.
           </p>
         </div>
 
         <div className="text-right">
-          <div className="flex items-baseline gap-1">
-            <span className="num font-spectral text-[36px] font-bold text-white">£99</span>
-            <span className="text-[14px] text-[#7fae97]">/month</span>
-          </div>
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#15463b] bg-[#a8d860] px-3 py-1 rounded-full mt-1">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Active Subscription
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#15463b] bg-[#e8c96a] px-3 py-1 rounded-full mt-1">
+            <Clock className="w-3.5 h-3.5" />
+            Billing coming soon
           </span>
         </div>
       </div>
