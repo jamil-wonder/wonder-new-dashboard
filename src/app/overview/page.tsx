@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bot, Search, ArrowRight, RefreshCw } from "lucide-react";
+import { Bot, Search, ArrowRight, RefreshCw, Mail } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import HeroSection from "../../components/overview/HeroSection";
@@ -40,16 +40,24 @@ export default function OverviewPage() {
   const { activeBusiness, isLoading: isBusinessLoading, liveDeepCompetitors } = useBusiness();
   const { showToast } = useToast();
   const [isRunningNow, setIsRunningNow] = useState(false);
+  // Separate from isRunningNow (which only disables the button briefly to
+  // stop a double-click) — this stays visible for a full 20 minutes so the
+  // "it's still working, you don't need to wait here" message survives long
+  // after the initial toast has faded. Resets if the user navigates away
+  // and back, which is an acceptable gap for a same-session status note.
+  const [justStartedRun, setJustStartedRun] = useState(false);
 
   const handleRunNow = async () => {
     if (!activeBusiness?.id || isRunningNow) return;
     setIsRunningNow(true);
     try {
-      const res = await fetchApi<{ success: boolean; message?: string }>(
+      await fetchApi<{ success: boolean; message?: string }>(
         `/api/user/businesses/${activeBusiness.id}/run-now`,
         { method: "POST" }
       );
-      showToast(res?.message || "Your update is running now — this can take a few minutes.", "success");
+      showToast("Update started — this runs in the background.", "success");
+      setJustStartedRun(true);
+      setTimeout(() => setJustStartedRun(false), 20 * 60 * 1000);
     } catch (err: any) {
       if (err?.status === 429) {
         showToast("You've already run this today — try again tomorrow.", "info");
@@ -197,7 +205,7 @@ export default function OverviewPage() {
           the Sunday scheduler runs for this one business, on demand. */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[12.5px] text-[#8a8273]">
-          Your score updates automatically every Sunday night — click run now if you don't want to wait, 1 attempt per day is allowed.
+          Your score updates automatically every Sunday night — click run now if you don't want to wait, 1 attempt per day is allowed. A full update takes 10–20 minutes to run; we'll email you the moment it's ready, so feel free to close this and check back later.
         </p>
         <button
           onClick={handleRunNow}
@@ -209,6 +217,18 @@ export default function OverviewPage() {
           {isRunningNow ? "Starting…" : "Run now"}
         </button>
       </div>
+
+      {justStartedRun && (
+        <div className="flex items-start gap-2.5 rounded-[12px] border border-[#d0e4d6] bg-[#eef6f1] px-4 py-3">
+          <Mail className="w-4 h-4 text-[#1e7d4f] shrink-0 mt-0.5" />
+          <p className="text-[12.5px] text-[#15463b] leading-relaxed">
+            <span className="font-semibold">Your update is running now.</span> This scans your site, re-checks all
+            your tracked questions, and refreshes your blog drafts — it typically takes 10–20 minutes. No need to
+            stay on this page: we'll email you as soon as it's done, and your dashboard will refresh automatically
+            next time you visit.
+          </p>
+        </div>
+      )}
 
       <HeroSection data={enrichedData} />
 
