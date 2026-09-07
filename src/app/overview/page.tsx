@@ -203,20 +203,22 @@ export default function OverviewPage() {
       {/* Part 5 of the flow spec: "No manual runs required (a 'run now'
           exists for the impatient)." Triggers the same full weekly pipeline
           the Sunday scheduler runs for this one business, on demand. */}
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[12.5px] text-[#8a8273] flex-1">
-          Your score updates automatically every Sunday night. Click run now if you don't want to wait (1 attempt per day allowed). A full update takes 10 to 20 minutes to run, and we'll email you the moment it's ready, so feel free to close this and check back later.
-        </p>
-        <button
-          onClick={handleRunNow}
-          disabled={isRunningNow || !activeBusiness?.id}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-3.5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
-          title="Re-run today's analysis now instead of waiting for Sunday night"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRunningNow ? "animate-spin" : ""}`} />
-          {isRunningNow ? "Starting..." : "Run now"}
-        </button>
-      </div>
+      {!justStartedRun && (
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[12.5px] text-[#8a8273] flex-1">
+            Your score updates automatically every Sunday night. Click run now if you don't want to wait (1 attempt per day allowed). A full update takes 10 to 20 minutes to run, and we'll email you the moment it's ready, so feel free to close this and check back later.
+          </p>
+          <button
+            onClick={handleRunNow}
+            disabled={isRunningNow || !activeBusiness?.id}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-3.5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
+            title="Re-run today's analysis now instead of waiting for Sunday night"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRunningNow ? "animate-spin" : ""}`} />
+            {isRunningNow ? "Starting..." : "Run now"}
+          </button>
+        </div>
+      )}
 
       {justStartedRun && (
         <div className="flex items-start gap-2.5 rounded-[12px] border border-[#d0e4d6] bg-[#eef6f1] px-4 py-3">
