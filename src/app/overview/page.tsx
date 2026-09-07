@@ -55,7 +55,7 @@ export default function OverviewPage() {
         `/api/user/businesses/${activeBusiness.id}/run-now`,
         { method: "POST" }
       );
-      showToast("Update started — this runs in the background.", "success");
+      showToast("Update started. This runs in the background.", "success");
       setJustStartedRun(true);
       setTimeout(() => setJustStartedRun(false), 20 * 60 * 1000);
     } catch (err: any) {
@@ -203,18 +203,18 @@ export default function OverviewPage() {
       {/* Part 5 of the flow spec: "No manual runs required (a 'run now'
           exists for the impatient)." Triggers the same full weekly pipeline
           the Sunday scheduler runs for this one business, on demand. */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[12.5px] text-[#8a8273]">
-          Your score updates automatically every Sunday night — click run now if you don't want to wait, 1 attempt per day is allowed. A full update takes 10–20 minutes to run; we'll email you the moment it's ready, so feel free to close this and check back later.
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[12.5px] text-[#8a8273] flex-1">
+          Your score updates automatically every Sunday night. Click run now if you don't want to wait (1 attempt per day allowed). A full update takes 10 to 20 minutes to run, and we'll email you the moment it's ready, so feel free to close this and check back later.
         </p>
         <button
           onClick={handleRunNow}
           disabled={isRunningNow || !activeBusiness?.id}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-3.5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default"
+          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-3.5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
           title="Re-run today's analysis now instead of waiting for Sunday night"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRunningNow ? "animate-spin" : ""}`} />
-          {isRunningNow ? "Starting…" : "Run now"}
+          {isRunningNow ? "Starting..." : "Run now"}
         </button>
       </div>
 
@@ -223,8 +223,8 @@ export default function OverviewPage() {
           <Mail className="w-4 h-4 text-[#1e7d4f] shrink-0 mt-0.5" />
           <p className="text-[12.5px] text-[#15463b] leading-relaxed">
             <span className="font-semibold">Your update is running now.</span> This scans your site, re-checks all
-            your tracked questions, and refreshes your blog drafts — it typically takes 10–20 minutes. No need to
-            stay on this page: we'll email you as soon as it's done, and your dashboard will refresh automatically
+            your tracked questions, and refreshes your blog drafts. It typically takes 10 to 20 minutes. No need to
+            stay on this page. We'll email you as soon as it's done, and your dashboard will refresh automatically
             next time you visit.
           </p>
         </div>
