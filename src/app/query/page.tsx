@@ -489,6 +489,20 @@ export default function QueryPage() {
       if (forceRefresh) {
         clearCachedQueries(domain);
         setQueriesList([]);
+        // A scan job (in progress or recently finished) from the OLD
+        // question set must not be allowed to write its results onto the
+        // NEW set — questions are matched to job results by plain
+        // positional id (q1..q20, see applyJobResultsToQueries), so without
+        // this the resume-poll effect below silently overwrites freshly
+        // regenerated "Pending" rows with stale Mentioned/Not-Mentioned
+        // data from the previous question set the moment it re-fires.
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        clearActiveJob();
+        setIsScanning(false);
+        setIsScanComplete(false);
       }
       const qgMix = savedQuestionMix;
       startQuestionProgressTimer(qgMix);
@@ -614,7 +628,7 @@ export default function QueryPage() {
     } finally {
       setIsLoadingQuestions(false);
     }
-  }, [domain, businessName, category, location, activeBusiness, savedQuestionMix, queriesList, showToast, loadCachedQueries, clearCachedQueries, saveCachedQueries, persistTrackedQuestions, startQuestionProgressTimer, stopQuestionProgressTimer]);
+  }, [domain, businessName, category, location, activeBusiness, savedQuestionMix, queriesList, showToast, loadCachedQueries, clearCachedQueries, saveCachedQueries, persistTrackedQuestions, startQuestionProgressTimer, stopQuestionProgressTimer, clearActiveJob]);
 
   const isLocked = Boolean(activeBusiness?.questionsLocked);
 
