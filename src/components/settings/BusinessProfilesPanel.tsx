@@ -114,7 +114,18 @@ export default function BusinessProfilesPanel() {
     setIsEditing(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, name: string) => {
+    // This is a hard, permanent delete on the backend (a single
+    // delete_one with no soft-delete or archival) that also takes every
+    // scan, score history, and tracked question tied to this business
+    // with it — there was previously no confirmation at all before this
+    // fired, one click on a small icon button sitting directly next to
+    // the same-size Edit button.
+    const confirmed = window.confirm(
+      `Delete "${name}"? This permanently removes its score history, tracked questions, and blog drafts. This can't be undone.`
+    );
+    if (!confirmed) return;
+
     try {
       await fetchApi(`/api/user/businesses/${id}`, { method: "DELETE" });
       showToast("Business profile deleted successfully!", "info");
@@ -425,7 +436,7 @@ export default function BusinessProfilesPanel() {
                     </button>
                     {!isActive && (
                       <button
-                        onClick={() => handleDelete(p.id)}
+                        onClick={() => handleDelete(p.id, p.name)}
                         className="p-1.5 text-[#8a8273] hover:text-[#b1442a] hover:bg-[#fdf2f0] rounded-lg transition-colors cursor-pointer border-none"
                         title="Delete profile"
                       >

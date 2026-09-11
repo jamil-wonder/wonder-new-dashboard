@@ -30,7 +30,11 @@ function getVisibilityText(score: number) {
   if (score >= 65) return "Good Visibility";
   if (score >= 50) return "Moderate Visibility";
   if (score >= 35) return "Low Visibility";
-  return "Very Low Visibility";
+  // Matches the dashboard's own wording (useOverviewData.ts, analyser/page.tsx)
+  // for the same score band — this public preview previously said "Very Low
+  // Visibility" instead, a real, if minor, inconsistency for anyone who saw
+  // both (e.g. the free scan, then the same business later in the dashboard).
+  return "Critical Visibility";
 }
 
 const MODEL_ICONS: Record<string, string> = {
