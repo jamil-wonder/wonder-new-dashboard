@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
-import { fetchApi } from "../../lib/api";
+import { fetchApi, parseApiError } from "../../lib/api";
 
 function ToggleSwitch({
   checked,
@@ -142,11 +142,13 @@ export default function AccountInfoPanel() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch {
-      showToast("Password change complete", "success");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+    } catch (err) {
+      // Previously showed a fake "success" toast and cleared the form on
+      // ANY failure here — including a wrong current password — so a user
+      // could believe their password had changed when it hadn't. Show the
+      // real reason and leave the fields as typed so they don't have to
+      // re-enter everything to retry.
+      showToast(parseApiError(err, "Couldn't change your password. Please try again."), "error");
     } finally {
       setIsChanging(false);
     }
