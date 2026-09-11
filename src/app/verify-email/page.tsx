@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -142,16 +142,15 @@ function VerifyEmailContent() {
     );
   }
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (code.trim().length !== OTP_LENGTH) {
+  const submitCode = async (codeToSubmit: string) => {
+    if (codeToSubmit.trim().length !== OTP_LENGTH) {
       setErrorMsg(`Enter the ${OTP_LENGTH}-digit code from your email.`);
       return;
     }
     setIsVerifying(true);
     setErrorMsg("");
     try {
-      await verifyOtp(email, code.trim());
+      await verifyOtp(email, codeToSubmit.trim());
       // Hard navigation — forces every provider (BusinessContext included)
       // to remount and fetch fresh with this session's brand-new token.
       // Goes to /onboarding rather than straight to /overview — that page
@@ -165,6 +164,23 @@ function VerifyEmailContent() {
       setIsVerifying(false);
     }
   };
+
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitCode(code);
+  };
+
+  // Auto-submit the moment all 6 digits are in, so the user (typing or
+  // pasting a real code) never has to also click "Verify and continue".
+  // Guarded on isVerifying so it only ever fires once per complete code;
+  // editing after a failed attempt naturally re-arms it once the code is
+  // full again.
+  useEffect(() => {
+    if (code.length === OTP_LENGTH && !isVerifying) {
+      submitCode(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   const handleResend = async () => {
     setIsResending(true);
