@@ -103,7 +103,7 @@ function useDoneTracking(businessId: string, serverDoneIds: string[]) {
 export default function PlanPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
-  const overviewData = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness);
+  const overviewData = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore);
   const serverDoneIds = (activeBusiness?.completedActions || []).map((a) => a.action_id);
   const { done, markDone } = useDoneTracking(activeBusiness?.id || "", serverDoneIds);
 
@@ -279,7 +279,17 @@ export default function PlanPage() {
           )}
         </div>
 
-        {isLoadingWeekly && thisWeek.length === 0 ? (
+        {/* Gated on isLoadingWeekly alone, not "thisWeek.length === 0" —
+            the technical-fix action (sourced from Analyzer data, unrelated
+            to the weekly blog fetch below) is added to thisWeek regardless
+            of whether weeklyData has loaded yet, so the old condition
+            silently skipped this loading state the moment ANY audit data
+            existed. That let the page render a partial 1-of-3 action list
+            as if it were the final, complete plan while the two content
+            actions were still in flight — indistinguishable from "this is
+            really all there is" until a later reload happened to catch it
+            after loading finished. */}
+        {isLoadingWeekly ? (
           <div className="py-10 text-center text-[13px] text-[#8a8273]">Loading this week's plan…</div>
         ) : thisWeek.length === 0 ? (
           <div className="py-10 text-center">
@@ -397,9 +407,18 @@ export default function PlanPage() {
         </div>
       )}
 
+      {/* This used to always say "Tune AI voice & keywords," even for a
+          business that already has both a saved Business Voice and a full
+          keyword list — telling a user who did exactly what the product
+          asked that there was still a setup task waiting. Now it checks
+          the business's actual saved state before claiming anything's
+          still outstanding. */}
       <div className="text-center">
         <Link href="/settings?tab=voice" className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#15463b] hover:underline">
-          <Settings className="w-3.5 h-3.5" /> Tune AI voice & keywords for future content
+          <Settings className="w-3.5 h-3.5" />
+          {activeBusiness?.blogVoice && (activeBusiness?.blogKeywords?.length || 0) > 0
+            ? "Review AI voice & keywords"
+            : "Set up AI voice & keywords for future content"}
         </Link>
       </div>
 
