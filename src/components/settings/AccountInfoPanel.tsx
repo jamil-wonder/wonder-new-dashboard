@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Clock } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi, parseApiError } from "../../lib/api";
@@ -88,9 +89,6 @@ export default function AccountInfoPanel() {
   const [name, setName] = useState(user?.full_name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [isSaving, setIsSaving] = useState(false);
-
-  // Geo Radius state
-  const [radius, setRadius] = useState("25");
 
   // Security & Password states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -216,34 +214,28 @@ export default function AccountInfoPanel() {
         </div>
       </form>
 
-      {/* Geo Radius Settings */}
-      <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-4">
-        <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Geo Radius Settings</h3>
-        <div>
-          <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">
-            Geographic Scan Radius
-          </label>
-          <select
-            value={radius}
-            onChange={(e) => setRadius(e.target.value)}
-            className="w-full text-[14px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
-          >
-            <option value="10">10 Miles Radius around Bristol</option>
-            <option value="25">25 Miles Radius around Bristol (Recommended)</option>
-            <option value="50">50 Miles Radius around Bristol</option>
-          </select>
-          <p className="text-[12px] text-[#8a8273] mt-2 leading-relaxed">
-            One primary location is included in your current subscription. Local search results will prioritize listings within this radius.
-          </p>
+      {/* Geo Radius Settings — this used to be a fully non-functional mock:
+          a hardcoded "Bristol" label on every option regardless of any
+          business's real location, a radius value that was never fetched
+          or persisted, and a "Save radius" button that just fired a fake
+          success toast with no backend call at all. It didn't actually
+          feed Local SEO question generation (that already correctly reads
+          each business's own saved location), but it did directly lie to
+          the user about both the city and whether anything was saved.
+          Same class of issue as the old mocked Billing tab — replaced with
+          an honest not-built-yet state rather than shipping fake geo data. */}
+      <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Geo Radius Settings</h3>
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#9a6a12] bg-[#faf1da] px-3 py-1 rounded-full">
+            <Clock className="w-3.5 h-3.5" />
+            Coming soon
+          </span>
         </div>
-        <div>
-          <button
-            onClick={() => showToast("Geo radius settings saved!", "success")}
-            className="pb bg-[#15463b] text-white text-[13px] font-semibold px-5.5 py-2.5 rounded-lg border-none hover:bg-[#1a5c44] transition-colors cursor-pointer"
-          >
-            Save radius
-          </button>
-        </div>
+        <p className="text-[12px] text-[#8a8273] leading-relaxed">
+          Per-business local-search radius tuning isn&apos;t live yet. Your Local SEO tracked questions already use
+          each business&apos;s own saved location, not a separate radius setting.
+        </p>
       </div>
 
       {/* Security & Password */}
