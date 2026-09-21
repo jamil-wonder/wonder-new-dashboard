@@ -7,14 +7,40 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { NAV_ITEMS, ADMIN_NAV_ITEM } from "../../constants/navigation";
 import { useUser } from "../../context/UserContext";
+import { useBusiness } from "../../context/BusinessContext";
+
+// This used to always compute "the most recent past Sunday 6am," purely
+// from the current calendar date, with no connection to any real business
+// at all — so it showed the same "Updated last week (Sep 6) 6:00 AM" for a
+// business that had never been scanned before today. Now it prefers the
+// active business's own real latest-scan timestamp (Phase 5 if it exists,
+// Phase 1 otherwise) and only falls back to the generic Sunday-cycle
+// estimate when a business genuinely has no scan timestamp of its own yet.
+function formatRelativeUpdate(timestamp: Date) {
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = Math.round((startOfDay(now).getTime() - startOfDay(timestamp).getTime()) / (24 * 60 * 60 * 1000));
+
+  let relativeText = "Updated";
+  if (dayDiff <= 0) relativeText = "Updated today";
+  else if (dayDiff === 1) relativeText = "Updated yesterday";
+  else if (dayDiff < 7) relativeText = `Updated ${dayDiff} days ago`;
+  else relativeText = "Updated last week";
+
+  const dateStr = timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const timeStr = timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const detailText = dayDiff <= 0 ? timeStr : `(${dateStr}) ${timeStr}`;
+
+  return { relativeText, detailText };
+}
 
 function getWeeklyCycleInfo() {
   const now = new Date();
-  
+
   // Find the most recent Sunday 6:00 AM cycle timestamp
   const lastSunday = new Date(now);
   const dayOfWeek = lastSunday.getDay(); // 0 = Sunday
-  
+
   // If today is Sunday but before 6:00 AM, the last cycle was 7 days ago
   if (dayOfWeek === 0 && lastSunday.getHours() < 6) {
     lastSunday.setDate(lastSunday.getDate() - 7);
@@ -54,11 +80,20 @@ function getWeeklyCycleInfo() {
 export default function NavTabs() {
   const pathname = usePathname();
   const { user } = useUser();
+  const { activeBusiness } = useBusiness();
   const [cycleInfo, setCycleInfo] = useState({ relativeText: "Updated today", detailText: "6:00 AM" });
 
   useEffect(() => {
+    const realTimestamp = activeBusiness?.latestPhase5At || activeBusiness?.latestPhase1At;
+    if (realTimestamp) {
+      const parsed = new Date(realTimestamp);
+      if (!Number.isNaN(parsed.getTime())) {
+        setCycleInfo(formatRelativeUpdate(parsed));
+        return;
+      }
+    }
     setCycleInfo(getWeeklyCycleInfo());
-  }, []);
+  }, [activeBusiness?.latestPhase1At, activeBusiness?.latestPhase5At]);
 
   const items = user?.role === "admin" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
