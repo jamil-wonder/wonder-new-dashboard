@@ -11,6 +11,10 @@ interface PublicReport {
   domain: string;
   score: number | null;
   grade: string | null;
+  // False when "score"/"grade" are only the Phase 1 technical crawl result
+  // because Search Tracker has never completed a run for this business —
+  // this page must never present that as a tested AI-visibility result.
+  visibilityVerified: boolean;
   previousScore: number | null;
   competitorAverage: number | null;
   rank: number | null;
@@ -100,25 +104,42 @@ export default function SharedReportPage() {
               </div>
             </div>
             <div>
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">Wonder Score for</div>
+              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">
+                {report.visibilityVerified ? "Wonder Score for" : "Technical Score for"}
+              </div>
               <div className="font-spectral text-[19px] font-semibold text-[#23211b]">{report.businessName || report.domain}</div>
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span
                   className="text-[12px] font-bold px-2.5 py-0.5 rounded-full"
                   style={{ color: gradeColors.text, background: gradeColors.bg }}
                 >
                   Grade {grade}
                 </span>
-                {delta !== null && (
+                {report.visibilityVerified && delta !== null && (
                   <span className={`text-[12px] font-semibold ${delta > 0 ? "text-[#1e7d4f]" : delta < 0 ? "text-[#b1442a]" : "text-[#8a8273]"}`}>
                     {delta > 0 ? `+${delta}` : delta} vs last week
+                  </span>
+                )}
+                {!report.visibilityVerified && (
+                  <span className="text-[12px] font-semibold text-[#9a6a12]">
+                    AI visibility not yet tested
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {(report.rank !== null || report.competitorAverage !== null) && (
+          {!report.visibilityVerified && (
+            <div className="mt-5 pt-5 border-t border-[#efe7d6]">
+              <p className="text-[13px] text-[#6f6757] leading-relaxed">
+                This score reflects a technical site scan only. No AI model (ChatGPT, Claude, Perplexity, Gemini) has been queried
+                about this business yet, so rank, per-model visibility, and competitor comparison below are not available until
+                the Search Tracker has run at least once.
+              </p>
+            </div>
+          )}
+
+          {report.visibilityVerified && (report.rank !== null || report.competitorAverage !== null) && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6] flex items-center gap-4 text-[13px] text-[#6f6757] flex-wrap">
               {report.rank !== null && (
                 <span>Rank: <span className="font-semibold text-[#23211b]">#{report.rank}</span> vs tracked competitors</span>

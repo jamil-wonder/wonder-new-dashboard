@@ -187,16 +187,22 @@ export default function DashboardHeader() {
 
               <div>
                 <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f]">
-                  Wonder Score
+                  {scoreDisplay !== null && activeBusiness?.hasVisibilityScore ? "Wonder Score" : "Technical Score"}
                 </div>
                 {scoreDisplay !== null ? (
                   <>
                     <div className="num text-[13.5px] font-semibold mt-0.5 text-[#15463b]">
                       {scoreDisplay >= 90 ? "Grade A+" : scoreDisplay >= 80 ? "Grade A" : scoreDisplay >= 70 ? "Grade B+" : "Grade B"}
                     </div>
-                    <div className="text-[11px] text-[#9b927f]">
-                      {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
-                    </div>
+                    {activeBusiness?.hasVisibilityScore ? (
+                      <div className="text-[11px] text-[#9b927f]">
+                        {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
+                      </div>
+                    ) : (
+                      <Link href="/query" className="text-[11px] text-[#9a6a12] font-medium hover:underline">
+                        Run Search Tracker for AI visibility
+                      </Link>
+                    )}
                   </>
                 ) : (
                   <>

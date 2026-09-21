@@ -14,6 +14,12 @@ export interface Business {
   location: string;
   logoUrl: string;
   completeness: number;
+  // True only once a real Search Tracker (Phase 5) run has completed for
+  // this business — `completeness` above silently falls back to the Phase
+  // 1 technical score when this is false, so any UI that labels
+  // `completeness` as "Wonder Score" / "AI Visibility" must check this
+  // first or it ends up claiming AI-tested results that were never run.
+  hasVisibilityScore: boolean;
   initial: string;
   isUserEdited?: boolean;
   description?: string;
@@ -155,6 +161,7 @@ const EMPTY_BUSINESS: Business = {
   location: "",
   logoUrl: "",
   completeness: 0,
+  hasVisibilityScore: false,
   initial: "?",
 };
 
@@ -245,12 +252,12 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           // insertion into competitor rankings). Falls back to the
           // technical score only for a business that's never had a real
           // Search Tracker run yet, so it isn't stuck at "0" the whole time.
-          const finalScore =
-            typeof b.latest_phase5_score === "number" && b.latest_phase5_score > 0
-              ? Math.round(b.latest_phase5_score)
-              : typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
-                ? b.latest_phase1_score
-                : 0;
+          const hasVisibilityScore = typeof b.latest_phase5_score === "number" && b.latest_phase5_score > 0;
+          const finalScore = hasVisibilityScore
+            ? Math.round(b.latest_phase5_score)
+            : typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
+              ? b.latest_phase1_score
+              : 0;
 
           return {
             id: String(b.id || b._id || b.domain || displayName),
@@ -260,6 +267,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             location: b.location || "",
             logoUrl: b.logo_url || b.logoUrl || "",
             completeness: finalScore,
+            hasVisibilityScore,
             initial: displayName.charAt(0).toUpperCase(),
             isUserEdited,
             description: b.businessDescription || b.business_description || b.description || "",

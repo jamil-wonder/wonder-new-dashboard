@@ -75,7 +75,7 @@ export default function OverviewPage() {
   // business — passing it through forces useOverviewData to re-read the
   // query cache instead of staying frozen at whatever it computed the
   // first time this hook ran (see the hook's own comment for why).
-  const overviewData = useOverviewData(activeBusiness?.url || "", liveDeepCompetitors, activeBusiness?.completeness, activeBusiness?.latestPhase1At, activeBusiness?.latestPhase1Score);
+  const overviewData = useOverviewData(activeBusiness?.url || "", liveDeepCompetitors, activeBusiness?.completeness, activeBusiness?.latestPhase1At, activeBusiness?.latestPhase1Score, activeBusiness?.hasVisibilityScore);
 
   // Reads the EXACT same liveDeepCompetitors value Query does (see
   // BusinessContext) instead of a separately-fetched, separately-merged

@@ -16,7 +16,7 @@ function getGradeColor(grade: string) {
 export default function ReportsPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
-  const data = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness);
+  const data = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -87,6 +87,12 @@ export default function ReportsPage() {
               Grade {grade}
             </span>
           </div>
+
+          {!data.hasVisibilityScore && (
+            <div className="text-[12px] text-[#9a6a12] bg-[#faf1da] border border-[#f0dfae] rounded-lg px-3 py-2">
+              This shared link will show a technical scan score, not AI visibility — Search Tracker hasn't been run for this business yet.
+            </div>
+          )}
 
           <div className="flex items-center gap-6">
             {/* Score Ring */}
