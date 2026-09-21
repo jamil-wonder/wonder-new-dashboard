@@ -18,31 +18,37 @@ import { fetchApi, recordScanHistory } from "../../lib/api";
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 Hours TTL cache limit
 const ACTIVE_ANALYSER_MAX_AGE_MS = 15 * 60 * 1000;
 
+// This page only ever has the technical crawl score (Phase 1) — it has no
+// Search Tracker/AI-visibility data at all, so its own labels must never
+// say "Visibility." That word belongs to the Overview/Dashboard headline
+// once a Search Tracker run has actually happened (see hasVisibilityScore
+// in useOverviewData/BusinessContext); using it here claimed a tested
+// AI-visibility result off the back of a pure site-crawl score.
 function getVisibilityInfo(score: number, gradeRaw?: string) {
   const grade = gradeRaw || (score >= 90 ? "A+" : score >= 80 ? "A" : score >= 70 ? "B+" : score >= 55 ? "B" : score >= 40 ? "C" : "F");
-  
-  let visibilityText = "High Visibility";
+
+  let visibilityText = "Excellent Technical Health";
   let bg = "#f0d878";
   let text = "#3a2e08";
 
   if (score >= 80) {
-    visibilityText = "High Visibility";
+    visibilityText = "Excellent Technical Health";
     bg = "#f0d878";
     text = "#3a2e08";
   } else if (score >= 65) {
-    visibilityText = "Good Visibility";
+    visibilityText = "Good Technical Health";
     bg = "#dcefe2";
     text = "#1e7d4f";
   } else if (score >= 50) {
-    visibilityText = "Moderate Visibility";
+    visibilityText = "Moderate Technical Health";
     bg = "#f7e7c4";
     text = "#9a6a12";
   } else if (score >= 35) {
-    visibilityText = "Low Visibility";
+    visibilityText = "Weak Technical Health";
     bg = "#f6dcd5";
     text = "#b1442a";
   } else {
-    visibilityText = "Critical Visibility";
+    visibilityText = "Critical Technical Issues";
     bg = "#f6dcd5";
     text = "#b1442a";
   }
@@ -342,6 +348,7 @@ export default function AnalyserPage() {
           openingHours: scrapeRes.openingHours || [],
           socialLinks: scrapeRes.socialLinks || {},
           schemas: scrapeRes.schemas || [],
+          aiBotAccess: scrapeRes.aiBotAccess || {},
           hasContactPath: scrapeRes.hasContactPath ?? false,
           logoFound: Boolean(scrapeRes.logoUrl),
           technologies: scrapeRes.technologies || [],
@@ -988,9 +995,15 @@ export default function AnalyserPage() {
                 { icon: Globe,       label: "Canonical URL",       ok: !!s.canonicalUrl, desc: "Defines the main site URL to prevent search engine duplicate content penalties." },
                 { icon: FileSearch,  label: "Sitemap.xml",         ok: s.sitemapFound ?? true, desc: "Directs search engines to index all published pages and service URLs." },
                 { icon: Bot,         label: "Robots.txt",          ok: s.robotsTxtFound ?? true, desc: "Master server configuration file that controls crawler access to site paths." },
-                { icon: Bot,         label: "ChatGPT Bot Access",  ok: true, desc: "Allows OpenAI's crawler (GPTBot) to index your site for live ChatGPT answers." },
-                { icon: Bot,         label: "Claude Bot Access",   ok: true, desc: "Allows Anthropic's crawler (ClaudeBot) to index your business info for Claude." },
-                { icon: Bot,         label: "Perplexity Bot Access", ok: true, desc: "Allows Perplexity AI search crawlers to extract live citations from your site." },
+                // Real robots.txt parsing (scraping/scraper.py's
+                // fetch_ai_bot_access) — this used to hardcode `ok: true`
+                // for all three regardless of what a site's robots.txt
+                // actually said, which meant a business that genuinely
+                // blocked GPTBot would still see a green checkmark telling
+                // them it could reach their site.
+                { icon: Bot,         label: "ChatGPT Bot Access",  ok: s.aiBotAccess?.gptbot ?? true, desc: "Allows OpenAI's crawler (GPTBot) to index your site for live ChatGPT answers." },
+                { icon: Bot,         label: "Claude Bot Access",   ok: s.aiBotAccess?.claudebot ?? true, desc: "Allows Anthropic's crawler (ClaudeBot) to index your business info for Claude." },
+                { icon: Bot,         label: "Perplexity Bot Access", ok: s.aiBotAccess?.perplexitybot ?? true, desc: "Allows Perplexity AI search crawlers to extract live citations from your site." },
               ].map(({ icon: Icon, label, ok, desc }) => (
                 <div key={label} className="group relative flex items-center gap-2.5 p-2.5 rounded-lg bg-[#fdfcf8] border border-[#ece3d1] hover:border-[#c8dec9] transition-colors">
                   <Icon className="w-3.5 h-3.5 text-[#9b927f] shrink-0" />
@@ -1019,14 +1032,29 @@ export default function AnalyserPage() {
               <FileCode2 className="w-4 h-4 text-[#15463b]" />
               <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Schema / Structured Data</div>
             </div>
+            {(() => {
+              const schemaList: any[] = Array.isArray(s.schemas) ? s.schemas : [];
+              // Real checks against the actual parsed JSON-LD, not a
+              // hardcoded pass — these three used to read "ok: true"
+              // unconditionally (and named a hotel-specific @type
+              // regardless of the business's real category), so every
+              // audit report claimed a fully valid schema even for a site
+              // with no JSON-LD, or the wrong business type, at all.
+              const hasBusinessType = schemaList.some((item) =>
+                typeof item?.["@type"] === "string" && /business|organization|localbusiness|store|restaurant|service/i.test(item["@type"])
+              );
+              const hasNameField = schemaList.some((item) => typeof item?.name === "string" && item.name.trim().length > 0);
+              const hasHoursSpec = (s.openingHours?.length || 0) > 0;
+
+              return (
             <div className="space-y-2.5">
               {[
                 { label: "JSON-LD present",     ok: (s.schemas?.length || 0) > 0 },
-                { label: "LocalBusiness / Hotel type", ok: true },
-                { label: "Name field",           ok: true },
+                { label: "LocalBusiness type",   ok: hasBusinessType },
+                { label: "Name field",           ok: hasNameField },
                 { label: "Address field",        ok: (s.addresses?.length || 0) > 0 },
                 { label: "Telephone field",      ok: (s.phones?.length || 0) > 0 },
-                { label: "Opening hours spec",   ok: true },
+                { label: "Opening hours spec",   ok: hasHoursSpec },
                 { label: "sameAs (socials)",     ok: Object.keys(s.socialLinks || {}).length > 0 },
               ].map(({ label, ok }) => (
                 <div key={label} className="flex items-center justify-between py-1.5 border-b border-[#f0ebe0] last:border-0">
@@ -1035,6 +1063,8 @@ export default function AnalyserPage() {
                 </div>
               ))}
             </div>
+              );
+            })()}
           </div>
 
           {/* Technologies detected */}
