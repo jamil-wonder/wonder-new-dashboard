@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Send } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import { useBusiness } from "../../context/BusinessContext";
+import { fetchApi, parseApiError } from "../../lib/api";
 
 const TOPIC_OPTIONS = [
   { id: "analyser", label: "Website Analyzer issue" },
@@ -31,11 +32,38 @@ export default function ContactPage() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState(user?.email || "");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // This used to just flip a local "submitted" flag and openly admit
+  // "Delivery isn't wired up on our end yet, so nothing was actually
+  // sent" — an honest disclosure, but still a dead-end form. Now it
+  // actually posts to the backend's contact endpoint, folding in the
+  // topic and business context a plain email wouldn't carry.
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !email.trim()) return;
-    setIsSubmitted(true);
+    if (!message.trim() || !email.trim() || isSending) return;
+
+    const topicLabel = TOPIC_OPTIONS.find((t) => t.id === topic)?.label || topic;
+    const contextLines = [
+      `Topic: ${topicLabel}`,
+      activeBusiness?.name ? `Business: ${activeBusiness.name} (${activeBusiness.url})` : null,
+    ].filter(Boolean);
+    const fullMessage = `${contextLines.join("\n")}\n\n${message.trim()}`;
+
+    setIsSending(true);
+    setError(null);
+    try {
+      await fetchApi("/api/public/contact", {
+        method: "POST",
+        body: JSON.stringify({ name: user?.full_name || "", email, message: fullMessage }),
+      });
+      setIsSubmitted(true);
+    } catch (err) {
+      setError(parseApiError(err, "Could not send your message. Please try again."));
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -101,14 +129,12 @@ export default function ContactPage() {
               <div className="w-12 h-12 rounded-full bg-[#dcefe2] flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6 text-[#1e7d4f]" />
               </div>
-              <div className="font-spectral text-[19px] font-semibold text-[#15463b]">Message ready</div>
+              <div className="font-spectral text-[19px] font-semibold text-[#15463b]">Message sent</div>
               <p className="text-[13px] text-[#6f6757] max-w-[380px] leading-relaxed">
-                We&rsquo;ve got what you wrote below queued up. Delivery isn&rsquo;t wired up on our end yet, so nothing
-                was actually sent — reach out directly at{" "}
+                A real person on the team will follow up at {email}. If it's urgent, you can also reach us directly at{" "}
                 <a href="mailto:support@wonderscore.ai" className="font-semibold text-[#15463b] hover:underline">
                   support@wonderscore.ai
-                </a>{" "}
-                in the meantime.
+                </a>.
               </p>
               <button
                 type="button"
@@ -169,14 +195,20 @@ export default function ContactPage() {
                 />
               </div>
 
+              {error && (
+                <div className="p-3 bg-[#fdf2f0] border border-[#f6dcd5] rounded-xl text-[12.5px] font-medium text-[#b1442a]">
+                  {error}
+                </div>
+              )}
+
               <div className="pt-1.5">
                 <button
                   type="submit"
-                  disabled={!message.trim() || !email.trim()}
+                  disabled={!message.trim() || !email.trim() || isSending}
                   className="inline-flex items-center gap-2 bg-[#15463b] text-white text-[13px] font-semibold px-5.5 py-2.5 rounded-lg border-none hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  Send message
+                  {isSending ? "Sending…" : "Send message"}
                 </button>
               </div>
             </form>
