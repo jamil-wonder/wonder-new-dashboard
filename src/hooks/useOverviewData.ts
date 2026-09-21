@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchApi, getScanHistory, type ScanPoint } from "../lib/api";
 import { getAllSourcesForQueries } from "../lib/querySources";
+import { getGrade, getVisibilityText } from "../lib/scoreGrading";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const QUERY_CACHE_VERSION = "v3";
@@ -197,6 +198,11 @@ export interface OverviewData {
   // Analyzer re-crawl doesn't move the headline number.
   latestPhase1At: string | null;
   latestPhase1Score: number | null;
+  // False whenever `score`/`grade`/`visibilityText` are only ever the
+  // Phase 1 technical fallback because Search Tracker has never completed
+  // a run — any consumer that labels these "Wonder Score"/"AI Visibility"
+  // must check this first, or it claims a tested result that never ran.
+  hasVisibilityScore: boolean;
 
   // Competitors — sourced from buildRankedCompetitors() and merged in at
   // the page level; only { name, score, isUser } are read by these components.
@@ -250,23 +256,6 @@ export interface OverviewData {
   hasQueryData: boolean;
 }
 
-function getGrade(score: number) {
-  if (score >= 90) return "A+";
-  if (score >= 80) return "A";
-  if (score >= 70) return "B+";
-  if (score >= 55) return "B";
-  if (score >= 40) return "C";
-  return "F";
-}
-
-function getVisibility(score: number) {
-  if (score >= 80) return "High Visibility";
-  if (score >= 65) return "Good Visibility";
-  if (score >= 50) return "Moderate Visibility";
-  if (score >= 35) return "Low Visibility";
-  return "Critical Visibility";
-}
-
 function ordinal(n: number) {
   if (n === 1) return "1st";
   if (n === 2) return "2nd";
@@ -274,7 +263,7 @@ function ordinal(n: number) {
   return `${n}th`;
 }
 
-export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number, latestPhase1At?: string | null, latestPhase1Score?: number | null): OverviewData {
+export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number, latestPhase1At?: string | null, latestPhase1Score?: number | null, hasVisibilityScoreProp?: boolean): OverviewData {
   // The score/grade above normally come from a 2-hour, localStorage-only
   // scan cache — great for a live "just scanned" session, but it means the
   // score and trend chart go blank after 2 hours, after logout (which wipes
@@ -369,7 +358,13 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       ?? (scanPoints.length > 0 ? Math.round(scanPoints[scanPoints.length - 1].score) : null)
       ?? 0;
     const grade = getGrade(score);
-    const visibilityText = getVisibility(score);
+    const visibilityText = getVisibilityText(score);
+    // Either signal is enough: the prop comes from the business's own
+    // latest_phase5_score, dbVisibilityTrend comes from a real completed
+    // visibility-history point — either one means a Search Tracker run has
+    // actually happened, which is the only thing that justifies presenting
+    // `score` as tested AI visibility rather than a technical fallback.
+    const hasVisibilityScore = Boolean(hasVisibilityScoreProp) || dbVisibilityTrend.length > 0;
 
     const previousScore = dbVisibilityTrend.length >= 2
       ? dbVisibilityTrend[dbVisibilityTrend.length - 2].score
@@ -492,6 +487,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       scanPoints: chartPoints,
       latestPhase1At: latestPhase1At || null,
       latestPhase1Score: typeof latestPhase1Score === "number" ? latestPhase1Score : null,
+      hasVisibilityScore,
       competitors,
       userRank,
       userRankOrdinal,
@@ -518,5 +514,5 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // never see that the underlying cache changed and every figure here
     // (missingCount, citedSources, modelMentions, ...) would stay frozen at
     // whatever it was the first time this hook ran for this url.
-  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, dbTrend, dbVisibilityTrend]);
+  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, hasVisibilityScoreProp, dbTrend, dbVisibilityTrend]);
 }

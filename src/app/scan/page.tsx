@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Loader2, ArrowRight, Lock } from "lucide-react";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { fetchApi, getNewScanId } from "../../lib/api";
+import { getGrade, getVisibilityText } from "../../lib/scoreGrading";
 
 type Stage = "entry" | "scanning" | "result" | "unlocked";
 
@@ -15,27 +16,6 @@ const SCAN_MESSAGES = [
   "Comparing you against nearby competitors…",
   "Pulling together your Wonder Score…",
 ];
-
-function getGrade(score: number) {
-  if (score >= 90) return "A+";
-  if (score >= 80) return "A";
-  if (score >= 70) return "B+";
-  if (score >= 55) return "B";
-  if (score >= 40) return "C";
-  return "F";
-}
-
-function getVisibilityText(score: number) {
-  if (score >= 80) return "High Visibility";
-  if (score >= 65) return "Good Visibility";
-  if (score >= 50) return "Moderate Visibility";
-  if (score >= 35) return "Low Visibility";
-  // Matches the dashboard's own wording (useOverviewData.ts, analyser/page.tsx)
-  // for the same score band — this public preview previously said "Very Low
-  // Visibility" instead, a real, if minor, inconsistency for anyone who saw
-  // both (e.g. the free scan, then the same business later in the dashboard).
-  return "Critical Visibility";
-}
 
 const MODEL_ICONS: Record<string, string> = {
   chatgpt: "/icons/chatgpt.svg",
