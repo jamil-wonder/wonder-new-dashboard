@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, Edit, Building2, Tag, MapPin, Globe, CheckCircle2, X } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import type { Business } from "../../context/BusinessContext";
@@ -45,6 +46,7 @@ const AVATAR_COLORS = [
 ];
 
 export default function BusinessProfilesPanel() {
+  const router = useRouter();
   const { activeBusiness, businesses, switchBusiness, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
@@ -102,15 +104,6 @@ export default function BusinessProfilesPanel() {
     setFormCompetitors(p.competitors || []); setFormPages(p.trackedPages || []);
     setFormSystemCompetitors(p.systemCompetitors || []);
     setFormQG(p.questionGeneration ?? DEFAULT_QG);
-    setIsEditing(true);
-  };
-
-  const openAdd = () => {
-    setEditId(null);
-    setFormName(""); setFormUrl(""); setFormCategory(""); setFormLocation(""); setFormLogoUrl("");
-    setFormDesc(""); setFormAiDesc(""); setFormServices(""); setFormAudience("");
-    setFormCompetitors([]); setFormPages([]); setFormQG(DEFAULT_QG);
-    setFormSystemCompetitors([]);
     setIsEditing(true);
   };
 
@@ -345,7 +338,7 @@ export default function BusinessProfilesPanel() {
             {businesses.length} / 3 SAVED
           </span>
           <button
-            onClick={openAdd}
+            onClick={() => router.push("/onboarding?add=1")}
             disabled={businesses.length >= 3}
             className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#15463b] bg-[#fdfcf8] hover:bg-white hover:border-[#15463b] border border-[#e2d8c4] px-4 py-2 rounded-xl cursor-pointer transition-all disabled:opacity-40 shadow-xs"
           >
@@ -446,15 +439,20 @@ export default function BusinessProfilesPanel() {
                   </div>
                 </div>
 
-                {/* Metadata Chips (Category & Location) */}
+                {/* Metadata Chips (Category & Location) — these used to
+                    silently fall back to "General"/"UK" when a business had
+                    never had a category or location set at all, rendered
+                    identically to real, filled-in data. A user had no way
+                    to tell a genuine detected category from a made-up
+                    default. Now an unset field says so, visibly. */}
                 <div className="flex items-center gap-2 flex-wrap mb-4 text-[12px]">
-                  <span className="inline-flex items-center gap-1.5 bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-1 rounded-lg text-[#3a352b] font-medium">
-                    <Tag className="w-3.5 h-3.5 text-[#15463b]" />
-                    {p.category || "General"}
+                  <span className={`inline-flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-medium ${p.category ? "bg-[#f6f3ec] border-[#ece3d1] text-[#3a352b]" : "bg-[#faf1da] border-[#f0dfae] text-[#9a6a12]"}`}>
+                    <Tag className="w-3.5 h-3.5 shrink-0" />
+                    {p.category || "Category not set"}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-1 rounded-lg text-[#3a352b] font-medium">
-                    <MapPin className="w-3.5 h-3.5 text-[#15463b]" />
-                    {p.location || "UK"}
+                  <span className={`inline-flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-medium ${p.location ? "bg-[#f6f3ec] border-[#ece3d1] text-[#3a352b]" : "bg-[#faf1da] border-[#f0dfae] text-[#9a6a12]"}`}>
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    {p.location || "Location not set"}
                   </span>
                 </div>
 

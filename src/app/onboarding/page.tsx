@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Globe, ArrowRight, ArrowLeft, Pencil, Check, Plus, X, RefreshCw, ChevronDown } from "lucide-react";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -351,6 +351,15 @@ const STEP_ORDER: StepId[] = [
 // wizard starts since it's what unlocks every later step's pre-fill.
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Settings > Business Profiles' "Add Profile" button sends existing
+  // users here with ?add=1 to add a second/third business through this
+  // same well-designed, one-step-at-a-time wizard, instead of the crude
+  // all-fields-at-once form it used to open locally. Without this flag,
+  // the redirect guard below (meant for "you already onboarded, skip
+  // straight to your dashboard") would immediately bounce them back out
+  // before they could add anything.
+  const isAddingAnother = searchParams?.get("add") === "1";
   const { businesses, hasLoadedOnce, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
 
@@ -433,10 +442,11 @@ export default function OnboardingPage() {
   // signup) already have a business — send them straight through instead
   // of onboarding again every time they log in.
   useEffect(() => {
+    if (isAddingAnother) return;
     if (hasLoadedOnce && businesses.length > 0) {
       router.replace("/overview");
     }
-  }, [hasLoadedOnce, businesses.length, router]);
+  }, [hasLoadedOnce, businesses.length, router, isAddingAnother]);
 
   // A visitor who already ran the free /scan preview and then created an
   // account shouldn't be asked to paste their URL again or wait through
