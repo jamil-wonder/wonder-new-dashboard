@@ -16,7 +16,7 @@ import { useBusiness, isGenericName, cleanBrandNameFromDomain } from "../../cont
 import { useToast } from "../../context/ToastContext";
 import { buildRankedCompetitors } from "../../lib/competitorRanking";
 import { getAllSourcesForQueries } from "../../lib/querySources";
-import { fetchApi } from "../../lib/api";
+import { fetchApi, parseApiError } from "../../lib/api";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const ACTIVE_QUERY_JOB_MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -160,12 +160,14 @@ function QueryGenerationLoader({
   counts,
   isGenerating,
   onGenerate,
+  error,
 }: {
   businessName: string;
   targets: QuestionMix;
   counts: QuestionMix;
   isGenerating: boolean;
   onGenerate: () => void;
+  error?: string | null;
 }) {
   const totalTarget = QUESTION_CATEGORIES.reduce((sum, item) => sum + targets[item.key], 0);
   const totalFound = QUESTION_CATEGORIES.reduce((sum, item) => sum + Math.min(counts[item.key], targets[item.key]), 0);
@@ -200,14 +202,24 @@ function QueryGenerationLoader({
         </div>
 
           <div className="text-left">
-            <p className="text-[15px] font-medium text-[#15463b]">
-              {isGenerating ? "Generating questions" : "No generated questions yet"}
+            <p className={`text-[15px] font-medium ${error ? "text-[#b1442a]" : "text-[#15463b]"}`}>
+              {isGenerating ? "Generating questions" : error ? "Generation failed" : "No generated questions yet"}
             </p>
             <p className="mt-1 text-[12.5px] text-[#8a8273]">
-              {isGenerating ? "This can take 1-5 minutes." : `Ready for ${businessName}.`}
+              {isGenerating ? "This can take 1-5 minutes." : error ? error : `Ready for ${businessName}.`}
             </p>
           </div>
         </div>
+
+        {!isGenerating && error && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#15463b] text-white text-[13px] font-semibold hover:bg-[#1a5c44] transition-colors cursor-pointer"
+          >
+            Try again
+          </button>
+        )}
 
         <div className="grid w-full grid-cols-2 lg:grid-cols-4 gap-3">
             {QUESTION_CATEGORIES.map((item) => {
@@ -271,6 +283,11 @@ export default function QueryPage() {
     localSeo: 0,
     broadSeo: 0,
   });
+  // Persistent (not a toast that can be missed/dismissed) reason the most
+  // recent generation attempt failed, shown right in the generation card —
+  // previously a failure left this box looking identical to "never tried
+  // yet," with only a 3.8s toast (easy to miss) as the sole error signal.
+  const [questionGenerationError, setQuestionGenerationError] = useState<string | null>(null);
 
   const [selectedQuery, setSelectedQuery] = useState<SearchQueryItem | null>(null);
   const [sourcesQuery, setSourcesQuery] = useState<SearchQueryItem | null>(null);
@@ -483,6 +500,7 @@ export default function QueryPage() {
 
     try {
       setIsLoadingQuestions(true);
+      setQuestionGenerationError(null);
       const avoidQuestions = forceRefresh
         ? queriesList.map((item) => item.query).filter(Boolean)
         : [];
@@ -533,7 +551,7 @@ export default function QueryPage() {
           avoidQuestions,
         }),
       }).catch((err) => {
-        generationError = err?.message || "Backend question generation failed.";
+        generationError = parseApiError(err, "Backend question generation failed.");
         return null;
       });
 
@@ -619,12 +637,18 @@ export default function QueryPage() {
       } else {
         stopQuestionProgressTimer();
         setQueriesList([]);
-        showToast(generationError || "Could not generate live questions. Please check business profile details.", "error");
+        setQuestionGenerationCounts({ branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
+        const message = generationError || "Could not generate live questions. Please check business profile details.";
+        setQuestionGenerationError(message);
+        showToast(message, "error");
       }
     } catch (err) {
       stopQuestionProgressTimer();
+      setQuestionGenerationCounts({ branded: 0, nonBranded: 0, localSeo: 0, broadSeo: 0 });
       console.error("Failed to generate questions:", err);
-      showToast("Error generating questions from backend", "error");
+      const message = parseApiError(err, "Error generating questions from backend");
+      setQuestionGenerationError(message);
+      showToast(message, "error");
     } finally {
       setIsLoadingQuestions(false);
     }
@@ -1269,6 +1293,7 @@ export default function QueryPage() {
               counts={questionGenerationCounts}
               isGenerating={isLoadingQuestions}
               onGenerate={() => loadOrGenerateQuestions(true)}
+              error={questionGenerationError}
             />
           </div>
         ) : (
