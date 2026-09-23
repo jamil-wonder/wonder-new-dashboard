@@ -1032,10 +1032,11 @@ export default function QueryPage() {
           clearActiveJob();
           setProcessedCount(statusRes.total || queriesList.length);
           setIsScanComplete(true);
+          if (statusRes.status === "completed") refetchBusinesses();
         }
       } catch {}
     }, 1500);
-  }, [queriesList.length, domain, getActiveJobKey, clearActiveJob, showToast, saveActiveJob, applyJobResultsToQueries]);
+  }, [queriesList.length, domain, getActiveJobKey, clearActiveJob, showToast, saveActiveJob, applyJobResultsToQueries, refetchBusinesses]);
 
   // 4. Live Audit Execution when user clicks "Run"
   const handleStartScan = useCallback(async () => {
@@ -1100,6 +1101,14 @@ export default function QueryPage() {
               clearActiveJob();
               setProcessedCount(queriesList.length);
               setIsScanComplete(true);
+              // The backend writes the real latest_phase5_score the instant
+              // this job completes, but BusinessContext's activeBusiness
+              // was fetched before this run started and never gets updated
+              // on its own — nothing here was refetching it. That's what
+              // let the header (reading stale activeBusiness.completeness)
+              // and this page's own fresh score end up showing two
+              // different numbers for the same business at the same time.
+              if (statusData.status === "completed") refetchBusinesses();
             }
           } catch {}
         };
@@ -1128,6 +1137,7 @@ export default function QueryPage() {
               clearActiveJob();
               setProcessedCount(queriesList.length);
               setIsScanComplete(true);
+              if (statusRes.status === "completed") refetchBusinesses();
             }
           } catch {}
         }, 1000);
@@ -1140,7 +1150,7 @@ export default function QueryPage() {
       showToast(`Audit execution error: ${err.message || "Schema Error"}`, "error");
       setIsScanning(false);
     }
-  }, [queriesList, domain, businessName, showToast, applyJobResultsToQueries]);
+  }, [queriesList, domain, businessName, showToast, applyJobResultsToQueries, refetchBusinesses]);
 
   const handleScanComplete = useCallback(() => {
     setIsScanning(false);
