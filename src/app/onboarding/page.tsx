@@ -488,9 +488,14 @@ export default function OnboardingPage() {
     setIsFetching(true);
     const cleanUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
     try {
+      // record_scan: false — this is a background prefill crawl to
+      // autofill name/description/location, not a user-requested Analyzer
+      // run. Without this flag, a brand-new business showed up on the
+      // Dashboard already "scanned" the moment onboarding finished, even
+      // though the user never opened the Analyzer tab themselves.
       const res = await fetchApi<any>("/api/scrape", {
         method: "POST",
-        body: JSON.stringify({ url: cleanUrl }),
+        body: JSON.stringify({ url: cleanUrl, record_scan: false }),
       });
       const scrapedName = res?.businessName || "";
       const scrapedDesc = res?.description || "";
