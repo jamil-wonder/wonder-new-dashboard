@@ -263,7 +263,7 @@ type ChangeCandidate = {
 type ChangeItem = { icon: string; bg: string; color: string; title: string; sub: string; metric: "rank" | "mentions" | "audit" };
 
 export default function HeroSection({ data }: { data: OverviewData }) {
-  const { score, grade, visibilityText, previousScore, scanPoints, latestPhase1At, latestPhase1Score, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas, hasVisibilityScore } = data;
+  const { score, visibilityText, previousScore, scanPoints, latestPhase1At, latestPhase1Score, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
 
   const delta = previousScore !== null ? score - previousScore : null;
   const locText = data.location ? ` in ${data.location}` : "";
@@ -370,29 +370,28 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   // more variance across the six areas than this). Distinct from "first
   // visit" (no scan at all) and from a real good/tough week (which needs
   // actual signal to judge against).
-  const isLowSignal = score > 0 && auditAreas.length > 0 && auditAreas.every((a) => a.score < 15);
+  // auditAreas is technical crawl data (Analyzer), independent of `score`
+  // now that `score` can only ever be a real visibility number — a
+  // business can have thin technical signal regardless of whether Search
+  // Tracker has run yet, so this no longer gates on score at all.
+  const isLowSignal = auditAreas.length > 0 && auditAreas.every((a) => a.score < 15);
 
-  // Headline text — "ranked" is a claim about AI visibility specifically,
-  // so it must never show off the back of the Phase 1 technical fallback
-  // (score > 0 alone doesn't mean Search Tracker has ever run for this
-  // business, and userRank defaults to a placeholder 1 until real
-  // competitor data exists — see useOverviewData/BusinessContext).
+  // `score` here is always the real Wonder Score or 0 — see
+  // useOverviewData, which no longer lets it fall back to the Phase 1
+  // technical number. So `score > 0` alone is enough to mean "ranked" is a
+  // safe claim; there's no separate technical-only branch to guard against.
   const headline = isLowSignal
     ? "We couldn't read everything on your site."
-    : hasVisibilityScore && score > 0
-    ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.`
     : score > 0
-    ? "Technical scan complete."
+    ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.`
     : "Run your first scan.";
   const subtext = isLowSignal
     ? "Our crawler could only pull a thin signal from your site — this score may not reflect your real visibility yet. Try re-running the scan, or check that your site isn't blocking crawlers."
-    : hasVisibilityScore && nearestAboveName && nearestAboveGap !== null
+    : nearestAboveName && nearestAboveGap !== null
     ? `You're just ${nearestAboveGap} points behind ${nearestAboveName}. A focused week could close the gap.`
-    : hasVisibilityScore && score > 0
-    ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`
     : score > 0
-    ? `Your technical score is ${score}/100. Run Search Tracker to see how AI models actually describe you.`
-    : "Open the Analyzer tab to crawl your site and get your score.";
+    ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`
+    : "Run Search Tracker to see how AI models actually describe you.";
 
   const ringFill = score;
 
@@ -407,7 +406,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
       >
         <div>
           <div className="font-mono-spline text-[10px] tracking-[0.16em] uppercase text-[#86b89f]">
-            {hasVisibilityScore ? "Your Wonder Score" : "Your Technical Score"}
+            Your Wonder Score
           </div>
 
           <div className="flex items-center justify-between gap-2 mt-3.5">
@@ -437,11 +436,8 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         </div>
 
         <div className="border-t border-white/15 pt-3.5 mt-4">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#86b89f]">
-            {score > 0 ? `Grade ${grade}` : "Grade —"}
-          </div>
           <div className="font-spectral text-[22px] font-medium text-white mt-1">
-            {score === 0 ? "Not yet scanned" : hasVisibilityScore ? visibilityText : "AI visibility not tested"}
+            {score === 0 ? "Not yet scanned" : visibilityText}
           </div>
         </div>
       </motion.div>

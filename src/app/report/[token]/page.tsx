@@ -34,12 +34,6 @@ function modelIcon(model: string) {
   return null;
 }
 
-function getGradeColor(grade: string) {
-  if (grade === "A+" || grade === "A") return { text: "#0f7a4d", bg: "#edf8f1" };
-  if (grade === "B+" || grade === "B") return { text: "#9a6a12", bg: "#faf1da" };
-  return { text: "#b1442a", bg: "#fbeee6" };
-}
-
 export default function SharedReportPage() {
   const params = useParams();
   const token = String(params?.token || "");
@@ -73,8 +67,6 @@ export default function SharedReportPage() {
     );
   }
 
-  const grade = report.grade || "-";
-  const gradeColors = getGradeColor(grade);
   const delta = report.score !== null && report.previousScore !== null ? report.score - report.previousScore : null;
 
   return (
@@ -91,30 +83,28 @@ export default function SharedReportPage() {
             <div className="relative w-[84px] h-[84px] shrink-0">
               <svg width="84" height="84" viewBox="0 0 84 84">
                 <circle cx="42" cy="42" r="36" fill="none" stroke="#eef0ec" strokeWidth="7" />
-                <circle
-                  cx="42" cy="42" r="36" fill="none" stroke="#1e7d4f" strokeWidth="7"
-                  strokeLinecap="round"
-                  strokeDasharray={`${((report.score || 0) / 100) * 2 * Math.PI * 36} ${2 * Math.PI * 36}`}
-                  transform="rotate(-90 42 42)"
-                />
+                {report.visibilityVerified && (
+                  <circle
+                    cx="42" cy="42" r="36" fill="none" stroke="#1e7d4f" strokeWidth="7"
+                    strokeLinecap="round"
+                    strokeDasharray={`${((report.score || 0) / 100) * 2 * Math.PI * 36} ${2 * Math.PI * 36}`}
+                    transform="rotate(-90 42 42)"
+                  />
+                )}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-spectral font-bold text-[24px] text-[#15463b] leading-none">{report.score ?? "-"}</span>
+                <span className="font-spectral font-bold text-[24px] text-[#15463b] leading-none">
+                  {report.visibilityVerified ? report.score ?? "-" : "-"}
+                </span>
                 <span className="text-[9px] text-[#9b927f] mt-0.5">/100</span>
               </div>
             </div>
             <div>
               <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">
-                {report.visibilityVerified ? "Wonder Score for" : "Technical Score for"}
+                Wonder Score for
               </div>
               <div className="font-spectral text-[19px] font-semibold text-[#23211b]">{report.businessName || report.domain}</div>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span
-                  className="text-[12px] font-bold px-2.5 py-0.5 rounded-full"
-                  style={{ color: gradeColors.text, background: gradeColors.bg }}
-                >
-                  Grade {grade}
-                </span>
                 {report.visibilityVerified && delta !== null && (
                   <span className={`text-[12px] font-semibold ${delta > 0 ? "text-[#1e7d4f]" : delta < 0 ? "text-[#b1442a]" : "text-[#8a8273]"}`}>
                     {delta > 0 ? `+${delta}` : delta} vs last week
@@ -132,9 +122,8 @@ export default function SharedReportPage() {
           {!report.visibilityVerified && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6]">
               <p className="text-[13px] text-[#6f6757] leading-relaxed">
-                This score reflects a technical site scan only. No AI model (ChatGPT, Claude, Perplexity, Gemini) has been queried
-                about this business yet, so rank, per-model visibility, and competitor comparison below are not available until
-                the Search Tracker has run at least once.
+                No AI model (ChatGPT, Claude, Perplexity, Gemini) has been queried about this business yet, so there's no Wonder
+                Score to show. Run Search Tracker at least once to generate a real report.
               </p>
             </div>
           )}

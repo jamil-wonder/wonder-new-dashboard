@@ -353,12 +353,6 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // .completeness) is itself now visibility-first with a technical
     // fallback, so a business with no visibility history yet still shows
     // something instead of a bare 0.
-    const score = (dbVisibilityTrend.length > 0 ? Math.round(dbVisibilityTrend[dbVisibilityTrend.length - 1].score) : null)
-      ?? fallbackScore
-      ?? (scanPoints.length > 0 ? Math.round(scanPoints[scanPoints.length - 1].score) : null)
-      ?? 0;
-    const grade = getGrade(score);
-    const visibilityText = getVisibilityText(score);
     // Either signal is enough: the prop comes from the business's own
     // latest_phase5_score, dbVisibilityTrend comes from a real completed
     // visibility-history point — either one means a Search Tracker run has
@@ -366,9 +360,25 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // `score` as tested AI visibility rather than a technical fallback.
     const hasVisibilityScore = Boolean(hasVisibilityScoreProp) || dbVisibilityTrend.length > 0;
 
+    // `score` (and everything derived from it below) must NEVER silently
+    // become the Phase 1 technical number — it used to fall back to
+    // fallbackScore (activeBusiness.completeness, which itself falls back
+    // to the technical score) and then to local scanPoints (recorded ONLY
+    // by the Analyzer page, i.e. also technical), so a business with a
+    // technical scan but no real Search Tracker run would show a
+    // confident-looking "Wonder Score" that was actually the technical
+    // score. fallbackScore is only trusted here when the caller has
+    // already confirmed (via hasVisibilityScoreProp) that it's a real
+    // visibility number, not a technical one.
+    const score = (dbVisibilityTrend.length > 0 ? Math.round(dbVisibilityTrend[dbVisibilityTrend.length - 1].score) : null)
+      ?? (hasVisibilityScoreProp ? fallbackScore : null)
+      ?? 0;
+    const grade = getGrade(score);
+    const visibilityText = getVisibilityText(score);
+
     const previousScore = dbVisibilityTrend.length >= 2
       ? dbVisibilityTrend[dbVisibilityTrend.length - 2].score
-      : (scanPoints.length >= 2 ? scanPoints[scanPoints.length - 2].score : null);
+      : null;
 
     // Competitors are no longer derived here from cached query "sources" —
     // that produced a different, inconsistent list from page to page. The
@@ -475,9 +485,10 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // it claims — otherwise the big number and the chart's own latest
     // point visibly disagree (confirmed live: headline read 65 from the
     // visibility trend while the chart plotted 78, a technical-score point,
-    // as its most recent entry). Same visibility-first, technical-fallback
-    // precedence as `score` above, not two different data sources.
-    const chartPoints = dbVisibilityTrend.length > 0 ? dbVisibilityTrend : scanPoints;
+    // as its most recent entry). No technical fallback here at all now —
+    // `scanPoints` is local Analyzer-only history and must never surface
+    // outside the Analyzer page (see `score` above for the same rule).
+    const chartPoints = dbVisibilityTrend;
 
     return {
       score,

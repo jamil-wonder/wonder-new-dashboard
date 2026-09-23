@@ -16,8 +16,15 @@ export default function DashboardHeader() {
   const [historyPrevScore, setHistoryPrevScore] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
 
-  // Only show a score if activeBusiness.completeness is a real number > 0
-  const rawScore = activeBusiness?.completeness ?? 0;
+  // Only ever the real AI-visibility (Wonder) score — never the Phase 1
+  // technical fallback. activeBusiness.completeness silently holds the
+  // technical score when no Search Tracker run exists yet; showing that
+  // number here under "Wonder Score" framing is exactly the mismatch that
+  // had this page and the Overview hero (which reads the real visibility
+  // score directly) showing two different numbers for the same business
+  // at the same time. The technical score belongs on the Analyzer page
+  // only — nowhere else.
+  const rawScore = activeBusiness?.hasVisibilityScore ? (activeBusiness?.completeness ?? 0) : 0;
   const scoreDisplay = rawScore > 0 ? rawScore : null;
 
   useEffect(() => {
@@ -187,27 +194,18 @@ export default function DashboardHeader() {
 
               <div>
                 <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f]">
-                  {scoreDisplay !== null && activeBusiness?.hasVisibilityScore ? "Wonder Score" : "Technical Score"}
+                  Wonder Score
                 </div>
                 {scoreDisplay !== null ? (
-                  <>
-                    <div className="num text-[13.5px] font-semibold mt-0.5 text-[#15463b]">
-                      {scoreDisplay >= 90 ? "Grade A+" : scoreDisplay >= 80 ? "Grade A" : scoreDisplay >= 70 ? "Grade B+" : "Grade B"}
-                    </div>
-                    {activeBusiness?.hasVisibilityScore ? (
-                      <div className="text-[11px] text-[#9b927f]">
-                        {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
-                      </div>
-                    ) : (
-                      <Link href="/query" className="text-[11px] text-[#9a6a12] font-medium hover:underline">
-                        Run Search Tracker for AI visibility
-                      </Link>
-                    )}
-                  </>
+                  <div className="text-[11px] text-[#9b927f]">
+                    {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
+                  </div>
                 ) : (
                   <>
-                    <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet analysed</div>
-                    <div className="text-[11px] text-[#b3a98f]">Click Analyzer to crawl</div>
+                    <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet scanned</div>
+                    <Link href="/query" className="text-[11px] text-[#b3a98f] hover:text-[#15463b] hover:underline">
+                      Run Search Tracker to get your score
+                    </Link>
                   </>
                 )}
               </div>

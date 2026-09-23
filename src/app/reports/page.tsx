@@ -7,12 +7,6 @@ import { useOverviewData } from "../../hooks/useOverviewData";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi } from "../../lib/api";
 
-function getGradeColor(grade: string) {
-  if (grade === "A+" || grade === "A") return { text: "#0f7a4d", bg: "#edf8f1" };
-  if (grade === "B+" || grade === "B") return { text: "#9a6a12", bg: "#faf1da" };
-  return { text: "#b1442a", bg: "#fbeee6" };
-}
-
 export default function ReportsPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
@@ -20,9 +14,6 @@ export default function ReportsPage() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const grade = data.grade || "-";
-  const gradeColors = getGradeColor(grade);
 
   const handleShare = async () => {
     if (!activeBusiness?.id) return;
@@ -80,34 +71,32 @@ export default function ReportsPage() {
         <div className="p-6 md:p-8 space-y-6">
           <div className="flex items-center justify-between border-b border-[#efe7d6] pb-4">
             <span className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">Real-time Preview</span>
-            <span
-              className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
-              style={{ color: gradeColors.text, background: gradeColors.bg }}
-            >
-              Grade {grade}
-            </span>
           </div>
 
           {!data.hasVisibilityScore && (
             <div className="text-[12px] text-[#9a6a12] bg-[#faf1da] border border-[#f0dfae] rounded-lg px-3 py-2">
-              This shared link will show a technical scan score, not AI visibility — Search Tracker hasn't been run for this business yet.
+              No Wonder Score yet — run Search Tracker for this business before sharing a link.
             </div>
           )}
 
           <div className="flex items-center gap-6">
-            {/* Score Ring */}
+            {/* Score Ring — only ever the real Wonder Score, never shown at all until one exists */}
             <div className="relative w-[76px] h-[76px] shrink-0">
               <svg width="76" height="76" viewBox="0 0 76 76">
                 <circle cx="38" cy="38" r="33" fill="none" stroke="#eef0ec" strokeWidth="6" />
-                <circle
-                  cx="38" cy="38" r="33" fill="none" stroke="#1e7d4f" strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={`${((data.score || 0) / 100) * 2 * Math.PI * 33} ${2 * Math.PI * 33}`}
-                  transform="rotate(-90 38 38)"
-                />
+                {data.hasVisibilityScore && (
+                  <circle
+                    cx="38" cy="38" r="33" fill="none" stroke="#1e7d4f" strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray={`${((data.score || 0) / 100) * 2 * Math.PI * 33} ${2 * Math.PI * 33}`}
+                    transform="rotate(-90 38 38)"
+                  />
+                )}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-spectral font-bold text-[20px] text-[#15463b] leading-none">{data.score ?? "-"}</span>
+                <span className="font-spectral font-bold text-[20px] text-[#15463b] leading-none">
+                  {data.hasVisibilityScore ? data.score : "-"}
+                </span>
                 <span className="text-[9px] text-[#9b927f] mt-0.5">/100</span>
               </div>
             </div>
