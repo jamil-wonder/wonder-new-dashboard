@@ -101,7 +101,6 @@ export default function DashboardHeader() {
                 {scoreDisplay !== null ? (
                   <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-1 rounded-full">
                     {scoreDisplay}
-                    <span className="text-[9px] font-medium text-[#6f8f7f]">/100</span>
                   </span>
                 ) : (
                   <span className="text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-1 rounded-full">
@@ -180,12 +179,9 @@ export default function DashboardHeader() {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
                   {scoreDisplay !== null ? (
-                    <>
-                      <span className="num font-spectral font-medium text-[20px] text-[#15463b]">
-                        {scoreDisplay}
-                      </span>
-                      <span className="num text-[9px] text-[#9b927f] mt-0.5">/100</span>
-                    </>
+                    <span className="num font-spectral font-medium text-[20px] text-[#15463b]">
+                      {scoreDisplay}
+                    </span>
                   ) : (
                     <span className="num font-spectral font-medium text-[17px] text-[#c2b69c]">—</span>
                   )}
