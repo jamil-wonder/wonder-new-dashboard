@@ -37,7 +37,9 @@ type OverviewBlogDraft = {
 };
 
 export default function OverviewPage() {
-  const { activeBusiness, isLoading: isBusinessLoading, liveDeepCompetitors } = useBusiness();
+  const { activeBusiness, isLoading: isBusinessRefreshing, hasLoadedOnce, liveDeepCompetitors } = useBusiness();
+  // A background refetch (after a run, a settings save) must not blank the page.
+  const isBusinessLoading = isBusinessRefreshing && !hasLoadedOnce;
   const { showToast } = useToast();
   const [isRunningNow, setIsRunningNow] = useState(false);
   // Separate from isRunningNow (which only disables the button briefly to

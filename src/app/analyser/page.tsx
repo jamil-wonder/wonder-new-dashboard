@@ -173,6 +173,8 @@ export default function AnalyserPage() {
   // currently on screen.
   const analysisRequestIdRef = useRef(0);
 
+  const runLiveAnalysisRef = useRef<(isUserTriggered?: boolean) => Promise<void>>(async () => {});
+
   useEffect(() => {
     activeBusinessRef.current = activeBusiness;
     updateActiveBusinessRef.current = updateActiveBusiness;
@@ -497,6 +499,11 @@ export default function AnalyserPage() {
     }
   }, [domain, businessName, category, location, showToast, loadCachedAnalysis, clearCachedAnalysis, saveCachedAnalysis, markActiveAnalysis, clearActiveAnalysis, getActiveAnalysisKey]);
 
+  // Declared before the domain effect so it has the latest function on mount.
+  useEffect(() => {
+    runLiveAnalysisRef.current = runLiveAnalysis;
+  });
+
   // On mount or domain change: load a cached result if one exists for this
   // business, but never trigger a live scan on its own — runLiveAnalysis(false)
   // is a no-op past the cache check (see above). The first scan for any
@@ -515,8 +522,13 @@ export default function AnalyserPage() {
       setIsLoadingInitial(false);
       return;
     }
-    runLiveAnalysis(false);
-  }, [domain, runLiveAnalysis]);
+    runLiveAnalysisRef.current(false);
+    // Keyed on domain ONLY. runLiveAnalysis changes identity whenever the
+    // business name/category/location change, and a running scan itself
+    // patches those (updateActiveBusiness) halfway through — re-running this
+    // effect then closed the progress modal early and bumped the request id,
+    // so the finished scan's result was discarded as "stale".
+  }, [domain]);
 
   const handleStartScan = () => {
     runLiveAnalysis(true);

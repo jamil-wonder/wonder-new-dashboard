@@ -94,7 +94,10 @@ export default function VoiceKeywordSetup() {
         setKeywords(generateKeywordSuggestions(activeBusiness));
       }
     }
-  }, [activeBusiness]);
+    // Re-sync only when the business or its SAVED voice/keywords change. Keyed
+    // on the whole object this wiped unsaved edits on every background refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBusiness?.id, activeBusiness?.blogVoice, (activeBusiness?.blogKeywords || []).join("")]);
 
   const handleAddKeyword = () => {
     const val = newKeywordInput.trim();

@@ -112,8 +112,15 @@ export default function PlanPage() {
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
   const weeklyRequestIdRef = useRef(0);
+  // Callbacks below read the latest business through this ref and depend on
+  // its id only. Depending on the object itself re-ran the load (blanking the
+  // page and possibly re-triggering generation) on every business refetch.
+  const activeBusinessRef = useRef(activeBusiness);
+  activeBusinessRef.current = activeBusiness;
+  const activeBusinessId = activeBusiness?.id || "";
 
   const ensureWeeklyBlogs = useCallback(async (force = false, targetMongoId?: string) => {
+    const activeBusiness = activeBusinessRef.current;
     if (!activeBusiness?.id) return;
     try {
       setIsGeneratingWeekly(true);
@@ -151,9 +158,10 @@ export default function PlanPage() {
       setIsGeneratingWeekly(false);
       setIsLoadingWeekly(false);
     }
-  }, [activeBusiness, showToast]);
+  }, [activeBusinessId, showToast]);
 
   const loadWeeklyBlogs = useCallback(async () => {
+    const activeBusiness = activeBusinessRef.current;
     if (!activeBusiness?.id) return;
     const requestId = ++weeklyRequestIdRef.current;
     setWeeklyData(null);
@@ -177,7 +185,7 @@ export default function PlanPage() {
     } finally {
       if (weeklyRequestIdRef.current === requestId) setIsLoadingWeekly(false);
     }
-  }, [activeBusiness, ensureWeeklyBlogs]);
+  }, [activeBusinessId, ensureWeeklyBlogs]);
 
   useEffect(() => { loadWeeklyBlogs(); }, [loadWeeklyBlogs]);
 
