@@ -93,6 +93,13 @@ const CATEGORY_OPTIONS = [
   "Other",
 ];
 
+// Maps whatever the crawler returned onto the picker's exact options; anything
+// unrecognised is dropped rather than shown as a label that isn't selectable.
+function matchCategory(raw: unknown): string {
+  const text = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return CATEGORY_OPTIONS.find((option) => option.toLowerCase() === text) || "";
+}
+
 // Tap-to-select chip list, backed by a plain comma-separated string value
 // (matches what the save payload and the rest of the app already expect).
 // The tappable options themselves come from a real AI suggestion call
@@ -435,6 +442,9 @@ function OnboardingContent() {
   const [name, setName] = useState("");
   const [nameWasSuggested, setNameWasSuggested] = useState(false);
   const [category, setCategory] = useState("");
+  // True only while the selected category is the one we inferred from the site,
+  // so the hint disappears the moment the user picks something themselves.
+  const [categorySuggested, setCategorySuggested] = useState(false);
   const [location, setLocation] = useState("");
   const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
   // The URL the current prefill data came from — lets "Back" to the URL step
@@ -478,7 +488,7 @@ function OnboardingContent() {
     targetUrl: string,
     targetName: string,
     targetScrapedDesc: string,
-    hints?: { location?: string }
+    hints?: { location?: string; category?: string }
   ) => {
     if (!targetUrl) return;
     setIsSuggesting(true);
@@ -488,7 +498,7 @@ function OnboardingContent() {
         body: JSON.stringify({
           url: targetUrl,
           businessName: targetName,
-          category,
+          category: hints?.category ?? category,
           location: hints?.location ?? location,
           scrapedDescription: targetScrapedDesc,
         }),
@@ -551,12 +561,15 @@ function OnboardingContent() {
     setDetectedLocations(detected);
     const prefilledLocation = detected.length === 1 ? detected[0].label : "";
     setLocation(prefilledLocation);
+    const prefilledCategory = matchCategory(prefill.category);
+    setCategory(prefilledCategory);
+    setCategorySuggested(Boolean(prefilledCategory));
     if (prefill.description) {
       setDescription(prefill.description);
       setDescriptionWasSuggested(true);
     }
     setStepIndex(0);
-    fetchSuggestions(prefill.url, prefill.businessName || "", prefill.description || "", { location: prefilledLocation });
+    fetchSuggestions(prefill.url, prefill.businessName || "", prefill.description || "", { location: prefilledLocation, category: prefilledCategory });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex, hasLoadedOnce, alreadySetUp]);
 
@@ -607,15 +620,22 @@ function OnboardingContent() {
       setDescriptionWasSuggested(Boolean(scrapedDesc));
       setDetectedLocations(detected);
       setLocation(detectedLocation);
+      // Same rule as location: a guess we are not sure of is still shown, but
+      // only ever as a clearly-labelled suggestion the user can change.
+      const detectedCategory = matchCategory(res?.category);
+      setCategory(detectedCategory);
+      setCategorySuggested(Boolean(detectedCategory));
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = cleanUrl;
       setStepIndex(0);
-      fetchSuggestions(cleanUrl, scrapedName, scrapedDesc, { location: detectedLocation });
+      fetchSuggestions(cleanUrl, scrapedName, scrapedDesc, { location: detectedLocation, category: detectedCategory });
     } catch (err: any) {
       // A failed scrape shouldn't dead-end signup — fall through to the
       // same manual-entry steps, just empty, with an honest note why.
       setDetectedLocations([]);
       setLocation("");
+      setCategory("");
+      setCategorySuggested(false);
       setErrorMsg("Couldn't reach that website automatically — you can still fill in the details yourself.");
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = "";
@@ -735,7 +755,10 @@ function OnboardingContent() {
   const stepTitles: Record<StepId, { title: string; sub: string }> = {
     url: { title: "Add your business", sub: "Enter your website and we'll pull in what we can find automatically." },
     name: { title: "What's your business called?", sub: "We found this on your site — keep it or fix it." },
-    category: { title: "What category best fits?", sub: "Pick the closest match." },
+    category: {
+      title: "What category best fits?",
+      sub: categorySuggested ? "We picked this from your site — change it if it's not right." : "Pick the closest match.",
+    },
     location: {
       title: "Where are you based?",
       sub:
@@ -878,7 +901,15 @@ function OnboardingContent() {
               )}
 
               {currentStep === "category" && (
-                <CategoryDropdown value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
+                <CategoryDropdown
+                  value={category}
+                  onChange={(v) => {
+                    setCategory(v);
+                    setCategorySuggested(false);
+                    if (errorMsg) setErrorMsg("");
+                  }}
+                  options={CATEGORY_OPTIONS}
+                />
               )}
 
               {currentStep === "location" && (

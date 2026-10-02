@@ -130,6 +130,7 @@ function ScanContent() {
   // Everything the crawl found, handed to onboarding if they sign up — so a
   // multi-location business gets the pick-one step instead of a guess.
   const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
+  const [detectedCategory, setDetectedCategory] = useState("");
   const [description, setDescription] = useState("");
   const [findings, setFindings] = useState<Finding[]>([]);
   const [findingsLoading, setFindingsLoading] = useState(false);
@@ -210,6 +211,7 @@ function ScanContent() {
       setScore(totalScore);
       setBusinessName(detectedName);
       setDetectedLocations(locations);
+      setDetectedCategory(typeof scrapeRes?.category === "string" ? scrapeRes.category : "");
       setLocation(detectedLocation);
       setDescription(detectedDescription);
       setUrl(cleanUrl);
@@ -317,7 +319,7 @@ function ScanContent() {
     try {
       localStorage.setItem(
         "wonder_scan_prefill",
-        JSON.stringify({ url, businessName, description, locations: detectedLocations })
+        JSON.stringify({ url, businessName, description, locations: detectedLocations, category: detectedCategory })
       );
     } catch {}
     router.push("/auth?signup=true");
