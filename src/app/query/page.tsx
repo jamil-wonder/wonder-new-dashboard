@@ -307,6 +307,7 @@ export default function QueryPage() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const questionProgressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncedDomainRef = useRef<string | null>(null);
 
   const domain = activeBusiness?.url || "";
   const rawBusinessName = activeBusiness?.name || "";
@@ -723,16 +724,37 @@ export default function QueryPage() {
         answerSnippet: `Prompt generated. Click "Run" to execute live AI search engine audit.`,
         resultsByModel: undefined,
       }));
-      // Keep the local cache in sync so a same-session reload stays fast
-      // without a round-trip, but the server copy above is what decided
-      // what to show.
-      saveCachedQueries(domain, initial);
+      // Only the prompt list is mirrored here; the cache is rewritten with
+      // results by applyJobResultsToQueries, so don't clobber it with
+      // all-Pending rows when a refetch re-runs this effect.
+      if (lastSyncedDomainRef.current !== domain || !loadCachedQueries(domain)) {
+        saveCachedQueries(domain, initial);
+      }
     } else {
       initial = loadCachedQueries(domain);
     }
 
+    const domainChanged = lastSyncedDomainRef.current !== domain;
+    lastSyncedDomainRef.current = domain;
+
     if (initial && Array.isArray(initial) && initial.length > 0) {
-      setQueriesList(initial);
+      const incoming = initial;
+      // This effect re-fires whenever activeBusiness is refetched (which a
+      // finished run triggers on purpose to refresh the score). The server
+      // copy only holds the prompts, not run results, so replacing the list
+      // wholesale wiped every row back to "Pending" the instant a run
+      // completed. Carry over results already in memory for any prompt that
+      // is still in the list; a business switch starts clean.
+      setQueriesList((prev) => {
+        if (domainChanged || prev.length === 0) return incoming;
+        const byQuery = new Map(prev.map((item) => [item.query, item]));
+        return incoming.map((item) => {
+          const existing = byQuery.get(item.query);
+          return existing && existing.resultsByModel
+            ? { ...item, status: existing.status, rank: existing.rank, matchType: existing.matchType, sources: existing.sources, answerSnippet: existing.answerSnippet, resultsByModel: existing.resultsByModel }
+            : item;
+        });
+      });
       const counts = initial.reduce<QuestionMix>((acc: QuestionMix, item: SearchQueryItem) => {
         if (item.type === "branded") acc.branded += 1;
         if (item.type === "non-branded") acc.nonBranded += 1;
@@ -752,11 +774,13 @@ export default function QueryPage() {
     // this new business genuinely has its own active job, the resume-on-
     // mount effect below (also keyed on `domain`) re-derives this
     // correctly right after — this only clears the stale carry-over.
-    setIsScanning(false);
-    setIsScanComplete(false);
-    setProcessedCount(0);
-    setSelectedQuery(null);
-    setSourcesQuery(null);
+    if (domainChanged) {
+      setIsScanning(false);
+      setIsScanComplete(false);
+      setProcessedCount(0);
+      setSelectedQuery(null);
+      setSourcesQuery(null);
+    }
 
     setIsLoadingQuestions(false);
   }, [domain, savedQuestionMix, loadCachedQueries, saveCachedQueries, activeBusiness?.trackedQuestions]);
