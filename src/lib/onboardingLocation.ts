@@ -56,7 +56,7 @@ export function validateLocationInput(raw: string): string | null {
   const value = raw.replace(/\s+/g, " ").trim();
   if (!value) return "Tell us where you're based so we can track the local searches your customers make.";
   if (value.length < 2) return "That location looks too short.";
-  if (value.length > 80) return "Keep the location short — a city or area is enough.";
+  if (value.length > 80) return "Keep the location short - a city or area is enough.";
   if (!/[A-Za-zÀ-ɏ]{2}/.test(value)) return "Enter a city or area, like “London, UK”.";
   if (/[@/]|https?:|www\./i.test(value)) return "Enter a city or area, like “London, UK”.";
   if (UK_POSTCODE.test(value) || US_ZIP.test(value) || (/\d/.test(value) && STREET_WORD.test(value))) {

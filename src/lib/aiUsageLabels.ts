@@ -1,8 +1,8 @@
 // Maps the raw values that actually land in ai_usage_col (feature/model_name
-// strings written by _log_ai_usage_event across part_05–part_11.py — see
+// strings written by _log_ai_usage_event across part_05–part_11.py - see
 // backend/main_parts/*.py) to a clean label + a real icon from /public.
 // These are internal identifiers, not display strings, so this file is the
-// only place that translation happens — the API itself is left alone.
+// only place that translation happens - the API itself is left alone.
 
 export interface LabelMeta {
   label: string;
@@ -29,7 +29,7 @@ export function getFeatureMeta(raw: string): LabelMeta {
   if (!raw) return { label: "Unknown", icon: null };
   if (FEATURE_LABELS[raw]) return FEATURE_LABELS[raw];
   // phase1_scrape_{call_name} is an f-string with a dynamic suffix
-  // (part_05.py) — every other prefix falls through to the generic
+  // (part_05.py) - every other prefix falls through to the generic
   // snake_case -> Title Case formatter below.
   if (raw.startsWith("phase1_scrape")) {
     return { label: "Website Scrape", icon: "/icons/sidebar/analyse.svg" };
@@ -42,7 +42,7 @@ export function getFeatureMeta(raw: string): LabelMeta {
 export function getModelMeta(raw: string): LabelMeta {
   const key = (raw || "").toLowerCase();
   if (!key || key === "unknown") return { label: "Unknown", icon: null };
-  // Phase5 "multi" jobs run every provider at once — not one specific
+  // Phase5 "multi" jobs run every provider at once - not one specific
   // model, so it's labeled as its own real category (see
   // _log_ai_usage_event in backend/main_parts/part_01.py) rather than
   // falling into the same bucket as genuinely untracked events.

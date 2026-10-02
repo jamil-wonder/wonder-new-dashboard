@@ -284,7 +284,7 @@ export default function QueryPage() {
     broadSeo: 0,
   });
   // Persistent (not a toast that can be missed/dismissed) reason the most
-  // recent generation attempt failed, shown right in the generation card —
+  // recent generation attempt failed, shown right in the generation card -
   // previously a failure left this box looking identical to "never tried
   // yet," with only a 3.8s toast (easy to miss) as the sole error signal.
   const [questionGenerationError, setQuestionGenerationError] = useState<string | null>(null);
@@ -297,7 +297,7 @@ export default function QueryPage() {
   const [isScanComplete, setIsScanComplete] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   // Locked-20 mechanic (platform-flow spec Part 3): once a business locks
-  // its core 20 questions, editing them isn't silent anymore — adding a
+  // its core 20 questions, editing them isn't silent anymore - adding a
   // single question or bulk-regenerating both go through an explicit
   // warning first, proportionate to the blast radius (one question starts
   // fresh vs the whole set re-settling the score for a few weeks).
@@ -321,11 +321,11 @@ export default function QueryPage() {
 
   // Competitor ranking comes straight from THIS BROWSING SESSION's
   // running/completed job's own deep_competitors field (captured in the
-  // job-status/job-stream handlers below) — no separate fetch, no extra AI
+  // job-status/job-stream handlers below) - no separate fetch, no extra AI
   // cost. Held in BusinessContext (not local state) so it survives
   // navigating away to Overview and back to Query without vanishing, while
   // still resetting correctly on business switch / logout (handled there).
-  // Deliberately never falls back to old persisted data here — Query only
+  // Deliberately never falls back to old persisted data here - Query only
   // shows competitors for a run you actually watched complete this
   // session; the last-known list belongs on Overview, not here.
   const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
@@ -460,7 +460,7 @@ export default function QueryPage() {
     } catch {}
   }, [getCacheKey]);
 
-  // The real durable save — this is what makes the tracked/locked 20 a real
+  // The real durable save - this is what makes the tracked/locked 20 a real
   // stable baseline instead of something that lives only in the 2-hour
   // browser cache above and can silently regenerate into a different set
   // once that expires. Fire-and-forget: a failure here doesn't block the
@@ -510,7 +510,7 @@ export default function QueryPage() {
         setQueriesList([]);
         // A scan job (in progress or recently finished) from the OLD
         // question set must not be allowed to write its results onto the
-        // NEW set — questions are matched to job results by plain
+        // NEW set - questions are matched to job results by plain
         // positional id (q1..q20, see applyJobResultsToQueries), so without
         // this the resume-poll effect below silently overwrites freshly
         // regenerated "Pending" rows with stale Mentioned/Not-Mentioned
@@ -685,14 +685,14 @@ export default function QueryPage() {
     setIsLocking(true);
     try {
       // Locking is the one moment the user explicitly says "this is my
-      // real baseline" — save the current list right here as a guaranteed
+      // real baseline" - save the current list right here as a guaranteed
       // backstop, not just trusting that generation-time persistence
       // already succeeded. Sequenced before the lock call so a business
       // never ends up flagged "locked" with nothing actually saved under it.
       await persistTrackedQuestions(queriesList);
       await fetchApi(`/api/user/businesses/${activeBusiness.id}/lock-questions`, { method: "POST" });
       await refetchBusinesses();
-      showToast("Your 20 questions are locked in — this is now your stable weekly baseline.", "success");
+      showToast("Your 20 questions are locked in - this is now your stable weekly baseline.", "success");
     } catch (err: any) {
       showToast(err?.message || "Couldn't lock your questions. Please try again.", "error");
     } finally {
@@ -704,7 +704,7 @@ export default function QueryPage() {
     setQuestionGenerationTargets(savedQuestionMix);
 
     // The server-persisted tracked/locked set is the real source of truth
-    // — the 2-hour browser cache below is only a fast-load mirror of it,
+    // - the 2-hour browser cache below is only a fast-load mirror of it,
     // never authoritative. Without this, an expired cache (or a fresh
     // login on a different device/browser) would show an empty list and
     // invite regenerating a DIFFERENT 20 questions even though the real
@@ -769,11 +769,11 @@ export default function QueryPage() {
     }
 
     // Scan-status state belongs to whichever business was active when it
-    // was set — reset it here so a completed/in-progress state from the
+    // was set - reset it here so a completed/in-progress state from the
     // PREVIOUS business doesn't linger and misrepresent the new one. If
     // this new business genuinely has its own active job, the resume-on-
     // mount effect below (also keyed on `domain`) re-derives this
-    // correctly right after — this only clears the stale carry-over.
+    // correctly right after - this only clears the stale carry-over.
     if (domainChanged) {
       setIsScanning(false);
       setIsScanComplete(false);
@@ -786,13 +786,13 @@ export default function QueryPage() {
   }, [domain, savedQuestionMix, loadCachedQueries, saveCachedQueries, activeBusiness?.trackedQuestions]);
 
   // Every row above defaults to "Pending" regardless of whether these
-  // questions have actually been run before — that default was only ever
+  // questions have actually been run before - that default was only ever
   // corrected by a run started live in THIS browser tab. Anything that ran
   // elsewhere (the weekly Sunday scheduler, a manually-triggered backend
   // run, a different device) left the page showing no evidence it had ever
   // run at all, with no way to tell the difference between "never run" and
   // "ran somewhere else." This loads the business's real latest completed
-  // run on open — skipped only when a job is already actively resuming for
+  // run on open - skipped only when a job is already actively resuming for
   // this domain, so it never clobbers genuinely live-in-progress state.
   useEffect(() => {
     if (!activeBusiness?.id || queriesList.length === 0) return;
@@ -822,12 +822,12 @@ export default function QueryPage() {
   }, [activeBusiness?.id, domain, queriesList.length]);
 
   // Tear down any in-flight polling/SSE whenever the active business
-  // changes — not just on true unmount. Switching business via the header
+  // changes - not just on true unmount. Switching business via the header
   // switcher does NOT unmount this page, so without `domain` in the deps
   // here, a scan still running for the PREVIOUS business kept polling and
   // writing its results (queriesList, competitors, scan-complete state)
   // into whatever business is now on screen. The backend job itself is
-  // unaffected — it keeps running server-side either way — this only
+  // unaffected - it keeps running server-side either way - this only
   // stops the frontend from misapplying its updates to the wrong business.
   useEffect(() => {
     return () => {
@@ -1128,7 +1128,7 @@ export default function QueryPage() {
               // The backend writes the real latest_phase5_score the instant
               // this job completes, but BusinessContext's activeBusiness
               // was fetched before this run started and never gets updated
-              // on its own — nothing here was refetching it. That's what
+              // on its own - nothing here was refetching it. That's what
               // let the header (reading stale activeBusiness.completeness)
               // and this page's own fresh score end up showing two
               // different numbers for the same business at the same time.
@@ -1221,17 +1221,17 @@ export default function QueryPage() {
         modelScores={modelScores}
       />
 
-      {/* Top summary — "appeared X/20, rank, closing N gaps could help you
+      {/* Top summary - "appeared X/20, rank, closing N gaps could help you
           catch the competitor right above you" per the platform-flow spec's
           Search Tracker section. Every number here is real: appearedCount
           from each query's own aggregate status, rank + the next-rank-up
-          competitor's name from this session's actual deep_competitors —
+          competitor's name from this session's actual deep_competitors -
           no fabricated predicted score/rank jump, since we have no scoring
           simulation to back a specific "you'd become #2" claim. */}
       {!isLoadingQuestions && queriesList.length > 0 && (() => {
         const totalQ = queriesList.length;
         // "Pending" (never run) is not the same thing as "Not Mentioned"
-        // (actually checked and genuinely missing) — conflating the two
+        // (actually checked and genuinely missing) - conflating the two
         // claims you're absent from questions nobody has asked yet, which
         // isn't true. Gaps can only be counted among questions that have
         // real results.
@@ -1245,7 +1245,7 @@ export default function QueryPage() {
           return (
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 text-[13px]">
               <span className="text-[#6f6757]">
-                None of your {totalQ} questions have been run yet — click <strong className="text-[#15463b]">Run</strong> to see how AI models actually respond.
+                None of your {totalQ} questions have been run yet - click <strong className="text-[#15463b]">Run</strong> to see how AI models actually respond.
               </span>
             </div>
           );
@@ -1275,7 +1275,7 @@ export default function QueryPage() {
       })()}
 
       {/* Locked-20 mechanic (Part 3): the core set is the stable baseline
-          the Wonder Score is measured against week to week — same basis
+          the Wonder Score is measured against week to week - same basis
           for every customer, so it stays comparable. Once locked, editing
           isn't blocked, just never silent (see the warning modal below). */}
       {!isLoadingQuestions && queriesList.length > 0 && (
@@ -1283,12 +1283,12 @@ export default function QueryPage() {
           <div className="flex items-center gap-2 bg-[#eef3f0] border border-[#d0e4d6] rounded-xl px-4 py-3 text-[13px]">
             <span className="text-[#1e7d4f] font-bold">🔒</span>
             <span className="text-[#15463b] font-semibold">Your 20 questions are locked in</span>
-            <span className="text-[#6f6757]">— this is your stable weekly baseline.</span>
+            <span className="text-[#6f6757]">- this is your stable weekly baseline.</span>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3 bg-[#fdf8ec] border border-[#f0e2b8] rounded-xl px-4 py-3">
             <div className="text-[13px] text-[#6f6757]">
-              <span className="font-semibold text-[#23211b]">Happy with these 20?</span> Lock them in as your stable baseline — your score gets measured against the same set every week.
+              <span className="font-semibold text-[#23211b]">Happy with these 20?</span> Lock them in as your stable baseline - your score gets measured against the same set every week.
             </div>
             <button
               type="button"
@@ -1334,7 +1334,7 @@ export default function QueryPage() {
           <>
             {/* Header row and QueryTable's rows share this one scroll
                 container (rather than each scrolling independently) so a
-                phone screen — too narrow for 6 fixed-ish columns — scrolls
+                phone screen - too narrow for 6 fixed-ish columns - scrolls
                 the header and body together instead of letting them drift
                 out of alignment. Desktop never triggers the scroll since
                 720px fits comfortably. */}
@@ -1368,7 +1368,7 @@ export default function QueryPage() {
         )}
       </div>
 
-      {/* Competitor Score Comparison — read directly from this job's own
+      {/* Competitor Score Comparison - read directly from this job's own
           deep_competitors, already computed as a side effect of the run
           above. No separate fetch, no extra AI call. */}
       {!isLoadingQuestions && competitorRows.length > 0 && (
@@ -1469,7 +1469,7 @@ export default function QueryPage() {
         onAddPrompt={handleAddPrompt}
       />
 
-      {/* Locked-20 edit warning — proportionate to blast radius per Part 3:
+      {/* Locked-20 edit warning - proportionate to blast radius per Part 3:
           adding one question only resets that question; regenerating
           touches the whole set, so the score needs a few weeks to settle.
           Never a silent change once locked. */}
@@ -1484,8 +1484,8 @@ export default function QueryPage() {
             </div>
             <p className="text-[13.5px] text-[#4a4437] mt-2 leading-relaxed">
               {pendingLockedAction === "add"
-                ? "Adding a new question is fine — it just starts fresh, with no history to measure against yet. Your other 19 stay exactly as they are."
-                : "Regenerating changes your whole tracked set. Your score may move for a few weeks while the new set settles — this isn't silent, so you're seeing this first."}
+                ? "Adding a new question is fine - it just starts fresh, with no history to measure against yet. Your other 19 stay exactly as they are."
+                : "Regenerating changes your whole tracked set. Your score may move for a few weeks while the new set settles - this isn't silent, so you're seeing this first."}
             </p>
             <div className="flex items-center gap-3 mt-5">
               <button

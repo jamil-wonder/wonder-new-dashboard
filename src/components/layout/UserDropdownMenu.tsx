@@ -31,7 +31,7 @@ export default function UserDropdownMenu() {
     setOpen(false);
     logout();
     showToast("Signed out of session.", "info");
-    // Hard navigation — forces every provider to remount from scratch so
+    // Hard navigation - forces every provider to remount from scratch so
     // no in-memory state from this session lingers for whoever logs in
     // next in this browser.
     window.location.href = "/auth";
@@ -77,7 +77,7 @@ export default function UserDropdownMenu() {
               </span>
             </div>
 
-            {/* Admin Portal — only ever shown to an admin, redirects to /admin */}
+            {/* Admin Portal - only ever shown to an admin, redirects to /admin */}
             {user?.role === "admin" && (
               <Link
                 href="/admin"

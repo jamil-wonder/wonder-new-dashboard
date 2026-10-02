@@ -75,12 +75,12 @@ export default function ReportsPage() {
 
           {!data.hasVisibilityScore && (
             <div className="text-[12px] text-[#9a6a12] bg-[#faf1da] border border-[#f0dfae] rounded-lg px-3 py-2">
-              No Wonder Score yet — run Search Tracker for this business before sharing a link.
+              No Wonder Score yet - run Search Tracker for this business before sharing a link.
             </div>
           )}
 
           <div className="flex items-center gap-6">
-            {/* Score Ring — only ever the real Wonder Score, never shown at all until one exists */}
+            {/* Score Ring - only ever the real Wonder Score, never shown at all until one exists */}
             <div className="relative w-[76px] h-[76px] shrink-0">
               <svg width="76" height="76" viewBox="0 0 76 76">
                 <circle cx="38" cy="38" r="33" fill="none" stroke="#eef0ec" strokeWidth="6" />

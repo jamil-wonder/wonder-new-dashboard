@@ -8,12 +8,12 @@ import { getAllSourcesForQuery } from "../../lib/querySources";
 
 interface SourcesSidebarProps {
   isOpen: boolean;
-  // The query that triggered opening (row click) — null when opened via a
+  // The query that triggered opening (row click) - null when opened via a
   // page-level "view all sources" trigger, since there's no single query
   // context in that case.
   query: SearchQueryItem | null;
   // Pre-computed, deduplicated, already-validated domain list for "all"
-  // mode — callers compute this themselves (getAllSourcesForQueries() for
+  // mode - callers compute this themselves (getAllSourcesForQueries() for
   // Query's own run, or Overview's already-derived citedSources), so this
   // component stays a plain, reusable list view with no opinion on where
   // the data came from.
@@ -36,13 +36,13 @@ function DomainFavicon({ domain }: { domain: string }) {
   );
 }
 
-// A single, reusable right-to-left slide-over — not a blocking modal.
+// A single, reusable right-to-left slide-over - not a blocking modal.
 // Shows the full, honest list of source domains cited: either for the one
 // query you clicked, or across an entire run.
 export default function SourcesSidebar({ isOpen, query, allSources, allSourcesSubtitle, onClose }: SourcesSidebarProps) {
   const [viewAll, setViewAll] = useState(!query);
 
-  // Reset the view mode each time the sidebar is (re)opened — clicking a
+  // Reset the view mode each time the sidebar is (re)opened - clicking a
   // row always starts on that row's sources; the page-level trigger (no
   // query) always starts on the all-sources view.
   useEffect(() => {

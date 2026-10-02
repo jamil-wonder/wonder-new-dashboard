@@ -79,7 +79,7 @@ body {
 }
 
 /* recharts renders its chart root as keyboard-focusable (for
-   accessibility — arrow-key navigation between data points), so clicking
+   accessibility - arrow-key navigation between data points), so clicking
    anywhere on a chart gives it the browser's default focus ring. That
    shows up as a stray black/blue rectangle around the whole chart. The
    chart stays focusable and keyboard-usable; this only removes the visual

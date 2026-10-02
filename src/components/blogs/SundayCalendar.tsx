@@ -131,7 +131,7 @@ export default function SundayCalendar({
 
   const currentSundayWeek = startOfSundayWeek(today);
 
-  // The 7x5 grid only ever shows real content on Sunday cells — every other
+  // The 7x5 grid only ever shows real content on Sunday cells - every other
   // day is a bare "-". Rather than squeezing that whole grid into a phone
   // screen (illegible at ~35px/column), mobile gets a simple stacked list
   // of just the Sundays, reusing this exact same content logic so desktop
@@ -300,7 +300,7 @@ export default function SundayCalendar({
         </div>
       ) : (
         <>
-        {/* Full 7-Day Sun-Sat Month Grid (Sunday column wider) — desktop
+        {/* Full 7-Day Sun-Sat Month Grid (Sunday column wider) - desktop
             only below; a phone can't fit 7 columns legibly, so it gets a
             simple stacked list of just the Sundays instead (see below). */}
         <div className="hidden sm:block border border-[#ece3d1] rounded-md overflow-hidden bg-white">
@@ -385,7 +385,7 @@ export default function SundayCalendar({
 
         </div>
 
-        {/* Mobile: stacked list of just this month's Sundays — the only
+        {/* Mobile: stacked list of just this month's Sundays - the only
             cells with real content. */}
         <div className="sm:hidden space-y-3">
           {daysGrid

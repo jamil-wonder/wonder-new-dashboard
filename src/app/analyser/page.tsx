@@ -14,11 +14,12 @@ import { AiDisclaimer } from "../../components/ui/AiDisclaimer";
 import { useBusiness, isDomainString, isGenericName } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi, recordScanHistory } from "../../lib/api";
+import { buildAnalysis, userEmailFallback } from "../../lib/analyserModel";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 Hours TTL cache limit
 const ACTIVE_ANALYSER_MAX_AGE_MS = 15 * 60 * 1000;
 
-// This page only ever has the technical crawl score (Phase 1) — it has no
+// This page only ever has the technical crawl score (Phase 1) - it has no
 // Search Tracker/AI-visibility data at all, so its own labels must never
 // say "Visibility." That word belongs to the Overview/Dashboard headline
 // once a Search Tracker run has actually happened (see hasVisibilityScore
@@ -68,12 +69,12 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 const AUDIT_AREA_DESCRIPTIONS: Record<string, string> = {
-  sentiment: "How clearly your business name, category, and description come across to AI — built from how complete and unambiguous your core identity signals are on the page.",
+  sentiment: "How clearly your business name, category, and description come across to AI - built from how complete and unambiguous your core identity signals are on the page.",
   sources: "How many verifiable contact and social signals (phone, email, social profiles) AI models and search engines can point to as evidence when answering questions about you.",
-  content: "How much substance your page gives AI to work with — a real description, a canonical URL, a declared language, and a clear logo all help AI summarize you accurately instead of guessing.",
-  presence: "How many social and platform profiles are linked from your site — more linked platforms give AI more independent places to confirm who you are.",
-  coverage: "How much structured data (JSON-LD schema) your site exposes — this is the machine-readable map AI uses to understand what your business actually offers.",
-  technical: "Core crawlability infrastructure — SSL, mobile-friendliness, a canonical URL, sitemap.xml, and robots.txt. Without these, AI crawlers can struggle to reach or trust your pages at all.",
+  content: "How much substance your page gives AI to work with - a real description, a canonical URL, a declared language, and a clear logo all help AI summarize you accurately instead of guessing.",
+  presence: "How many social and platform profiles are linked from your site - more linked platforms give AI more independent places to confirm who you are.",
+  coverage: "How much structured data (JSON-LD schema) your site exposes - this is the machine-readable map AI uses to understand what your business actually offers.",
+  technical: "Core crawlability infrastructure - SSL, mobile-friendliness, a canonical URL, sitemap.xml, and robots.txt. Without these, AI crawlers can struggle to reach or trust your pages at all.",
 };
 
 export default function AnalyserPage() {
@@ -86,6 +87,9 @@ export default function AnalyserPage() {
 
   // Live dynamic data state
   const [scanData, setScanData] = useState<any>(null);
+  // When the analysis currently on screen was actually run (ISO), whether just
+  // now or restored from the saved copy.
+  const [analysedAt, setAnalysedAt] = useState<string | null>(null);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
   const [selectedAiInsight, setSelectedAiInsight] = useState<any | null>(null);
   const [auditAreas, setAuditAreas] = useState<any[]>([]);
@@ -183,7 +187,7 @@ export default function AnalyserPage() {
   // Dynamic analysis executor that queries backend live
   const runLiveAnalysis = useCallback(async (isUserTriggered = false) => {
     if (!domain) return;
-    // Claim this call's slot — if a NEWER call has started by the time
+    // Claim this call's slot - if a NEWER call has started by the time
     // this one's network requests resolve (e.g. the user switched to a
     // different business), its result-application below detects the
     // mismatch and discards itself instead of overwriting the new
@@ -193,13 +197,55 @@ export default function AnalyserPage() {
     // If not user-triggered (e.g. page navigation), check 2-Hour TTL cache first!
     if (!isUserTriggered) {
       const cached = loadCachedAnalysis(domain);
+      // The saved copy on the server is the source of truth (the browser cache
+      // only mirrors it for 2 hours and is empty on a new device). Use it when
+      // there is no cache, or when something newer ran elsewhere (e.g. the
+      // weekly run) since this browser cached its copy.
+      const saved = activeBusinessRef.current;
+      const phase1Ms = saved?.latestPhase1At ? Date.parse(saved.latestPhase1At) : NaN;
+      const analysis = saved?.latestAnalysis;
+      const analysisMs = analysis?.analysedAt ? Date.parse(analysis.analysedAt) : NaN;
+      // A manual run saves the full on-screen analysis. A weekly run saves only
+      // the raw crawl (and a later timestamp), so when that is newer the page
+      // is rebuilt from the crawl instead.
+      const analysisIsCurrent = Boolean(analysis?.scan) && (Number.isNaN(phase1Ms) || Number.isNaN(analysisMs) || phase1Ms <= analysisMs + 60_000);
+      const serverMs = analysisIsCurrent ? analysisMs : phase1Ms;
+      const cacheIsOlder = cached ? !Number.isNaN(serverMs) && serverMs > Number(cached.timestamp || 0) + 60_000 : true;
+      if (cacheIsOlder) {
+        if (analysis && analysisIsCurrent) {
+          setScanData(analysis.scan);
+          setAuditAreas(Array.isArray(analysis.areas) ? analysis.areas : []);
+          setAiInsights(Array.isArray(analysis.insights) ? analysis.insights : []);
+          setAnalysedAt(analysis.analysedAt || saved?.latestPhase1At || null);
+          setIsLoadingInitial(false);
+          return;
+        }
+        const restored = saved?.latestScrapeResult
+          ? buildAnalysis(saved.latestScrapeResult, {
+              domain,
+              cleanUrl: domain.startsWith("http") ? domain : `https://${domain}`,
+              category,
+              location,
+              fallbackDescription: saved.description,
+            })
+          : null;
+        if (restored) {
+          setScanData(restored.scan);
+          setAuditAreas(restored.areas);
+          setAiInsights([]);
+          setAnalysedAt(saved?.latestPhase1At || null);
+          setIsLoadingInitial(false);
+          return;
+        }
+      }
       if (cached && cached.scanData) {
         setScanData(cached.scanData);
+        setAnalysedAt(cached.analysedAt || (cached.timestamp ? new Date(cached.timestamp).toISOString() : null));
         setAiInsights(cached.aiInsights || []);
         setAuditAreas(cached.auditAreas || []);
         setIsLoadingInitial(false);
         // Deliberately does NOT write this into activeBusiness.completeness
-        // anymore — completeness is now the reconciled Wonder Score (the
+        // anymore - completeness is now the reconciled Wonder Score (the
         // visibility score, same formula competitors are scored on), read
         // by the header/Dashboard everywhere. This technical score has its
         // own local state (scanData) for the Analyzer page's own display;
@@ -207,7 +253,7 @@ export default function AnalyserPage() {
         // header to flip to the technical number on every Analyzer visit.
         return; // Successfully served from 2-Hour cache without re-crawling!
       }
-      // No cache — a real crawl+AI-insights call used to fire automatically
+      // No cache - a real crawl+AI-insights call used to fire automatically
       // right here the instant this tab opened, which is exactly what ran
       // twice for a brand-new business: once silently on page load, again
       // when the user (unaware the first had already started) clicked
@@ -229,7 +275,7 @@ export default function AnalyserPage() {
         markActiveAnalysis(domain);
         showToast(`Starting website analysis for ${domain}. This can take 1-5 minutes.`, "info");
       } else {
-        // No cache for this business — clear whatever's currently shown
+        // No cache for this business - clear whatever's currently shown
         // (very likely the PREVIOUS business's scan) instead of leaving it
         // on screen, mislabeled, for the 1-5 minutes this fetch takes.
         setScanData(null);
@@ -271,9 +317,6 @@ export default function AnalyserPage() {
 
       // ── 1. Process Scrape Results ──────────────────────────────────────────
       if (scrapeRes && scrapeRes.scores) {
-        const scores = scrapeRes.scores;
-        const totalScore = scores.total || 91;
-        const grade = scores.grade || (totalScore >= 90 ? "A+" : totalScore >= 80 ? "A" : "B+");
         const detectedName = scrapeRes.businessName || scrapeRes.businessProfile?.name;
 
         // Preserve current activeBusiness.name if it's already a clean brand name or user-edited
@@ -287,7 +330,7 @@ export default function AnalyserPage() {
           logoUrl: scrapeRes.logoUrl || scrapeRes.logo_url || activeBusinessRef.current?.logoUrl,
           category: scrapeRes.category || category,
           location: scrapeRes.location || location,
-          // completeness deliberately NOT patched here anymore — it's the
+          // completeness deliberately NOT patched here anymore - it's the
           // reconciled Wonder Score (visibility-first) read by the header
           // everywhere, and this technical score isn't it. It refreshes
           // correctly from the server (visibility-preferred) once this
@@ -295,88 +338,17 @@ export default function AnalyserPage() {
           description: scrapeRes.description || activeBusinessRef.current?.description,
         });
 
-        const schemasFound = scrapeRes.schemas?.length || 0;
-        const socialsFound = Object.keys(scrapeRes.socialLinks || {}).length;
-        const hasSSL = scrapeRes.hasSSL ?? true;
-        const hasMobile = scrapeRes.hasMobileMeta ?? true, hasSitemap = scrapeRes.sitemapFound ?? true, hasRobots = scrapeRes.robotsTxtFound ?? true;
-
-        // 1. How AI Describes You (Brand & Entity Sentiment)
-        const sentimentScore = Math.min(100, Math.max(70, Math.round(((scores.coreIdentity?.total || 22) / 25) * 100)));
-
-        // 2. Where AI Gets Its Information (Citations & NAP Signals)
-        const sourcesScore = Math.min(100, Math.round(75 + (socialsFound > 0 ? 12 : 0) + (scrapeRes.phones?.length ? 8 : 0) + (scrapeRes.emails?.length ? 5 : 0)));
-
-        // 3. Content Quality (Meta Depth & Text Clarity)
-        let contentScore = 20;
-        if (scrapeRes.description && scrapeRes.description.length > 30) contentScore += 35;
-        if (scrapeRes.canonicalUrl) contentScore += 20;
-        if (scrapeRes.language) contentScore += 15;
-        if (scrapeRes.logoFound) contentScore += 10;
-        contentScore = Math.min(100, Math.max(65, contentScore));
-
-        // 4. Presence Across Platforms (Social & Directory Footprint)
-        const presenceScore = socialsFound >= 3 ? 95 : socialsFound === 2 ? 85 : socialsFound === 1 ? 75 : 60;
-
-        // 5. Topic Coverage (Structured Schema Entity Graph)
-        const coverageScore = schemasFound >= 3 ? 92 : schemasFound === 2 ? 82 : schemasFound === 1 ? 70 : 45;
-
-        // 6. Technical Health (Infrastructure & Mobile Readiness)
-        let techScore = 0;
-        if (hasSSL) techScore += 20;
-        if (hasMobile) techScore += 20;
-        if (scrapeRes.canonicalUrl) techScore += 20;
-        if (hasSitemap) techScore += 20;
-        if (hasRobots) techScore += 20;
-        techScore = Math.min(100, Math.max(70, techScore));
-
-        finalScan = {
-          businessName: detectedName,
-          url: domain,
-          category: scrapeRes.category || category,
-          location: scrapeRes.location || location,
-          description: scrapeRes.description || activeBusiness.description || `${detectedName} in ${location}.`,
-          canonicalUrl: scrapeRes.canonicalUrl || cleanUrl,
-          language: (scrapeRes.language || "EN-GB").toUpperCase(),
-          hasSSL,
-          hasMobileMeta: hasMobile,
-          sitemapFound: hasSitemap,
-          robotsTxtFound: hasRobots,
-          emails: scrapeRes.emails?.length ? scrapeRes.emails : [userEmailFallback(domain)],
-          phones: scrapeRes.phones || [],
-          // No location-stuffing — an address genuinely not found on the
-          // site must read as not found downstream, not silently become
-          // the business's city/region as if it were a real street address.
-          addresses: scrapeRes.addresses || [],
-          openingHours: scrapeRes.openingHours || [],
-          socialLinks: scrapeRes.socialLinks || {},
-          schemas: scrapeRes.schemas || [],
-          aiBotAccess: scrapeRes.aiBotAccess || {},
-          hasContactPath: scrapeRes.hasContactPath ?? false,
-          logoFound: Boolean(scrapeRes.logoUrl),
-          technologies: scrapeRes.technologies || [],
-          warnings: scrapeRes.warnings || [],
-          scores: {
-            total: totalScore,
-            grade,
-            coreIdentity: { total: sentimentScore },
-            contact: { total: sourcesScore },
-            operating: { total: 90 },
-            trust: { total: presenceScore },
-            schema: { total: coverageScore },
-            technical: { total: techScore },
-          },
-        };
-
-        finalAreas = [
-          { id: "sentiment", label: "How AI describes you", score: sentimentScore, statusText: sentimentScore >= 75 ? "GOOD" : "OKAY", statusColor: sentimentScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: sentimentScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: sentimentScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "MessageSquare" },
-          { id: "sources", label: "Where AI gets its information", score: sourcesScore, statusText: sourcesScore >= 75 ? "GOOD" : "OKAY", statusColor: sourcesScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: sourcesScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: sourcesScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "BookOpen" },
-          { id: "content", label: "Content quality", score: contentScore, statusText: contentScore >= 75 ? "GOOD" : "RISING", statusColor: contentScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: contentScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: contentScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "FileCode2" },
-          { id: "presence", label: "Presence across platforms", score: presenceScore, statusText: presenceScore >= 75 ? "GOOD" : "OKAY", statusColor: presenceScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: presenceScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: presenceScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "Building2" },
-          { id: "coverage", label: "Topic coverage", score: coverageScore, statusText: coverageScore >= 75 ? "GOOD" : coverageScore >= 60 ? "RISING" : "NEEDS WORK", statusColor: coverageScore >= 75 ? "#1e7d4f" : coverageScore >= 60 ? "#9a6a12" : "#b1442a", statusBg: coverageScore >= 75 ? "#dcefe2" : coverageScore >= 60 ? "#f7e7c4" : "#f6dcd5", barColor: coverageScore >= 75 ? "#2e9e5b" : coverageScore >= 60 ? "#d6a23a" : "#dc6b6b", iconName: "FileSearch" },
-          { id: "technical", label: "Technical health", score: techScore, statusText: techScore >= 75 ? "GOOD" : "NEEDS WORK", statusColor: techScore >= 75 ? "#1e7d4f" : "#b1442a", statusBg: techScore >= 75 ? "#dcefe2" : "#f6dcd5", barColor: techScore >= 75 ? "#2e9e5b" : "#dc6b6b", iconName: "Cpu" },
-        ];
+        const built = buildAnalysis(scrapeRes, {
+          domain,
+          cleanUrl,
+          category,
+          location,
+          fallbackDescription: activeBusiness.description,
+        });
+        finalScan = built?.scan ?? null;
+        finalAreas = built?.areas ?? [];
       } else {
-        // The real scrape failed or came back without scores — do not
+        // The real scrape failed or came back without scores - do not
         // fabricate a passing scorecard. Leave finalScan null so the UI
         // shows an honest "analysis failed, try again" state instead of
         // invented scores and invented contact details for a business
@@ -423,34 +395,35 @@ export default function AnalyserPage() {
           };
         });
       } else {
-        // Real AI-insights call failed or returned nothing — leave this
+        // Real AI-insights call failed or returned nothing - leave this
         // empty rather than inventing quotes and attributing them to
         // specific AI models that were never actually queried.
         finalInsights = [];
       }
 
       // Record crawl score in scan history for trend comparison, and save
-      // to cache regardless of staleness — both are keyed by THIS call's
+      // to cache regardless of staleness - both are keyed by THIS call's
       // domain (from closure) and remain correct for that business even
       // if the user has since switched away from it.
       if (finalScan?.scores?.total) {
         recordScanHistory(domain, finalScan.scores.total);
-        // Only a genuinely successful scan is worth caching — caching a
+        // Only a genuinely successful scan is worth caching - caching a
         // failure would mean the 2-hour TTL cache "successfully" serves
         // back a null result on the next visit instead of retrying.
         saveCachedAnalysis(domain, {
           scanData: finalScan,
           auditAreas: finalAreas,
           aiInsights: finalInsights,
+          analysedAt: new Date().toISOString(),
         });
-        // No email on a manual re-crawl anymore — the user is watching this
+        // No email on a manual re-crawl anymore - the user is watching this
         // scan happen live in the UI, so a "your scan is ready" email is
         // redundant. Real notification emails are now reserved for the
         // automated weekly run and for Search Tracker completions, and the
         // weekly run combines Analyser + Search Tracker into a single email
         // instead of sending one per surface.
 
-        // Persist the score server-side too — until now only the Sunday
+        // Persist the score server-side too - until now only the Sunday
         // auto-scheduler ever wrote latest_phase1_score/weekly_scores to
         // the business doc, so a manual scan's score lived ONLY in this
         // browser's localStorage cache and vanished on logout or on a
@@ -466,6 +439,7 @@ export default function AnalyserPage() {
             category: finalScan.category,
             location: finalScan.location,
             latest_scrape_result: finalScan,
+            latest_analysis: { scan: finalScan, areas: finalAreas, insights: finalInsights, analysedAt: new Date().toISOString() },
           }),
         })
           .then(() => refetchBusinesses())
@@ -474,18 +448,19 @@ export default function AnalyserPage() {
       clearActiveAnalysis(domain);
 
       // Only touch what's actually ON SCREEN if this is still the latest
-      // call — otherwise the user has switched business since this
+      // call - otherwise the user has switched business since this
       // request started, and applying it now would overwrite the new
       // business's display with the old one's data.
       if (analysisRequestIdRef.current !== requestId) return;
 
       setScanData(finalScan);
+      setAnalysedAt(finalScan ? new Date().toISOString() : null);
       setAuditAreas(finalAreas);
       setAiInsights(finalInsights);
       setIsScanning(false);
 
       // Was previously only shown via ScanProgressModal's onClose callback
-      // (handleScanComplete) — now that there's no modal, the completion
+      // (handleScanComplete) - now that there's no modal, the completion
       // toast fires directly here, right where the scan actually finishes.
       if (isUserTriggered) {
         showToast(`AI analysis completed! Brand details for ${businessName} updated sitewide.`, "success");
@@ -505,19 +480,19 @@ export default function AnalyserPage() {
   });
 
   // On mount or domain change: load a cached result if one exists for this
-  // business, but never trigger a live scan on its own — runLiveAnalysis(false)
+  // business, but never trigger a live scan on its own - runLiveAnalysis(false)
   // is a no-op past the cache check (see above). The first scan for any
   // business only ever happens because the user clicked "Run Analysis".
   useEffect(() => {
     // A scan left running on the PREVIOUS business is now correctly
     // prevented (via analysisRequestIdRef) from writing its result into
-    // this new business's display — but without resetting these too,
+    // this new business's display - but without resetting these too,
     // isScanning could stay stuck true here forever, since the old scan's
     // completion no longer flips it off for a business it doesn't belong
     // to. Clean slate for whichever business is now active.
     setIsScanning(false);
     if (!domain) {
-      // No active business — nothing to analyse, and no scan already in
+      // No active business - nothing to analyse, and no scan already in
       // flight to wait on, so don't leave the loading spinner spinning.
       setIsLoadingInitial(false);
       return;
@@ -525,7 +500,7 @@ export default function AnalyserPage() {
     runLiveAnalysisRef.current(false);
     // Keyed on domain ONLY. runLiveAnalysis changes identity whenever the
     // business name/category/location change, and a running scan itself
-    // patches those (updateActiveBusiness) halfway through — re-running this
+    // patches those (updateActiveBusiness) halfway through - re-running this
     // effect then closed the progress modal early and bumped the request id,
     // so the finished scan's result was discarded as "stale".
   }, [domain]);
@@ -556,7 +531,7 @@ export default function AnalyserPage() {
 
   // Covers both the initial mount check (isLoadingInitial) and a button-
   // triggered scan (isScanning) with the same simple spinner card + the
-  // toast already shown from handleStartScan — no separate progress modal.
+  // toast already shown from handleStartScan - no separate progress modal.
   // Before this, a button-triggered scan set isScanning but not
   // isLoadingInitial, so this branch never matched for it: the page just
   // sat on the static "Not analysed yet" card for the full 1-5 minutes
@@ -601,7 +576,7 @@ export default function AnalyserPage() {
         </div>
         <div className="font-spectral text-[19px] font-semibold text-[#23211b]">Not analysed yet</div>
         <p className="text-[13px] text-[#8a8273] mt-1.5 max-w-[360px]">
-          Run the AI visibility analysis for {businessName || domain} whenever you're ready — it takes 1-5 minutes.
+          Run the AI visibility analysis for {businessName || domain} whenever you're ready - it takes 1-5 minutes.
         </p>
         <button
           type="button"
@@ -729,6 +704,11 @@ export default function AnalyserPage() {
             {isScanning ? "Crawling Site..." : "Re-run crawl"}
           </button>
         </div>
+        {analysedAt && !Number.isNaN(Date.parse(analysedAt)) && (
+          <div className="-mt-2 mb-4 text-[12px] text-[#9b927f]">
+            Last analysed {new Date(analysedAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </div>
+        )}
 
         {/* Config pills */}
         {(() => {
@@ -1008,7 +988,7 @@ export default function AnalyserPage() {
                 { icon: FileSearch,  label: "Sitemap.xml",         ok: s.sitemapFound ?? true, desc: "Directs search engines to index all published pages and service URLs." },
                 { icon: Bot,         label: "Robots.txt",          ok: s.robotsTxtFound ?? true, desc: "Master server configuration file that controls crawler access to site paths." },
                 // Real robots.txt parsing (scraping/scraper.py's
-                // fetch_ai_bot_access) — this used to hardcode `ok: true`
+                // fetch_ai_bot_access) - this used to hardcode `ok: true`
                 // for all three regardless of what a site's robots.txt
                 // actually said, which meant a business that genuinely
                 // blocked GPTBot would still see a green checkmark telling
@@ -1047,7 +1027,7 @@ export default function AnalyserPage() {
             {(() => {
               const schemaList: any[] = Array.isArray(s.schemas) ? s.schemas : [];
               // Real checks against the actual parsed JSON-LD, not a
-              // hardcoded pass — these three used to read "ok: true"
+              // hardcoded pass - these three used to read "ok: true"
               // unconditionally (and named a hotel-specific @type
               // regardless of the business's real category), so every
               // audit report claimed a fully valid schema even for a site
@@ -1099,10 +1079,4 @@ export default function AnalyserPage() {
       </div>
     </div>
   );
-}
-
-function userEmailFallback(domain: string): string {
-  if (!domain) return "info@domain.com";
-  const clean = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-  return `hello@${clean}`;
 }

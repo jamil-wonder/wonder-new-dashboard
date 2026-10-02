@@ -43,12 +43,12 @@ export default function QueryTable({
 
   return (
     // The row's 5 fixed-width columns (40+86+118+54+200 = 498px) alone are
-    // already wider than a phone screen — the flexible query-text column
+    // already wider than a phone screen - the flexible query-text column
     // has nowhere left to shrink to and the browser was wrapping it one
     // character per line to fit. Rather than trying to cram a 6-column
     // dense data table into ~340px (not attempting a mobile redesign of
     // Query per earlier direction), each row keeps its natural width via
-    // min-w-[720px] below and scrolls horizontally instead — the actual
+    // min-w-[720px] below and scrolls horizontally instead - the actual
     // scroll container is in query/page.tsx, wrapping this together with
     // the column-header row so both move in sync instead of scrolling
     // independently and drifting out of alignment.
@@ -62,14 +62,14 @@ export default function QueryTable({
           else if (q.type === "broad-seo") { typeColor = "#a86d7e"; typeBg = "#fdeef1"; }
 
           // Resolve model specific status strictly for the selected model
-          // tab — NO fallback to the aggregate q.status/q.rank/q.matchType
+          // tab - NO fallback to the aggregate q.status/q.rank/q.matchType
           // (an "any model mentioned it" summary across ALL models). That
           // fallback used to leak through here: a query run before this
           // model was ever added to the rotation has no entry in
           // resultsByModel for it at all, and borrowing the aggregate
           // status made the table claim a model answered a question it was
           // literally never asked. If this model has no recorded result,
-          // that's "Pending Run" for it, full stop — not whatever another
+          // that's "Pending Run" for it, full stop - not whatever another
           // model happened to say.
           const modelRes = q.resultsByModel?.[selectedModel];
           const hasModelRes = modelRes !== undefined;
@@ -83,7 +83,7 @@ export default function QueryTable({
 
           // Total truth: every source domain cited across ALL models for
           // this query, not just whichever model tab happens to be
-          // selected — the same set the sidebar shows, so the two can
+          // selected - the same set the sidebar shows, so the two can
           // never disagree the way the column vs. old modal used to.
           const sourcesVal = getAllSourcesForQuery(q);
           const visibleSources = sourcesVal.slice(0, VISIBLE_SOURCE_COUNT);
@@ -198,7 +198,7 @@ export default function QueryTable({
                       </span>
                     )}
 
-                    {/* Third-Party Domain Favicon Pills — top 3, then a +N
+                    {/* Third-Party Domain Favicon Pills - top 3, then a +N
                         overflow badge, both opening the sidebar with the
                         FULL list so the count shown here is never a lie. */}
                     {visibleSources.map((sItem, idx) => (

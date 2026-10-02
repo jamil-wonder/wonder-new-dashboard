@@ -18,7 +18,7 @@ export default function WorkspaceLoadError({
         </div>
         <h1 className="font-spectral text-[21px] font-semibold text-[#15463b]">We couldn&apos;t load your workspace</h1>
         <p className="text-[13.5px] text-[#8a8273] mt-2 leading-relaxed">
-          This is usually a brief connection hiccup — your businesses and data are safe. Give it another try.
+          This is usually a brief connection hiccup - your businesses and data are safe. Give it another try.
         </p>
         <button
           type="button"

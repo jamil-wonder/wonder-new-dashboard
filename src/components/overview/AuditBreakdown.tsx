@@ -77,7 +77,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
         )}
       </div>
 
-      {/* ── The Plan Continues — derived from this business's actual
+      {/* ── The Plan Continues - derived from this business's actual
           weakest audit areas, not a fixed generic roadmap ── */}
       <div className="bg-[#f6f1e8] border border-[#e8e1d0] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col justify-between">
         <div>

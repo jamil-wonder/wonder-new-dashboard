@@ -112,7 +112,7 @@ export default function BusinessProfilesPanel() {
     // This is a hard, permanent delete on the backend (a single
     // delete_one with no soft-delete or archival) that also takes every
     // scan, score history, and tracked question tied to this business
-    // with it — there was previously no confirmation at all before this
+    // with it - there was previously no confirmation at all before this
     // fired, one click on a small icon button sitting directly next to
     // the same-size Edit button.
     const confirmed = window.confirm(
@@ -176,7 +176,7 @@ export default function BusinessProfilesPanel() {
       showToast(editId ? "Business profile updated!" : "New business profile created!", "success");
       await refetchBusinesses();
       // Adding a new profile (not editing the existing one) never switched
-      // to it — the active business stayed whatever it was before, so
+      // to it - the active business stayed whatever it was before, so
       // navigating to Overview right after "adding a new business" was
       // actually still showing the previous business's real, already-scanned
       // data. A newly created profile should become the active one.
@@ -296,7 +296,7 @@ export default function BusinessProfilesPanel() {
                   ))}
                 </div>
                 <p className="text-[10.5px] text-[#9b927f] mt-1.5">
-                  Updates automatically from your Search Tracker runs — not editable here.
+                  Updates automatically from your Search Tracker runs - not editable here.
                 </p>
               </div>
             )}
@@ -453,7 +453,7 @@ export default function BusinessProfilesPanel() {
                   </div>
                 </div>
 
-                {/* Metadata Chips (Category & Location) — these used to
+                {/* Metadata Chips (Category & Location) - these used to
                     silently fall back to "General"/"UK" when a business had
                     never had a category or location set at all, rendered
                     identically to real, filled-in data. A user had no way

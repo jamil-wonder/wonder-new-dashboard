@@ -37,7 +37,7 @@ export default function ContactPage() {
 
   // This used to just flip a local "submitted" flag and openly admit
   // "Delivery isn't wired up on our end yet, so nothing was actually
-  // sent" — an honest disclosure, but still a dead-end form. Now it
+  // sent" - an honest disclosure, but still a dead-end form. Now it
   // actually posts to the backend's contact endpoint, folding in the
   // topic and business context a plain email wouldn't carry.
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,10 +89,10 @@ export default function ContactPage() {
             <p className="text-[13px] text-[#d9eee7] mt-2.5 leading-relaxed">
               If the weekly plan, an Analyzer fix, or a Query result isn&rsquo;t adding up, tell us exactly what
               happened here. A real person on the team reads every message and follows up directly at the email
-              you give us — no bots, no support-ticket maze, no waiting on an auto-reply.
+              you give us - no bots, no support-ticket maze, no waiting on an auto-reply.
             </p>
             <p className="text-[13px] text-[#d9eee7] mt-2.5 leading-relaxed">
-              The more specific you are — what you expected vs. what you saw — the faster we can dig in.
+              The more specific you are - what you expected vs. what you saw - the faster we can dig in.
             </p>
           </div>
 

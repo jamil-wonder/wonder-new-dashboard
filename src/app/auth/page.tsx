@@ -16,7 +16,7 @@ function AuthPageContent() {
 
   // Links into this page (the landing site's "Get Started Free", the /scan
   // preview's "Create free account") pass ?signup=true expecting to land
-  // straight on the signup form — this used to be silently ignored, always
+  // straight on the signup form - this used to be silently ignored, always
   // defaulting to login regardless of which button sent someone here.
   const [mode, setMode] = useState<"login" | "signup">(
     searchParams.get("signup") === "true" ? "signup" : "login"
@@ -32,7 +32,7 @@ function AuthPageContent() {
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       // Covers Google sign-in, which creates an account directly with no
-      // OTP step — /onboarding checks whether this account already has a
+      // OTP step - /onboarding checks whether this account already has a
       // business and redirects straight through to /overview on its own,
       // so this is safe for both a brand-new Google signup and an
       // existing user just re-visiting /auth while already logged in.
@@ -43,7 +43,7 @@ function AuthPageContent() {
   useEffect(() => {
     // Google rejects a bare "localhost" origin unless it's been explicitly
     // added to the OAuth client's allowed origins, which produces a console
-    // error on every local dev load — same fix the old dashboard and the
+    // error on every local dev load - same fix the old dashboard and the
     // landing site already use: only render the button on localhost when
     // that's been deliberately opted into.
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
@@ -86,7 +86,7 @@ function AuthPageContent() {
 
     try {
       setLoading(true);
-      // Neither path signs the user in directly anymore — both send a code
+      // Neither path signs the user in directly anymore - both send a code
       // to the email and only /verify-email actually establishes a session.
       // No hard navigation here (unlike after verifying) since there's no
       // token yet for providers to pick up.
@@ -96,7 +96,7 @@ function AuthPageContent() {
         window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}`);
       } else {
         const { email: confirmedEmail } = await signup(email, password, name);
-        showToast("Account created — check your email for a verification code.", "success");
+        showToast("Account created - check your email for a verification code.", "success");
         window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}`);
       }
     } catch (err: any) {

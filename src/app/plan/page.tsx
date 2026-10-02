@@ -214,7 +214,7 @@ export default function PlanPage() {
   const topGaps = overviewData.queryEvidence.filter((q) => q.missing.length > 0).slice(0, 2);
 
   // Assemble this week's 5 actions: 2 content, 2 presence/quick-win, 1 flex
-  // (the weakest audit area) — mirrors Part 4's "typically 2 content pieces
+  // (the weakest audit area) - mirrors Part 4's "typically 2 content pieces
   // + 2 quick wins + 1 other, flexing to the weakest area."
   const actions: PlanAction[] = [];
 
@@ -253,7 +253,7 @@ export default function PlanPage() {
       categoryLabel: "Technical fix",
       impact: weakestAreas[0].score < 50 ? "High" : "Medium",
       title: `Fix: ${weakestAreas[0].label}`,
-      why: `This area scored ${weakestAreas[0].score}/100 — your weakest right now.`,
+      why: `This area scored ${weakestAreas[0].score}/100 - your weakest right now.`,
       doItYourselfHref: "/analyser",
       doItYourselfLabel: "Open in Analyzer",
     });
@@ -287,14 +287,14 @@ export default function PlanPage() {
           )}
         </div>
 
-        {/* Gated on isLoadingWeekly alone, not "thisWeek.length === 0" —
+        {/* Gated on isLoadingWeekly alone, not "thisWeek.length === 0" -
             the technical-fix action (sourced from Analyzer data, unrelated
             to the weekly blog fetch below) is added to thisWeek regardless
             of whether weeklyData has loaded yet, so the old condition
             silently skipped this loading state the moment ANY audit data
             existed. That let the page render a partial 1-of-3 action list
             as if it were the final, complete plan while the two content
-            actions were still in flight — indistinguishable from "this is
+            actions were still in flight - indistinguishable from "this is
             really all there is" until a later reload happened to catch it
             after loading finished. */}
         {isLoadingWeekly ? (
@@ -302,7 +302,7 @@ export default function PlanPage() {
         ) : thisWeek.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-[13px] text-[#8a8273] mb-3">
-              {isGeneratingWeekly ? "Preparing this week's content — this can take a few minutes." : "Run Analyzer and Search Tracker first so we have gaps to build a plan from."}
+              {isGeneratingWeekly ? "Preparing this week's content - this can take a few minutes." : "Run Analyzer and Search Tracker first so we have gaps to build a plan from."}
             </p>
           </div>
         ) : (
@@ -368,7 +368,7 @@ export default function PlanPage() {
                         </Link>
                       ) : null}
 
-                      {/* "We'll do it" — no concierge/fulfillment backend exists
+                      {/* "We'll do it" - no concierge/fulfillment backend exists
                           yet, so this is honest: it opens an email intent
                           rather than faking a submitted/writing/live status
                           pipeline we haven't built. */}
@@ -417,7 +417,7 @@ export default function PlanPage() {
 
       {/* This used to always say "Tune AI voice & keywords," even for a
           business that already has both a saved Business Voice and a full
-          keyword list — telling a user who did exactly what the product
+          keyword list - telling a user who did exactly what the product
           asked that there was still a setup task waiting. Now it checks
           the business's actual saved state before claiming anything's
           still outstanding. */}

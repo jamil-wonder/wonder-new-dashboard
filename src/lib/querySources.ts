@@ -1,9 +1,9 @@
-// Single source of truth for "what domains were cited for this query" —
+// Single source of truth for "what domains were cited for this query" -
 // used by the table's inline preview, the sources sidebar, and Overview's
 // citation sections, so none of them can disagree with each other or slip
 // through junk that isn't actually a real cited domain (e.g. an AI answer
 // occasionally includes a stray version-like string such as "4.0.0.5" in
-// its reference list — that is NOT a domain and must never be displayed
+// its reference list - that is NOT a domain and must never be displayed
 // as one).
 
 export function normalizeDomain(value: string): string {
@@ -74,7 +74,7 @@ export function getAllSourcesForQuery(query: QuerySourceShape | null | undefined
 }
 
 /** The union of every valid source domain cited across ALL models AND ALL
- * queries in the current run — the "view all sources" list. */
+ * queries in the current run - the "view all sources" list. */
 export function getAllSourcesForQueries(queries: QuerySourceShape[] | null | undefined): string[] {
   if (!Array.isArray(queries) || queries.length === 0) return [];
   const set = new Set<string>();

@@ -13,7 +13,7 @@ type ProfileField = {
 
 // `services`/`targetAudience` are typed as `string` on Business, but in
 // practice arrive as an array from some save paths (BusinessProfilesPanel
-// saves them as a real string[]) and a comma-joined string from others —
+// saves them as a real string[]) and a comma-joined string from others -
 // confirmed live: calling .trim() directly crashed the page the moment a
 // business had services saved as an array. Treats either shape as "filled"
 // only when it actually has real content, not just an empty [] or "".
@@ -32,7 +32,7 @@ function buildChecklist(business: Business | null | undefined): ProfileField[] {
     { label: "Services", done: hasContent(b?.services), href: "/settings?tab=entity", hint: "What you actually offer, for sharper question matching." },
     { label: "Target audience", done: hasContent(b?.targetAudience), href: "/settings?tab=entity", hint: "Who your real customers are." },
     { label: "Logo", done: hasContent(b?.logoUrl), href: "/settings?tab=entity", hint: "Shown on your shared reports and dashboard header." },
-    { label: "Locked 20 Search Tracker questions", done: Boolean(b?.questionsLocked), href: "/query", hint: "Your stable weekly baseline — nothing is tracked until this is locked." },
+    { label: "Locked 20 Search Tracker questions", done: Boolean(b?.questionsLocked), href: "/query", hint: "Your stable weekly baseline - nothing is tracked until this is locked." },
   ];
 }
 
@@ -76,7 +76,7 @@ export default function TrainProfileSection({ business }: { business: Business |
         </div>
       ) : (
         <p className="mt-4 text-[12.5px] text-[#8a8273]">
-          Everything that sharpens your Wonder Score is filled in — nice work.
+          Everything that sharpens your Wonder Score is filled in - nice work.
         </p>
       )}
     </div>

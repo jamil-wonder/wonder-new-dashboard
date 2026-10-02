@@ -8,7 +8,7 @@ interface Props {
   rows: CompetitorRankRow[];
 }
 
-// Purely a display of BusinessContext.liveDeepCompetitors — the exact same
+// Purely a display of BusinessContext.liveDeepCompetitors - the exact same
 // value Query reads, so this can never disagree with what Query just
 // showed. No fetch, no loading state, no AI cost here; empty until a Query
 // run has actually completed this session.

@@ -83,7 +83,7 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
         {/* Article Body */}
         <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-white space-y-6">
           
-          {/* Metadata Banner — this article's own readability metric, deliberately
+          {/* Metadata Banner - this article's own readability metric, deliberately
               NOT styled as a ring/gauge like the Wonder Score elsewhere in the app.
               A second circular /100 here reads as a rival headline score for the
               same business; it's a detail about this one article, not the

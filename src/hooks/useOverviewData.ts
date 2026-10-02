@@ -189,10 +189,10 @@ export interface OverviewData {
   // Scan trend
   previousScore: number | null;
   // timestamp is a real ISO date/time whenever it's known (both manual
-  // scans and the Sunday scheduler save one) — week_id (e.g. "2026-W32")
+  // scans and the Sunday scheduler save one) - week_id (e.g. "2026-W32")
   // is only a display fallback for the rare case a point predates that.
   scanPoints: { score: number; timestamp: string; week_id?: string }[];
-  // When the Analyzer (technical, Phase 1) last ran on its own — separate
+  // When the Analyzer (technical, Phase 1) last ran on its own - separate
   // from `scanPoints`/`score`, which stay visibility-first once Query data
   // exists. Lets the UI show "website re-scanned" even when a standalone
   // Analyzer re-crawl doesn't move the headline number.
@@ -200,11 +200,11 @@ export interface OverviewData {
   latestPhase1Score: number | null;
   // False whenever `score`/`grade`/`visibilityText` are only ever the
   // Phase 1 technical fallback because Search Tracker has never completed
-  // a run — any consumer that labels these "Wonder Score"/"AI Visibility"
+  // a run - any consumer that labels these "Wonder Score"/"AI Visibility"
   // must check this first, or it claims a tested result that never ran.
   hasVisibilityScore: boolean;
 
-  // Competitors — sourced from buildRankedCompetitors() and merged in at
+  // Competitors - sourced from buildRankedCompetitors() and merged in at
   // the page level; only { name, score, isUser } are read by these components.
   competitors: { name: string; score: number; isUser: boolean }[];
   userRank: number;
@@ -265,7 +265,7 @@ function ordinal(n: number) {
 
 export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number, latestPhase1At?: string | null, latestPhase1Score?: number | null, hasVisibilityScoreProp?: boolean): OverviewData {
   // The score/grade above normally come from a 2-hour, localStorage-only
-  // scan cache — great for a live "just scanned" session, but it means the
+  // scan cache - great for a live "just scanned" session, but it means the
   // score and trend chart go blank after 2 hours, after logout (which wipes
   // all wonder_-prefixed localStorage), or on a different device, even
   // though the score is genuinely still current. This is the durable
@@ -275,7 +275,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
   // header's delta).
   const [dbTrend, setDbTrend] = useState<(ScanPoint & { week_id?: string })[]>([]);
   // Score reconciliation: the headline Wonder Score and its trend are now
-  // the visibility score (mention rate/position/citation — same formula
+  // the visibility score (mention rate/position/citation - same formula
   // competitors are scored on), fetched via metric=visibility, instead of
   // the Phase 1 technical score. The technical trend (dbTrend, unchanged)
   // still feeds nothing but its own audit-area breakdown now, not the
@@ -313,19 +313,19 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     const analyserCache = loadAnalyserCache(url);
     const queryQueries: any[] | null = loadQueryCache(url);
     // localScanPoints only ever holds scans run from THIS browser this
-    // session — recordScanHistory() is only ever called from the Analyser
+    // session - recordScanHistory() is only ever called from the Analyser
     // page, so a scheduler run (server-side, no browser involved) can only
     // ever show up via dbTrend. Preferring local outright (the previous
     // behavior) meant the instant a single manual scan happened in this
-    // browser, every earlier DB-only point — including any Sunday
-    // scheduler score — vanished from the chart entirely. Merge both,
+    // browser, every earlier DB-only point - including any Sunday
+    // scheduler score - vanished from the chart entirely. Merge both,
     // de-duping points that are really the SAME scan write showing up
     // twice (once from the local recordScanHistory() call, once from the
-    // DB round-trip of that same runLiveAnalysis call — those land within
+    // DB round-trip of that same runLiveAnalysis call - those land within
     // the same request cycle, i.e. seconds apart, never minutes). This
     // window used to be 5 minutes, which was long enough to also (wrongly)
     // collapse two genuinely separate real scans a few minutes apart that
-    // just happened to produce the same score — e.g. a quick back-to-back
+    // just happened to produce the same score - e.g. a quick back-to-back
     // re-scan of a site that hadn't changed. 30 seconds still catches the
     // real duplicate without eating real distinct scans.
     const SAME_SCAN_WRITE_WINDOW_MS = 30 * 1000;
@@ -347,7 +347,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
 
     const scanData = analyserCache?.scanData;
     // Score reconciliation: the headline is the visibility trend (same
-    // formula competitors are scored on) — the technical scanData.scores
+    // formula competitors are scored on) - the technical scanData.scores
     // .total no longer competes as its own standalone number here, it only
     // still feeds auditAreas below. fallbackScore (activeBusiness
     // .completeness) is itself now visibility-first with a technical
@@ -355,13 +355,13 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // something instead of a bare 0.
     // Either signal is enough: the prop comes from the business's own
     // latest_phase5_score, dbVisibilityTrend comes from a real completed
-    // visibility-history point — either one means a Search Tracker run has
+    // visibility-history point - either one means a Search Tracker run has
     // actually happened, which is the only thing that justifies presenting
     // `score` as tested AI visibility rather than a technical fallback.
     const hasVisibilityScore = Boolean(hasVisibilityScoreProp) || dbVisibilityTrend.length > 0;
 
     // `score` (and everything derived from it below) must NEVER silently
-    // become the Phase 1 technical number — it used to fall back to
+    // become the Phase 1 technical number - it used to fall back to
     // fallbackScore (activeBusiness.completeness, which itself falls back
     // to the technical score) and then to local scanPoints (recorded ONLY
     // by the Analyzer page, i.e. also technical), so a business with a
@@ -380,7 +380,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       ? dbVisibilityTrend[dbVisibilityTrend.length - 2].score
       : null;
 
-    // Competitors are no longer derived here from cached query "sources" —
+    // Competitors are no longer derived here from cached query "sources" -
     // that produced a different, inconsistent list from page to page. The
     // single source of truth is now BusinessContext.liveDeepCompetitors
     // (buildRankedCompetitors(), see overview/page.tsx), the same value
@@ -395,7 +395,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // Audit areas
     const auditAreas = analyserCache?.auditAreas || [];
 
-    // AI insights — cached as objects { model, summary, ... } or plain strings
+    // AI insights - cached as objects { model, summary, ... } or plain strings
     const rawInsights: any[] = analyserCache?.aiInsights || [];
     const aiInsights: string[] = rawInsights
       .map((item: any) => {
@@ -417,7 +417,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       return { model, mentioned, total: totalQueries };
     });
 
-    // Cited sources from query results — same shared, validated logic the
+    // Cited sources from query results - same shared, validated logic the
     // Query table/sidebar use, so this can never show junk (stray
     // version-like strings, IPs) that isn't actually a real domain, and
     // can never disagree with what those pages show for the same run.
@@ -478,14 +478,14 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // from useCompetitorRanking() once real nearestAbove data is merged in.
     const weakestModel = [...modelMentions].sort((a, b) => a.mentioned - b.mentioned)[0];
     if (weakestModel && totalQueries > 0 && weakestModel.mentioned < totalQueries * 0.3) {
-      quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned}/${totalQueries} queries — a priority to fix.`, type: "warn" });
+      quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned}/${totalQueries} queries - a priority to fix.`, type: "warn" });
     }
 
     // The trend CHART must plot the same score the headline number above
-    // it claims — otherwise the big number and the chart's own latest
+    // it claims - otherwise the big number and the chart's own latest
     // point visibly disagree (confirmed live: headline read 65 from the
     // visibility trend while the chart plotted 78, a technical-score point,
-    // as its most recent entry). No technical fallback here at all now —
+    // as its most recent entry). No technical fallback here at all now -
     // `scanPoints` is local Analyzer-only history and must never surface
     // outside the Analyzer page (see `score` above for the same rule).
     const chartPoints = dbVisibilityTrend;
@@ -518,7 +518,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       hasAnalyserData: Boolean(scanData) || score > 0,
       hasQueryData: Boolean(queryQueries && queryQueries.length > 0),
     };
-    // refreshSignal isn't read above — it's a proxy for "a Query run just
+    // refreshSignal isn't read above - it's a proxy for "a Query run just
     // completed for this business" (BusinessContext.liveDeepCompetitors
     // updates the instant new results are saved to the session/localStorage
     // cache this hook reads from). Without it in the deps, this memo would

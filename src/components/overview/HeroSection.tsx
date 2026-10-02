@@ -56,7 +56,7 @@ function ChangeRow({ icon, bg, color, title, sub }: { icon: string; bg: string; 
 
 // Points can come from a real ISO timestamp (both manual scans and the
 // Sunday scheduler write one when the score is saved) or, on the rare
-// fallback path, a bare week_id like "2026-W32" with no real timestamp —
+// fallback path, a bare week_id like "2026-W32" with no real timestamp -
 // this must never render as "Invalid Date" for that case.
 function formatPointTimestamp(ts: string, weekId?: string): string {
   if (ts) {
@@ -99,7 +99,7 @@ function TrendDot(props: any) {
   );
 }
 
-// Plot-area geometry — kept as named constants because they're used TWICE:
+// Plot-area geometry - kept as named constants because they're used TWICE:
 // once as the actual margin/width values handed to recharts below, and
 // again to position the custom hover-tracking div so it lines up exactly
 // with where recharts draws the plot, without needing to measure the DOM.
@@ -109,11 +109,11 @@ const PLOT_TOP = 8; // matches AreaChart margin.top
 const PLOT_BOTTOM = 30; // space recharts reserves for the XAxis line + date labels
 
 // recharts v3's own Tooltip/hover wiring does not fire on this chart (verified:
-// the correct element — recharts-surface — sits under the cursor, so nothing
+// the correct element - recharts-surface - sits under the cursor, so nothing
 // is blocking it; recharts' internal mouse-tracking simply isn't triggering).
 // Rather than keep fighting that, hover is handled directly here with plain
 // onMouseMove math over the same plot rectangle recharts renders into (see
-// PLOT_* constants above) — recharts still draws the line/axes/grid, this
+// PLOT_* constants above) - recharts still draws the line/axes/grid, this
 // only replaces the broken interactive layer.
 function TrendChart({ points }: { points: { score: number; timestamp: string; week_id?: string }[] }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -121,7 +121,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
   if (points.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-[12px] text-[#a8b8a0] text-center px-2">
-        Run the Analyzer to build your scan history trend.
+        Run the Search Tracker to build your visibility trend.
       </div>
     );
   }
@@ -140,7 +140,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
   const minS = Math.max(0, Math.floor((Math.min(...scores) - 5) / 5) * 5);
   const maxS = Math.min(100, Math.ceil((Math.max(...scores) + 5) / 5) * 5);
   // recharts' own auto-generated ticks land on whatever the domain divides
-  // into (e.g. 57/64/71) — explicit, round-5 ticks read far more cleanly.
+  // into (e.g. 57/64/71) - explicit, round-5 ticks read far more cleanly.
   const midS = Math.round((minS + maxS) / 2 / 5) * 5;
   const yTicks = midS > minS && midS < maxS ? [minS, midS, maxS] : [minS, maxS];
   const range = maxS - minS || 1;
@@ -172,7 +172,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
           <XAxis
             dataKey="date"
             // Force every date to show only while they still comfortably fit
-            // — this chart sits in a ~400px column, so the threshold is
+            // - this chart sits in a ~400px column, so the threshold is
             // lower than it would be for a full-width chart. Past that,
             // fall back to recharts' own overlap-safe thinning instead of
             // jamming every label in illegibly.
@@ -204,7 +204,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
         </AreaChart>
       </ResponsiveContainer>
 
-      {/* Custom hover layer — spans exactly the plot rectangle recharts
+      {/* Custom hover layer - spans exactly the plot rectangle recharts
           draws into (see PLOT_* constants), independent of recharts'
           own broken interaction wiring. */}
       <div
@@ -244,7 +244,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
   );
 }
 
-// Softer, less saturated than a typical alert palette on purpose — these
+// Softer, less saturated than a typical alert palette on purpose - these
 // sit next to each other constantly on the page users see most, so they
 // need to read clearly as "good" vs "needs attention" without shouting.
 const GOOD = { bg: "#eaf6f0", color: "#2f8a5b" };
@@ -269,7 +269,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   const locText = data.location ? ` in ${data.location}` : "";
 
   // Every metric that has real data contributes one candidate insight,
-  // tagged honestly as good or bad based on where it actually stands — never
+  // tagged honestly as good or bad based on where it actually stands - never
   // forced. Rank is the headline signal (highest priority); AI mentions and
   // audit areas each contribute both their weakest and strongest read where
   // data exists, so there's always a genuine "needs work" and a genuine
@@ -323,7 +323,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     candidates.push({
       sentiment: "bad", metric: "audit", priority: 1, icon: "▼",
       title: `Improve: ${weakestArea.label}`,
-      sub: `Scored ${weakestArea.score}/100 — lowest of 6 audit areas`,
+      sub: `Scored ${weakestArea.score}/100 - lowest of 6 audit areas`,
     });
     candidates.push({
       sentiment: "good", metric: "audit", priority: 1, icon: "▲",
@@ -341,7 +341,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   ];
 
   // Fill any remaining slots with an honest "nothing run yet" card for
-  // whichever metric genuinely has no data — never a fabricated red or
+  // whichever metric genuinely has no data - never a fabricated red or
   // green to force the count, only ever for a metric not already shown.
   const usedMetrics = new Set(changes.map(c => c.metric));
   const pending: ChangeItem[] = [];
@@ -356,14 +356,14 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   }
   changes = [...changes, ...pending].slice(0, 3);
 
-  // Stable display order — rank, then mentions, then audit — so a card's
+  // Stable display order - rank, then mentions, then audit - so a card's
   // position always maps to the same kind of insight; only its color and
   // content change with the real data.
   const metricOrder: Record<ChangeItem["metric"], number> = { rank: 0, mentions: 1, audit: 2 };
   changes.sort((a, b) => metricOrder[a.metric] - metricOrder[b.metric]);
 
   // Low-signal state: a real scan ran (score > 0) but almost nothing came
-  // back from it — every audit area scored under 15/100, which in practice
+  // back from it - every audit area scored under 15/100, which in practice
   // means the crawler was blocked, hit a JS-heavy site with no readable
   // markup, or the page was otherwise unreadable, not that the business is
   // genuinely doing badly everywhere at once (a real crawl normally shows
@@ -371,12 +371,12 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   // visit" (no scan at all) and from a real good/tough week (which needs
   // actual signal to judge against).
   // auditAreas is technical crawl data (Analyzer), independent of `score`
-  // now that `score` can only ever be a real visibility number — a
+  // now that `score` can only ever be a real visibility number - a
   // business can have thin technical signal regardless of whether Search
   // Tracker has run yet, so this no longer gates on score at all.
   const isLowSignal = auditAreas.length > 0 && auditAreas.every((a) => a.score < 15);
 
-  // `score` here is always the real Wonder Score or 0 — see
+  // `score` here is always the real Wonder Score or 0 - see
   // useOverviewData, which no longer lets it fall back to the Phase 1
   // technical number. So `score > 0` alone is enough to mean "ranked" is a
   // safe claim; there's no separate technical-only branch to guard against.
@@ -386,11 +386,11 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.`
     : "Run your first scan.";
   const subtext = isLowSignal
-    ? "Our crawler could only pull a thin signal from your site — this score may not reflect your real visibility yet. Try re-running the scan, or check that your site isn't blocking crawlers."
+    ? "Our crawler could only pull a thin signal from your site - this score may not reflect your real visibility yet. Try re-running the scan, or check that your site isn't blocking crawlers."
     : nearestAboveName && nearestAboveGap !== null
     ? `You're just ${nearestAboveGap} points behind ${nearestAboveName}. A focused week could close the gap.`
     : score > 0
-    ? `Your Wonderscore is ${score}/100 — ${visibilityText.toLowerCase()}.`
+    ? `Your Wonderscore is ${score}/100 - ${visibilityText.toLowerCase()}.`
     : "Run Search Tracker to see how AI models actually describe you.";
 
   const ringFill = score;
@@ -412,7 +412,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
           <div className="flex items-center justify-between gap-2 mt-3.5">
             <div className="flex items-baseline gap-0.5">
               <span className="num font-spectral font-semibold text-[48px] sm:text-[72px] leading-none text-white">
-                {score > 0 ? score : "—"}
+                {score > 0 ? score : "-"}
               </span>
               <span className="num font-spectral text-[13px] sm:text-[17px] text-[#7fae97]">/100</span>
             </div>
@@ -463,11 +463,11 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         </div>
       </motion.div>
 
-      {/* ── Scan History Trend Chart — back beside the Score/Changes
+      {/* ── Scan History Trend Chart - back beside the Score/Changes
           cards. Fixed pixel height (not flex-1/min-height): this card
           sits in a CSS Grid with items-stretch, which gives it a
           definite stretched height, but recharts' ResponsiveContainer
-          needs an unambiguous measured height to render at all — an
+          needs an unambiguous measured height to render at all - an
           explicit height guarantees that regardless of how the grid
           resolves everything else. */}
       <motion.div
@@ -478,7 +478,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
       >
         <div className="flex items-start justify-between mb-1">
           <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">
-            Scan history trend
+            Visibility trend
           </div>
           {score > 0 && (
             <div className="num font-spectral text-[30px] font-semibold text-[#1e7d4f] leading-none">{score}</div>
@@ -489,13 +489,13 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         </div>
         {scanPoints.length > 0 && (
           <div className="text-[11px] text-[#b3a98f] mt-4">
-            {scanPoints.length} scan{scanPoints.length !== 1 ? "s" : ""} recorded
-            {" · "}Last analysed {formatPointTimestamp(scanPoints[scanPoints.length - 1].timestamp, scanPoints[scanPoints.length - 1].week_id)}
+            {scanPoints.length} Search Tracker run{scanPoints.length !== 1 ? "s" : ""} recorded
+            {" · "}Last run {formatPointTimestamp(scanPoints[scanPoints.length - 1].timestamp, scanPoints[scanPoints.length - 1].week_id)}
           </div>
         )}
         {/* The score/trend above stay pinned to the Query (visibility) score
             once one exists, so a standalone Analyzer re-crawl never moves
-            them — this line is the only place that reflects it happened. */}
+            them - this line is the only place that reflects it happened. */}
         {latestPhase1At && (() => {
           const lastTrendPoint = scanPoints[scanPoints.length - 1];
           const sameMoment = lastTrendPoint

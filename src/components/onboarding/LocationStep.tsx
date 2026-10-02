@@ -81,7 +81,7 @@ export default function LocationStep({
         <Note tone="info">We couldn&apos;t find an address on your website to suggest from.</Note>
         <LocationInput value={value} onChange={onChange} onEnter={onEnter} autoFocus placeholder="e.g. Manchester, UK" invalid={invalid} />
         <p className="text-[12px] text-[#9b927f] leading-relaxed">
-          A city or area is enough — for example &ldquo;Manchester, UK&rdquo; or &ldquo;Austin, TX&rdquo;. We use it to ask AI the
+          A city or area is enough - for example &ldquo;Manchester, UK&rdquo; or &ldquo;Austin, TX&rdquo;. We use it to ask AI the
           same local questions your customers ask.
         </p>
       </div>
@@ -134,7 +134,7 @@ export default function LocationStep({
           </div>
         </div>
         {only.confidence === "low" && (
-          <Note tone="warn">We&apos;re not fully sure about this one — please check it&apos;s the right place before continuing.</Note>
+          <Note tone="warn">We&apos;re not fully sure about this one - please check it&apos;s the right place before continuing.</Note>
         )}
       </div>
     );
@@ -144,7 +144,7 @@ export default function LocationStep({
     <div className="space-y-3">
       <Note tone="info">
         <strong className="font-semibold">We found {detected.length} locations on your site.</strong> WonderScore tracks one
-        location per business, so choose the one that matters most — you can change it any time in Settings.
+        location per business, so choose the one that matters most - you can change it any time in Settings.
       </Note>
       <div role="radiogroup" aria-label="Choose your main location" className="space-y-2 max-h-[260px] overflow-y-auto pr-0.5">
         {detected.map((loc) => {

@@ -32,7 +32,7 @@ export default function SavedSearchTrackerPanel() {
         <div>
           <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Saved Search Tracker</h3>
           <p className="text-[12.5px] text-[#8a8273] mt-0.5">
-            The locked 20 questions Wonder Score tracks every week — shown here read-only, just for confirmation that what's saved is what you think is saved.
+            The locked 20 questions Wonder Score tracks every week - shown here read-only, just for confirmation that what's saved is what you think is saved.
           </p>
         </div>
         {hasSaved && (
@@ -49,7 +49,7 @@ export default function SavedSearchTrackerPanel() {
           </div>
           <p className="text-[14px] font-semibold text-[#23211b] mb-1">Nothing saved yet</p>
           <p className="text-[13px] text-[#8a8273] max-w-[380px] mx-auto mb-5">
-            Head to Search Tracker, generate your 20 questions, and lock them in — they'll show up here automatically once saved.
+            Head to Search Tracker, generate your 20 questions, and lock them in - they'll show up here automatically once saved.
           </p>
           <button
             onClick={() => router.push("/query")}
@@ -64,8 +64,8 @@ export default function SavedSearchTrackerPanel() {
             <Lock className="w-4 h-4 text-[#9b927f] shrink-0" />
             <p className="text-[12.5px] text-[#6f6757]">
               {isLocked
-                ? "These are locked — read-only here. Edit them from Search Tracker, not here."
-                : "Saved, but not yet locked — Search Tracker will still show them as editable until you lock them there."}
+                ? "These are locked - read-only here. Edit them from Search Tracker, not here."
+                : "Saved, but not yet locked - Search Tracker will still show them as editable until you lock them there."}
             </p>
           </div>
 

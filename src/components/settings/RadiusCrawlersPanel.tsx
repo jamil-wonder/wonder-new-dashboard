@@ -4,7 +4,7 @@ import { Clock } from "lucide-react";
 
 // This used to be a fully decorative form: uncontrolled checkboxes
 // (`defaultChecked`, never read from or written to anywhere), and "Save
-// preferences" just fired a fake success toast with zero backend call —
+// preferences" just fired a fake success toast with zero backend call -
 // the exact same class of issue as the old Geo Radius panel. It's also
 // worth being honest about what this control could even mean: WonderScore
 // analyzes a business's website, it doesn't host or manage it, so it has
@@ -23,7 +23,7 @@ export default function RadiusCrawlersPanel() {
       </div>
       <p className="text-[13px] text-[#6f6757] leading-relaxed">
         We'll show whether GPTBot, ClaudeBot, and PerplexityBot can currently reach your site, and the exact
-        robots.txt lines to add if any of them are blocked — WonderScore analyzes your site, it doesn't host it, so
+        robots.txt lines to add if any of them are blocked - WonderScore analyzes your site, it doesn't host it, so
         this will always be a recommendation you apply yourself, not a switch we flip for you.
       </p>
     </div>

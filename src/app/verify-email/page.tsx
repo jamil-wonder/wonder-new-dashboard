@@ -98,14 +98,14 @@ function parseErrorMessage(err: unknown): string {
     const parsed = JSON.parse(body);
     if (typeof parsed?.detail === "string") return parsed.detail;
   } catch {}
-  return body || "Couldn't verify that code — try again.";
+  return body || "Couldn't verify that code - try again.";
 }
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const { user, verifyOtp, resendOtp } = useUser();
-  // Whoever got sent here — a brand-new signup, someone mid-login, or an
-  // existing session whose email just changed — always arrives with the
+  // Whoever got sent here - a brand-new signup, someone mid-login, or an
+  // existing session whose email just changed - always arrives with the
   // email in the URL. Falling back to the current user only covers the
   // rare case of landing here with a live session and no query param.
   const email = searchParams.get("email") || user?.email || "";
@@ -129,7 +129,7 @@ function VerifyEmailContent() {
           </div>
           <h1 className="font-spectral text-[22px] font-semibold text-[#15463b] mt-4">No pending verification</h1>
           <p className="text-[13.5px] text-[#8a8273] mt-2 max-w-[320px] mx-auto leading-relaxed">
-            Sign in or create an account first — we&rsquo;ll send a code and bring you back here.
+            Sign in or create an account first - we&rsquo;ll send a code and bring you back here.
           </p>
           <Link
             href="/auth"
@@ -151,9 +151,9 @@ function VerifyEmailContent() {
     setErrorMsg("");
     try {
       await verifyOtp(email, codeToSubmit.trim());
-      // Hard navigation — forces every provider (BusinessContext included)
+      // Hard navigation - forces every provider (BusinessContext included)
       // to remount and fetch fresh with this session's brand-new token.
-      // Goes to /onboarding rather than straight to /overview — that page
+      // Goes to /onboarding rather than straight to /overview - that page
       // itself checks whether this account already has a business (a
       // routine login, not a first-time signup) and redirects straight
       // through to /overview on its own; only a genuinely new account
@@ -188,7 +188,7 @@ function VerifyEmailContent() {
     setErrorMsg("");
     try {
       await resendOtp(email);
-      setResendMsg("A fresh code is on its way — check your inbox.");
+      setResendMsg("A fresh code is on its way - check your inbox.");
     } catch (err) {
       setResendMsg(parseErrorMessage(err));
     } finally {

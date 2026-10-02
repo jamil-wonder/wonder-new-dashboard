@@ -15,7 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 // Appended to NAV_ITEMS at render time (see NavTabs.tsx) only when
-// user.role === "admin" — kept separate so it's never accidentally shown
+// user.role === "admin" - kept separate so it's never accidentally shown
 // to a regular user just by editing NAV_ITEMS.
 export const ADMIN_NAV_ITEM: NavItem = {
   id: "admin",

@@ -70,7 +70,7 @@ function NotificationsPanel() {
             Scan-complete emails
           </div>
           <p className="text-[12px] text-[#8a8273] mt-0.5 max-w-[420px]">
-            Get an email summary — score, grade, and what was found — every time
+            Get an email summary - score, grade, and what was found - every time
           </p>
         </div>
         <ToggleSwitch
@@ -142,7 +142,7 @@ export default function AccountInfoPanel() {
       setConfirmPassword("");
     } catch (err) {
       // Previously showed a fake "success" toast and cleared the form on
-      // ANY failure here — including a wrong current password — so a user
+      // ANY failure here - including a wrong current password - so a user
       // could believe their password had changed when it hadn't. Show the
       // real reason and leave the fields as typed so they don't have to
       // re-enter everything to retry.
@@ -214,7 +214,7 @@ export default function AccountInfoPanel() {
         </div>
       </form>
 
-      {/* Geo Radius Settings — this used to be a fully non-functional mock:
+      {/* Geo Radius Settings - this used to be a fully non-functional mock:
           a hardcoded "Bristol" label on every option regardless of any
           business's real location, a radius value that was never fetched
           or persisted, and a "Save radius" button that just fired a fake
@@ -222,7 +222,7 @@ export default function AccountInfoPanel() {
           feed Local SEO question generation (that already correctly reads
           each business's own saved location), but it did directly lie to
           the user about both the city and whether anything was saved.
-          Same class of issue as the old mocked Billing tab — replaced with
+          Same class of issue as the old mocked Billing tab - replaced with
           an honest not-built-yet state rather than shipping fake geo data. */}
       <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">

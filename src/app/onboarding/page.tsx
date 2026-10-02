@@ -19,7 +19,7 @@ import {
 
 // Identical to the layout's own loading screen, so a decision that happens
 // here (e.g. "this account is already set up, go to the dashboard") is
-// perceived as one continuous load — never a frame of the wizard.
+// perceived as one continuous load - never a frame of the wizard.
 function WorkspaceSpinner() {
   return (
     <div className="min-h-screen bg-[#fdfcf8] flex items-center justify-center">
@@ -103,8 +103,8 @@ function matchCategory(raw: unknown): string {
 // Tap-to-select chip list, backed by a plain comma-separated string value
 // (matches what the save payload and the rest of the app already expect).
 // The tappable options themselves come from a real AI suggestion call
-// tailored to this specific business — not a generic list that's the same
-// for a law firm and a taco truck — with free-text add as the escape
+// tailored to this specific business - not a generic list that's the same
+// for a law firm and a taco truck - with free-text add as the escape
 // hatch for anything the suggestions missed.
 function ChipPicker({
   options,
@@ -233,7 +233,7 @@ function RegenerateLink({ isSuggesting, onClick }: { isSuggesting: boolean; onCl
 }
 
 // AI-suggested text field that starts in a clearly-labeled "suggested"
-// preview state and only becomes editable once the user taps Edit — the
+// preview state and only becomes editable once the user taps Edit - the
 // point isn't that the value is hidden, it's that accepting vs changing it
 // is an explicit action, not something that happens by silently landing in
 // an already-editable textarea the user might not even notice was pre-filled.
@@ -270,7 +270,7 @@ function AcceptOrEditText({
           </button>
         </div>
         <p className="text-[13.5px] text-[#2c2821] leading-relaxed whitespace-pre-wrap">
-          {value || <span className="text-[#9b927f] italic">Nothing found — add this yourself.</span>}
+          {value || <span className="text-[#9b927f] italic">Nothing found - add this yourself.</span>}
         </p>
       </div>
     );
@@ -405,12 +405,12 @@ const STEP_ORDER: StepId[] = [
 ];
 
 // One simple step after signup: give us your URL, we scrape what we can
-// (name, description, an address if the site has one) and pre-fill it —
+// (name, description, an address if the site has one) and pre-fill it -
 // same /api/scrape the Analyser already uses, no separate scraper to
 // maintain. Category, services, and target audience have no reliable
 // auto-extraction, so those stay pick-don't-type instead of guessed.
 //
-// One question per screen, progress bar, never a long form — per the
+// One question per screen, progress bar, never a long form - per the
 // platform-flow spec (Part 2). The URL step is its own screen before the
 // wizard starts since it's what unlocks every later step's pre-fill.
 function OnboardingContent() {
@@ -447,7 +447,7 @@ function OnboardingContent() {
   const [categorySuggested, setCategorySuggested] = useState(false);
   const [location, setLocation] = useState("");
   const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
-  // The URL the current prefill data came from — lets "Back" to the URL step
+  // The URL the current prefill data came from - lets "Back" to the URL step
   // and straight forward again skip a pointless re-crawl that would also
   // overwrite everything the user has already edited.
   const lastScrapedUrlRef = useRef("");
@@ -477,7 +477,7 @@ function OnboardingContent() {
     setQg((cur) => ({ ...cur, [key]: Math.max(0, Math.min(20, Number(raw) || 0)) }));
   };
 
-  // One real AI call analyzing this specific business — replaces
+  // One real AI call analyzing this specific business - replaces
   // description/AI description/services/audience being either blank or
   // (for services/audience) a generic hardcoded list that's the same
   // regardless of what the business actually is. Fired once right after
@@ -514,7 +514,7 @@ function OnboardingContent() {
       if (Array.isArray(res?.services) && res.services.length > 0) setSuggestedServices(res.services);
       if (Array.isArray(res?.targetAudience) && res.targetAudience.length > 0) setSuggestedAudience(res.targetAudience);
     } catch {
-      // Non-fatal — every one of these fields is still editable manually,
+      // Non-fatal - every one of these fields is still editable manually,
       // so a failed suggestion call just means starting from blank/scraped
       // text instead of AI-tailored text, not a dead end.
     } finally {
@@ -523,7 +523,7 @@ function OnboardingContent() {
   };
 
   // Existing users going through OTP for a routine login (not first-time
-  // signup) already have a business — send them straight through instead
+  // signup) already have a business - send them straight through instead
   // of onboarding again every time they log in.
   const alreadySetUp = !isAddingAnother && businesses.length > 0;
   useEffect(() => {
@@ -534,7 +534,7 @@ function OnboardingContent() {
 
   // A visitor who already ran the free /scan preview and then created an
   // account shouldn't be asked to paste their URL again or wait through
-  // another crawl — /scan's "Create free account" button stashes what it
+  // another crawl - /scan's "Create free account" button stashes what it
   // already found here, one-time-use, so onboarding can pick up right
   // where the preview left off instead of starting cold.
   useEffect(() => {
@@ -555,7 +555,7 @@ function OnboardingContent() {
     }
     // Only the structured, validated list is trusted. An older prefill (or
     // any code path) that stashed a raw address string as `location` is
-    // ignored on purpose — that raw string is what produced the nonsense
+    // ignored on purpose - that raw string is what produced the nonsense
     // "locations" in the first place.
     const detected = parseDetectedLocations(prefill.locations);
     setDetectedLocations(detected);
@@ -584,7 +584,7 @@ function OnboardingContent() {
     // new one. Say so up front, before spending a crawl on it.
     const duplicate = businesses.find((b) => normalizeDomain(b.url) === normalizeDomain(cleanUrl));
     if (duplicate) {
-      setErrorMsg(`You already have ${duplicate.name || "this business"} in your account — you can edit it in Settings.`);
+      setErrorMsg(`You already have ${duplicate.name || "this business"} in your account - you can edit it in Settings.`);
       return;
     }
 
@@ -598,7 +598,7 @@ function OnboardingContent() {
 
     setIsFetching(true);
     try {
-      // record_scan: false — this is a background prefill crawl to
+      // record_scan: false - this is a background prefill crawl to
       // autofill name/description/location, not a user-requested Analyzer
       // run. Without this flag, a brand-new business showed up on the
       // Dashboard already "scanned" the moment onboarding finished, even
@@ -610,7 +610,7 @@ function OnboardingContent() {
       const scrapedName = res?.businessName || "";
       const scrapedDesc = res?.description || "";
       // Never `addresses[0]`: that list was unordered and full of raw page
-      // text. `locations` is the validated, city-level, ranked result — and
+      // text. `locations` is the validated, city-level, ranked result - and
       // when there are several we must NOT pick one silently, the user does.
       const detected = parseDetectedLocations(res?.locations);
       const detectedLocation = detected.length === 1 ? detected[0].label : "";
@@ -630,13 +630,13 @@ function OnboardingContent() {
       setStepIndex(0);
       fetchSuggestions(cleanUrl, scrapedName, scrapedDesc, { location: detectedLocation, category: detectedCategory });
     } catch (err: any) {
-      // A failed scrape shouldn't dead-end signup — fall through to the
+      // A failed scrape shouldn't dead-end signup - fall through to the
       // same manual-entry steps, just empty, with an honest note why.
       setDetectedLocations([]);
       setLocation("");
       setCategory("");
       setCategorySuggested(false);
-      setErrorMsg("Couldn't reach that website automatically — you can still fill in the details yourself.");
+      setErrorMsg("Couldn't reach that website automatically - you can still fill in the details yourself.");
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = "";
       setStepIndex(0);
@@ -677,7 +677,7 @@ function OnboardingContent() {
       // whichever was active before.
       if (isAddingAnother && created?.id) setActiveBusinessId(String(created.id));
       await refetchBusinesses();
-      showToast("Your business is set up — let's take a look.", "success");
+      showToast("Your business is set up - let's take a look.", "success");
       router.replace("/overview");
     } catch (err) {
       setErrorMsg(parseApiError(err, "Couldn't save your business. Please try again."));
@@ -693,12 +693,12 @@ function OnboardingContent() {
   const locationError = validateLocationInput(location);
 
   // Name, category and location are the three things everything downstream
-  // (scoring, question generation, local search) depends on — the rest of
+  // (scoring, question generation, local search) depends on - the rest of
   // the steps stay optional.
   function validateStep(step: StepId): { step: StepId; message: string } | null {
     if (step === "name" && !name.trim()) return { step, message: "Give your business a name." };
     if (step === "category" && !category.trim()) {
-      return { step, message: "Pick the closest category — it helps us ask AI the right questions about you." };
+      return { step, message: "Pick the closest category - it helps us ask AI the right questions about you." };
     }
     if (step === "location" && locationError) return { step, message: locationError };
     return null;
@@ -754,18 +754,18 @@ function OnboardingContent() {
 
   const stepTitles: Record<StepId, { title: string; sub: string }> = {
     url: { title: "Add your business", sub: "Enter your website and we'll pull in what we can find automatically." },
-    name: { title: "What's your business called?", sub: "We found this on your site — keep it or fix it." },
+    name: { title: "What's your business called?", sub: "We found this on your site - keep it or fix it." },
     category: {
       title: "What category best fits?",
-      sub: categorySuggested ? "We picked this from your site — change it if it's not right." : "Pick the closest match.",
+      sub: categorySuggested ? "We picked this from your site - change it if it's not right." : "Pick the closest match.",
     },
     location: {
       title: "Where are you based?",
       sub:
         detectedLocations.length > 1
-          ? "Your business has more than one location — pick the main one to track."
+          ? "Your business has more than one location - pick the main one to track."
           : detectedLocations.length === 1
-          ? "We found this on your site — confirm or update it."
+          ? "We found this on your site - confirm or update it."
           : "Tell us the city or area you mainly serve.",
     },
     description: { title: "How would you describe the business?", sub: "A short, plain-English summary." },

@@ -16,14 +16,14 @@ export default function DashboardHeader() {
   const [historyPrevScore, setHistoryPrevScore] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
 
-  // Only ever the real AI-visibility (Wonder) score — never the Phase 1
+  // Only ever the real AI-visibility (Wonder) score - never the Phase 1
   // technical fallback. activeBusiness.completeness silently holds the
   // technical score when no Search Tracker run exists yet; showing that
   // number here under "Wonder Score" framing is exactly the mismatch that
   // had this page and the Overview hero (which reads the real visibility
   // score directly) showing two different numbers for the same business
   // at the same time. The technical score belongs on the Analyzer page
-  // only — nowhere else.
+  // only - nowhere else.
   const rawScore = activeBusiness?.hasVisibilityScore ? (activeBusiness?.completeness ?? 0) : 0;
   const scoreDisplay = rawScore > 0 ? rawScore : null;
 
@@ -92,7 +92,7 @@ export default function DashboardHeader() {
               </span>
             </Link>
 
-            {/* Mobile-only compact score pill — the full ring badge below stays
+            {/* Mobile-only compact score pill - the full ring badge below stays
                 sm:+ only (hidden sm:flex), so this is the one place a mobile
                 visitor can see their score at all without it colliding with
                 the logo + bell/avatar row. */}
@@ -110,7 +110,7 @@ export default function DashboardHeader() {
               </div>
             )}
 
-            {/* Active Business Info & Dynamic Score Trend — Expanded Layout */}
+            {/* Active Business Info & Dynamic Score Trend - Expanded Layout */}
             <div className="hidden lg:block flex-1 min-w-0 pl-3.5 border-l border-[#efe7d6]">
               {hasBusiness ? (
                 <>
@@ -126,7 +126,7 @@ export default function DashboardHeader() {
                   {/* Dynamic Score Status Pill */}
                   {scoreDisplay === null ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-0.5 rounded-full">
-                      — Not Scanned
+                      - Not Scanned
                     </span>
                   ) : scoreDisplay >= 80 ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#1e7d4f] px-2.5 py-0.5 rounded-full">
@@ -134,7 +134,7 @@ export default function DashboardHeader() {
                     </span>
                   ) : scoreDisplay >= 50 ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#9a6a12] px-2.5 py-0.5 rounded-full">
-                      — Score Steady
+                      - Score Steady
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#b1442a] px-2.5 py-0.5 rounded-full">
@@ -183,7 +183,7 @@ export default function DashboardHeader() {
                       {scoreDisplay}
                     </span>
                   ) : (
-                    <span className="num font-spectral font-medium text-[17px] text-[#c2b69c]">—</span>
+                    <span className="num font-spectral font-medium text-[17px] text-[#c2b69c]">-</span>
                   )}
                 </div>
               </div>
@@ -207,7 +207,7 @@ export default function DashboardHeader() {
               </div>
             </div>
 
-            {/* Subscription card — moved here from the old top-level "Plan" nav
+            {/* Subscription card - moved here from the old top-level "Plan" nav
                 tab, which now points to the weekly action-plan page instead
                 (see Part 4 of the platform-flow spec: billing lives in the
                 account menu, not as its own nav tab). */}
@@ -239,7 +239,7 @@ export default function DashboardHeader() {
               </div>
             </Link>
 
-            {/* User Profile Dropdown Menu — was hidden entirely below sm with
+            {/* User Profile Dropdown Menu - was hidden entirely below sm with
                 no substitute, leaving mobile with no way to reach account/
                 sign-out at all. Now always visible; UserDropdownMenu already
                 hides the name/email text below md on its own, so this stays

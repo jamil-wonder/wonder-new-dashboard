@@ -34,7 +34,7 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
       <div className="flex items-center justify-between gap-4 flex-wrap">
 
         {/* ── Segmented glider tabs ──
-            4 buttons (icon + label) never fit a 375px card on their own —
+            4 buttons (icon + label) never fit a 375px card on their own -
             outer flex-wrap only helps once this whole block doesn't fit
             next to the score card; it can't shrink the block itself. Below
             sm this scrolls horizontally instead of clipping the last tab. */}

@@ -50,7 +50,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
 };
 
 // Raw model identifiers (gpt-5.4-mini, claude-sonnet-4-5, ...) are an
-// implementation detail — the brand name is what a visitor recognizes.
+// implementation detail - the brand name is what a visitor recognizes.
 function modelDisplayName(modelName?: string): string {
   if (!modelName) return "AI";
   const lowered = modelName.toLowerCase();
@@ -61,12 +61,12 @@ function modelDisplayName(modelName?: string): string {
 type Finding = { text: string; modelName?: string };
 
 // Real findings only, synthesized from the actual per-model AI insight data
-// (isKnown/summary/evidence/platforms) — never fabricated point values or
+// (isKnown/summary/evidence/platforms) - never fabricated point values or
 // invented "X of 10 questions" stats we don't have data for at this stage.
 function buildFindings(insights: any[], businessName: string): Finding[] {
   const findings: Finding[] = [];
   if (!Array.isArray(insights) || insights.length === 0) {
-    return [{ text: "We couldn't gather AI recognition data for this site — try again in a moment." }];
+    return [{ text: "We couldn't gather AI recognition data for this site - try again in a moment." }];
   }
   const known = insights.filter((i) => i?.isKnown);
   const unknown = insights.filter((i) => !i?.isKnown);
@@ -77,7 +77,7 @@ function buildFindings(insights: any[], businessName: string): Finding[] {
   } else if (known.length === total) {
     findings.push({ text: `${total === 1 ? "The" : "All " + total} AI assistant${total === 1 ? "" : "s"} we tested already recognize${total === 1 ? "s" : ""} ${businessName}.` });
   } else {
-    findings.push({ text: `${known.length} of ${total} AI assistants recognize ${businessName} — ${unknown.map((i) => modelDisplayName(i.modelName)).join(", ")} ${unknown.length === 1 ? "doesn't" : "don't"}.` });
+    findings.push({ text: `${known.length} of ${total} AI assistants recognize ${businessName} - ${unknown.map((i) => modelDisplayName(i.modelName)).join(", ")} ${unknown.length === 1 ? "doesn't" : "don't"}.` });
   }
 
   const sampleKnown = known.find((i) => i.summary);
@@ -95,7 +95,7 @@ function buildFindings(insights: any[], businessName: string): Finding[] {
     findings.push({ text: "Closing that gap is exactly what weekly tracking is for." });
   } else if (findings.length < 3) {
     // Single fully-known-model case (the anonymous preview only tests one
-    // model to keep cost down) — a third genuine data point instead of
+    // model to keep cost down) - a third genuine data point instead of
     // stopping at two: what platforms it says it knows the business from.
     const withPlatforms = known.find((i) => Array.isArray(i.platforms) && i.platforms.length > 0);
     if (withPlatforms) {
@@ -127,7 +127,7 @@ function ScanContent() {
   const [score, setScore] = useState<number | null>(null);
   const [businessName, setBusinessName] = useState("");
   const [location, setLocation] = useState("");
-  // Everything the crawl found, handed to onboarding if they sign up — so a
+  // Everything the crawl found, handed to onboarding if they sign up - so a
   // multi-location business gets the pick-one step instead of a guess.
   const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
   const [detectedCategory, setDetectedCategory] = useState("");
@@ -146,7 +146,7 @@ function ScanContent() {
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
 
   const scanMessageTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Synchronous re-entrancy guard — the anonymous scan is rate-limited to
+  // Synchronous re-entrancy guard - the anonymous scan is rate-limited to
   // one real success per day per visitor, so an accidental double-submit
   // (double-click, a stray re-render re-firing the handler, or the
   // auto-run-on-arrival effect racing a manual click) must never burn that
@@ -154,7 +154,7 @@ function ScanContent() {
   const isScanningRef = useRef(false);
   const autoRunDone = useRef(false);
 
-  // Already-signed-in visitors skip straight to their dashboard — this
+  // Already-signed-in visitors skip straight to their dashboard - this
   // page is the anonymous entry point only.
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("wonder_token") : null;
@@ -183,7 +183,7 @@ function ScanContent() {
     setFindingsLimited(false);
     setScanMessageIndex(0);
     setStage("scanning");
-    // One scan_id for this entire attempt — the backend's public rate
+    // One scan_id for this entire attempt - the backend's public rate
     // limiter uses it to recognize that /api/ai-insights, /api/public/
     // competitors, etc. belong to the SAME successful scan that just ran,
     // not a brand-new unrelated visitor. Without this, every one of those
@@ -199,7 +199,7 @@ function ScanContent() {
       });
       const totalScore = scrapeRes?.scores?.total ?? 0;
       const detectedName = scrapeRes?.businessName || cleanUrl.replace(/^https?:\/\//, "").split("/")[0];
-      // The scrape already found real location/description signal — losing
+      // The scrape already found real location/description signal - losing
       // it here means the competitor lookup below has nothing to anchor on
       // but a bare name, which is exactly what let it return same-name-ish
       // matches from the wrong country entirely. Anchor only on a city we're
@@ -226,12 +226,12 @@ function ScanContent() {
         setFindings(buildFindings(insightsRes?.insights || [], detectedName));
       } catch (insightErr: any) {
         // A 429 here means the visitor's free AI-recognition check for today
-        // is already spent — a real, honest state, not a slow response, so
+        // is already spent - a real, honest state, not a slow response, so
         // it must say so rather than implying "still loading."
         if (insightErr?.status === 429) {
           setFindingsLimited(true);
         } else {
-          setFindings([{ text: "AI recognition data is temporarily unavailable — the full breakdown will have it." }]);
+          setFindings([{ text: "AI recognition data is temporarily unavailable - the full breakdown will have it." }]);
         }
       } finally {
         setFindingsLoading(false);
@@ -245,7 +245,7 @@ function ScanContent() {
   };
 
   // Arriving here with ?url= already means the visitor pasted it on the
-  // real marketing landing page and clicked through — don't make them
+  // real marketing landing page and clicked through - don't make them
   // type it again, just start scanning immediately.
   useEffect(() => {
     if (checkingAuth || autoRunDone.current || !initialUrl.trim()) return;
@@ -281,7 +281,7 @@ function ScanContent() {
             });
             setCompetitors(compRes?.competitors || []);
           } catch {
-            // Competitor lookup is a nice-to-have on the unlocked view — the
+            // Competitor lookup is a nice-to-have on the unlocked view - the
             // score and findings are already real and already shown, so a
             // failure here shouldn't block anything.
           } finally {
@@ -297,7 +297,7 @@ function ScanContent() {
             });
             setFullResultQuestions(qRes?.questions || []);
           } catch {
-            // Same as competitors — a nice-to-have on top of the already-real
+            // Same as competitors - a nice-to-have on top of the already-real
             // score and findings, so a failure here shouldn't block anything.
           } finally {
             setQuestionsLoading(false);
@@ -314,7 +314,7 @@ function ScanContent() {
 
   const handleCreateAccount = () => {
     // Onboarding's own URL-entry step is redundant for someone who already
-    // ran this preview — hand off what we already found so it can skip
+    // ran this preview - hand off what we already found so it can skip
     // straight past re-typing the URL and re-crawling the site.
     try {
       localStorage.setItem(
@@ -361,7 +361,7 @@ function ScanContent() {
               exit={{ opacity: 0 }}
               className="w-full max-w-[480px]"
             >
-              {/* No sell copy here — the pitch already happened on the real
+              {/* No sell copy here - the pitch already happened on the real
                   landing page. This is just the working input for someone
                   who's already decided to check. */}
               <form onSubmit={handleScan} className="flex gap-2.5">
@@ -454,7 +454,7 @@ function ScanContent() {
                     </div>
                   ) : findingsLimited ? (
                     <div className="text-[13px] text-[#8a8273] leading-relaxed">
-                      You've used today's free AI-recognition check. Your Wonder Score above is still real — sign up to see per-model findings and track them weekly.
+                      You've used today's free AI-recognition check. Your Wonder Score above is still real - sign up to see per-model findings and track them weekly.
                     </div>
                   ) : (
                     <div className="space-y-2.5">
@@ -478,7 +478,7 @@ function ScanContent() {
                 </div>
               </div>
 
-              {/* Full breakdown — blurred + email-gated until unlocked, the
+              {/* Full breakdown - blurred + email-gated until unlocked, the
                   highest-converting moment per Part 1: it comes AFTER the
                   free findings, never before. */}
               <div className="relative mt-4">
@@ -532,7 +532,7 @@ function ScanContent() {
                       </div>
                     ) : stage === "unlocked" && questionsLoaded ? (
                       <div className="text-[13px] text-[#8a8273] py-2 mb-4">
-                        No question results available right now — that sharpens once you're tracking weekly.
+                        No question results available right now - that sharpens once you're tracking weekly.
                       </div>
                     ) : null}
 
@@ -557,20 +557,20 @@ function ScanContent() {
                         ))}
                       </div>
                     ) : stage === "unlocked" && competitorsLoaded && !competitorsLoading ? (
-                      // Genuinely no competitors surfaced — an honest result,
+                      // Genuinely no competitors surfaced - an honest result,
                       // not a stuck loading state. Only shows once the call
                       // has actually finished, so it never flashes before
                       // the real answer arrives.
                       <div className="text-[13px] text-[#8a8273] py-2">
-                        No specific competitors surfaced for this site yet — that sharpens once you're tracking weekly.
+                        No specific competitors surfaced for this site yet - that sharpens once you're tracking weekly.
                       </div>
                     ) : stage === "unlocked" && competitorsLoading ? (
-                      // Explicit, visibly-active state — this lookup can take
+                      // Explicit, visibly-active state - this lookup can take
                       // up to ~30s, and static gray bars alone read as stuck
                       // rather than working.
                       <div className="flex items-center gap-2 text-[13px] text-[#8a8273] py-2">
                         <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                        Finding real competitors for you — this can take up to 30 seconds…
+                        Finding real competitors for you - this can take up to 30 seconds…
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -590,7 +590,7 @@ function ScanContent() {
                     <form onSubmit={handleUnlock} className="bg-white border border-[#ece3d1] rounded-2xl p-5 shadow-[0_8px_28px_rgba(21,70,59,0.16)] w-full max-w-[380px] text-center">
                       <Lock className="w-5 h-5 text-[#15463b] mx-auto mb-2" />
                       <div className="font-spectral text-[16px] font-semibold text-[#15463b]">Unlock the full breakdown</div>
-                      <p className="text-[12px] text-[#8a8273] mt-1 mb-4">One email — no account needed yet.</p>
+                      <p className="text-[12px] text-[#8a8273] mt-1 mb-4">One email - no account needed yet.</p>
                       <input
                         type="email"
                         value={email}

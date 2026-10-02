@@ -12,7 +12,7 @@ interface PublicReport {
   score: number | null;
   grade: string | null;
   // False when "score"/"grade" are only the Phase 1 technical crawl result
-  // because Search Tracker has never completed a run for this business —
+  // because Search Tracker has never completed a run for this business -
   // this page must never present that as a tested AI-visibility result.
   visibilityVerified: boolean;
   previousScore: number | null;

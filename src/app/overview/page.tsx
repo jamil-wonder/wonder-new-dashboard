@@ -43,7 +43,7 @@ export default function OverviewPage() {
   const { showToast } = useToast();
   const [isRunningNow, setIsRunningNow] = useState(false);
   // Separate from isRunningNow (which only disables the button briefly to
-  // stop a double-click) — this stays visible for a full 20 minutes so the
+  // stop a double-click) - this stays visible for a full 20 minutes so the
   // "it's still working, you don't need to wait here" message survives long
   // after the initial toast has faded. Resets if the user navigates away
   // and back, which is an acceptable gap for a same-session status note.
@@ -62,19 +62,19 @@ export default function OverviewPage() {
       setTimeout(() => setJustStartedRun(false), 20 * 60 * 1000);
     } catch (err: any) {
       if (err?.status === 429) {
-        showToast("You've already run this today — try again tomorrow.", "info");
+        showToast("You've already run this today - try again tomorrow.", "info");
       } else {
         showToast("Couldn't start the update. Please try again.", "error");
       }
     } finally {
-      // Stays disabled for a beat rather than snapping back immediately —
+      // Stays disabled for a beat rather than snapping back immediately -
       // the real work continues for minutes in the background regardless,
       // this just prevents an accidental instant double-click.
       setTimeout(() => setIsRunningNow(false), 4000);
     }
   };
   // liveDeepCompetitors updates the instant a Query run finishes for this
-  // business — passing it through forces useOverviewData to re-read the
+  // business - passing it through forces useOverviewData to re-read the
   // query cache instead of staying frozen at whatever it computed the
   // first time this hook ran (see the hook's own comment for why).
   const overviewData = useOverviewData(activeBusiness?.url || "", liveDeepCompetitors, activeBusiness?.completeness, activeBusiness?.latestPhase1At, activeBusiness?.latestPhase1Score, activeBusiness?.hasVisibilityScore);
@@ -82,10 +82,10 @@ export default function OverviewPage() {
   // Reads the EXACT same liveDeepCompetitors value Query does (see
   // BusinessContext) instead of a separately-fetched, separately-merged
   // backend snapshot. Query and Overview are now structurally guaranteed
-  // to agree — there's no second data source that can drift or race.
+  // to agree - there's no second data source that can drift or race.
   // Deliberate consequence: if no Query run has happened yet this session
   // for the active business, this is correctly empty rather than showing
-  // an old "last known" list — competitors only ever appear once actually
+  // an old "last known" list - competitors only ever appear once actually
   // discovered.
   const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
   const userRow = competitorRows.find((c) => c.isUser) || null;
@@ -106,7 +106,7 @@ export default function OverviewPage() {
 
     const loadWeeklyBlogs = async () => {
       const businessId = activeBusiness?.id || "";
-      // Clear immediately — the previous business's blog drafts otherwise
+      // Clear immediately - the previous business's blog drafts otherwise
       // stay visible (mislabeled) until this fetch resolves.
       setWeeklyBlogDrafts([]);
       if (!/^[0-9a-fA-F]{24}$/.test(businessId)) {
@@ -167,7 +167,7 @@ export default function OverviewPage() {
     return <OverviewSkeleton />;
   }
 
-  // A brand-new business has nothing real to report yet — the weekly-
+  // A brand-new business has nothing real to report yet - the weekly-
   // briefing dashboard this page is meant to be doesn't exist as a
   // concept until at least one Analyzer or Search Tracker run has actually
   // produced signal. Showing it anyway (mostly empty cards, a score of 0)
@@ -180,7 +180,7 @@ export default function OverviewPage() {
         </div>
         <div className="font-spectral text-[20px] font-semibold text-[#23211b]">Your dashboard isn't ready yet</div>
         <p className="text-[13.5px] text-[#8a8273] mt-1.5 max-w-[420px]">
-          Run the Analyzer or Search Tracker at least once for {activeBusiness?.name || "this business"} — once real results come in, this page fills in with your score, trend, and weekly plan.
+          Run the Analyzer or Search Tracker at least once for {activeBusiness?.name || "this business"} - once real results come in, this page fills in with your score, trend, and weekly plan.
         </p>
         <div className="flex items-center gap-3 mt-6">
           <Link

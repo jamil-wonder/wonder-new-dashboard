@@ -72,7 +72,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
 
-      {/* Toast stack — bottom-right */}
+      {/* Toast stack - bottom-right */}
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 items-end pointer-events-none">
         <AnimatePresence mode="popLayout">
           {toasts.map((t) => (

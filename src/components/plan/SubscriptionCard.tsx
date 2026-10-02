@@ -14,7 +14,7 @@ export default function SubscriptionCard() {
             Free during early access
           </h1>
           <p className="text-[14px] text-[#7fae97] mt-1">
-            Paid plans aren&apos;t live yet — billing will open here once available. Nothing is
+            Paid plans aren&apos;t live yet - billing will open here once available. Nothing is
             being charged to your account.
           </p>
         </div>

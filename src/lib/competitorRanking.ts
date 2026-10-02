@@ -1,7 +1,7 @@
-// Shared, pure competitor-ranking logic — no network calls here. Both
+// Shared, pure competitor-ranking logic - no network calls here. Both
 // Query and Overview feed this the SAME BusinessContext.liveDeepCompetitors
 // value (a completed Phase 5 job's own `deep_competitors` field, captured
-// as a side effect of running Query — includes a confidence:"target" entry
+// as a side effect of running Query - includes a confidence:"target" entry
 // for the business itself). Using one shared value instead of two
 // separately-fetched sources means the two pages can't disagree, and
 // Overview correctly shows nothing until a run has actually happened this
@@ -67,7 +67,7 @@ function toRow(raw: RawCompetitorCandidate, isUser: boolean): CompetitorRankRow 
  * Build the display list: top 4 external competitors by score + the
  * business itself, ranked 1-5. `candidates` may already contain a
  * confidence:"target" / isUser entry for the business (as deep_competitors
- * does) — if not, pass `targetRow` explicitly for an external-only list.
+ * does) - if not, pass `targetRow` explicitly for an external-only list.
  */
 export function buildRankedCompetitors(
   candidates: RawCompetitorCandidate[] | null | undefined,

@@ -20,14 +20,14 @@ export const setActiveBusinessId = (id: string): void => {
 };
 
 // The backend's anonymous-visitor rate limiter (/api/scrape, /api/ai-insights,
-// /api/public/*) keys off an X-Wonder-Device-Id + X-Wonder-Scan-Id pair — but
+// /api/public/*) keys off an X-Wonder-Device-Id + X-Wonder-Scan-Id pair - but
 // nothing on the frontend ever sent them. Every request fell back to a fixed
 // "unknown-device" (so every anonymous visitor behind the same IP shared one
 // rate-limit bucket) and a FRESH RANDOM scan_id per call (so the "was this
 // scan_id's earlier attempt actually successful" check could never match
 // across calls). That combination made every anonymous visitor's second
-// public call — /api/ai-insights, /api/public/competitors, the unlock
-// endpoint — 429 unconditionally, right after a scrape that had already
+// public call - /api/ai-insights, /api/public/competitors, the unlock
+// endpoint - 429 unconditionally, right after a scrape that had already
 // spent real AI cost. deviceId is one stable id per browser, generated once
 // and reused forever; scanId is generated fresh per scan attempt by the
 // caller (see getNewScanId) and reused across that one scan's calls only.

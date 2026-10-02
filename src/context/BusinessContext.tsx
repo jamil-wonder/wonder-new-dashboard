@@ -15,7 +15,7 @@ export interface Business {
   logoUrl: string;
   completeness: number;
   // True only once a real Search Tracker (Phase 5) run has completed for
-  // this business — `completeness` above silently falls back to the Phase
+  // this business - `completeness` above silently falls back to the Phase
   // 1 technical score when this is false, so any UI that labels
   // `completeness` as "Wonder Score" / "AI Visibility" must check this
   // first or it ends up claiming AI-tested results that were never run.
@@ -29,31 +29,35 @@ export interface Business {
   competitors?: string[];
   // Real competitors the AI actually found and scored while running
   // Search Tracker jobs (persisted server-side as businesses.systemCompetitors)
-  // — distinct from `competitors`, which is the user's own manually-typed
+  // - distinct from `competitors`, which is the user's own manually-typed
   // tag list. Read-only in the UI; the system keeps it current on its own.
   systemCompetitors?: { domain?: string; url?: string; name?: string; score?: number; status?: string; evidence?: string }[];
   trackedPages?: string[];
   questionGeneration?: { branded: number; nonBranded: number; localSeo: number; broadSeo: number };
   questionsLocked?: boolean;
   questionsLockedAt?: string | null;
-  // The real locked/tracked 20 (id/type/label/query only) — the durable
+  // The real locked/tracked 20 (id/type/label/query only) - the durable
   // source of truth for what's actually being tracked. Query's own
   // browser cache is just a fast-load mirror of this, never authoritative.
   trackedQuestions?: { id: number; type: string; label: string; query: string }[];
-  // Real server-side record of "Mark as done" on Plan actions — durable
+  // Real server-side record of "Mark as done" on Plan actions - durable
   // (survives cleared storage/a different device), and what the mid-week
   // reminder and win-proof emails key off server-side.
   completedActions?: { action_id: string; title: string; category?: string; completed_at: string; week_id: string; baseline_mentions?: number | null; reported_win?: boolean }[];
   blogVoice?: string;
   blogKeywords?: string[];
-  // When each score type last updated — separate from `completeness`
+  // When each score type last updated - separate from `completeness`
   // (the headline, visibility-first) so the UI can show "the Analyzer
   // just re-scanned" even on a business where the headline stays pinned
   // to an existing Query/visibility score.
   latestPhase1At?: string | null;
   latestPhase5At?: string | null;
+  // Last saved Analyzer crawl + AI insights, so the Analyzer can show what was
+  // already run (by the user or the weekly scheduler) instead of asking again.
+  latestScrapeResult?: any | null;
+  latestAnalysis?: { scan?: any; areas?: any[]; insights?: any[]; analysedAt?: string } | null;
   // The Analyzer's own (technical) score, separate from `completeness`
-  // (the headline, visibility-first once Query data exists) — shown
+  // (the headline, visibility-first once Query data exists) - shown
   // alongside the "website re-scanned" timestamp so a standalone Analyzer
   // re-crawl's result is visible somewhere, even though it doesn't move
   // the headline number.
@@ -65,7 +69,7 @@ interface BusinessContextType {
   businesses: Business[];
   isLoading: boolean;
   // True once the FIRST business fetch for the current identity has
-  // finished (success or failure) — distinct from isLoading, which flips
+  // finished (success or failure) - distinct from isLoading, which flips
   // true again on every routine refetch (e.g. Settings refetches on tab
   // change). Consumers that gate whole-page rendering should key off this,
   // not isLoading, or a page whose own effect refetches on mount will
@@ -73,7 +77,7 @@ interface BusinessContextType {
   hasLoadedOnce: boolean;
   // True when the most recent fetch FAILED (network blip, backend restart,
   // 5xx). Without this, a failed fetch is indistinguishable from "this
-  // account genuinely has no businesses" — so an existing user hit by a
+  // account genuinely has no businesses" - so an existing user hit by a
   // transient error was shown the first-time onboarding wizard.
   loadError: boolean;
   switchBusiness: (id: string) => void;
@@ -82,7 +86,7 @@ interface BusinessContextType {
   refetchBusinesses: () => Promise<void>;
   // In-memory only (never written to storage) result of the current
   // browsing session's most recent completed Query run for the active
-  // business — lives here (above the router) so it survives navigating
+  // business - lives here (above the router) so it survives navigating
   // away from and back to the Query page, without ever being "stored
   // data" in the sense of surviving a business switch, logout, or reload.
   liveDeepCompetitors: any[];
@@ -118,7 +122,7 @@ export function cleanBrandNameFromDomain(domainStr: string): string {
 }
 
 // Deliberate, narrow exception to "never cache competitors": sessionStorage
-// (not localStorage) — survives a page reload / remount within this tab,
+// (not localStorage) - survives a page reload / remount within this tab,
 // but is gone the moment the tab/window closes, and is already swept on
 // every logout (see UserContext.logout(), which clears all wonder_-
 // prefixed sessionStorage keys) and re-keyed per business domain, so it
@@ -152,7 +156,7 @@ function saveLiveCompetitorsToSession(url: string | undefined, data: any[]) {
 }
 
 // What activeBusiness resolves to when the account genuinely has zero saved
-// businesses (a real, fetched-and-confirmed empty list — not "still
+// businesses (a real, fetched-and-confirmed empty list - not "still
 // loading"). Every consumer of activeBusiness expects a non-null object, so
 // this exists purely to satisfy that without ever showing fabricated
 // company data as if it were real: name/url/etc. are blank, and pages
@@ -227,7 +231,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       if (!Array.isArray(apiData)) {
         setLoadError(true);
       } else {
-        // Cleared only on a real success — clearing it when a retry merely
+        // Cleared only on a real success - clearing it when a retry merely
         // STARTS would flash the empty/first-time UI for the whole round trip.
         setLoadError(false);
         const mapped: Business[] = apiData.map((b) => {
@@ -242,13 +246,13 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             displayName = cleanBrandNameFromDomain(cleanDomain || rawDomain);
           }
 
-          // Score comes from latest_phase1_score alone — the field the
+          // Score comes from latest_phase1_score alone - the field the
           // backend actually returns (see _public_business_doc), persisted
           // from both manual scans and the Sunday scheduler, so it's
           // correctly scoped to THIS saved business and survives logout, a
           // cleared cache, or a different device. This used to also check a
           // `wonder_analyser_cache_{domain}` localStorage entry first for a
-          // "few seconds fresher" read — but that cache is keyed on the raw
+          // "few seconds fresher" read - but that cache is keyed on the raw
           // domain string alone, with no link to a business id, account, or
           // even a TTL. The bug this caused: add a brand-new business whose
           // domain happens to match anything ever scanned in this browser
@@ -257,7 +261,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           // show that old cached number instead of "not scanned yet".
           // Score reconciliation: the headline "Wonder Score" everywhere
           // this field is read is now the visibility score (mention
-          // rate/position/citation — same formula competitors are scored
+          // rate/position/citation - same formula competitors are scored
           // on), not the Phase 1 technical score. Matches the backend's own
           // precedent for this exact fallback (part_02.py's own-row
           // insertion into competitor rankings). Falls back to the
@@ -294,6 +298,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             trackedQuestions: Array.isArray(b.trackedQuestions) ? b.trackedQuestions : [],
             completedActions: Array.isArray(b.completedActions) ? b.completedActions : [],
             latestPhase1At: b.latest_phase1_at || null,
+            latestScrapeResult: b.latest_scrape_result && typeof b.latest_scrape_result === "object" ? b.latest_scrape_result : null,
+            latestAnalysis: b.latest_analysis && typeof b.latest_analysis === "object" ? b.latest_analysis : null,
             latestPhase5At: b.latest_phase5_at || null,
             latestPhase1Score: typeof b.latest_phase1_score === "number" ? b.latest_phase1_score : null,
             blogVoice: b.blogVoice || b.blog_voice || "",
@@ -322,7 +328,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Re-fetch (and, critically, reset first) whenever WHO is logged in
-  // changes — not just on mount. Without this, logging out and back in as
+  // changes - not just on mount. Without this, logging out and back in as
   // a different account left the previous account's businesses sitting in
   // memory indefinitely, since nothing ever told this provider to refresh.
   const lastSeenIdentityRef = useRef<string | null>(null);
@@ -331,13 +337,13 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     if (currentIdentity === lastSeenIdentityRef.current) return;
     lastSeenIdentityRef.current = currentIdentity;
 
-    // Always clear first, even before fetching — a previous account's real
+    // Always clear first, even before fetching - a previous account's real
     // business data must never remain visible, not even for a moment.
     // Deliberately does NOT touch liveDeepCompetitors here: the hydration
     // effect below (keyed on activeBusiness?.url) is the single source of
     // truth for that value, and always re-derives it correctly once
     // activeBusiness resolves. Clearing it here as well doesn't just
-    // duplicate that work — it actively wipes the sessionStorage-backed
+    // duplicate that work - it actively wipes the sessionStorage-backed
     // data on every reload, since this effect necessarily fires once per
     // fresh mount even when it's the SAME account re-confirming its
     // session, not an actual account change (logout already sweeps
@@ -361,7 +367,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   }, [activeBusiness?.url]);
 
   // Hydrate from this tab's sessionStorage whenever the active business's
-  // domain changes — this is what makes competitors survive a reload or an
+  // domain changes - this is what makes competitors survive a reload or an
   // unexpected remount instead of just resetting to empty.
   useEffect(() => {
     setLiveDeepCompetitorsRaw(loadLiveCompetitorsFromSession(activeBusiness?.url));
@@ -405,7 +411,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       if (id === activeId) return;
       setSwitching(true);
       setActiveBusinessId(id);
-      // liveDeepCompetitors is intentionally left alone here — the
+      // liveDeepCompetitors is intentionally left alone here - the
       // hydration effect (keyed on activeBusiness?.url) loads the correct
       // value for whichever business becomes active once activeId
       // updates below. Clearing it here would wipe THIS business's saved

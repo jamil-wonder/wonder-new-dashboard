@@ -38,7 +38,7 @@ export default function SourcesSection({ data }: { data: OverviewData }) {
           Where AI finds answers
         </div>
         <p className="text-[12px] text-[#8a8273] mt-1 leading-snug">
-          AI keeps citing these places like you — and you're on one of them.
+          AI keeps citing these places like you - and you're on one of them.
         </p>
 
         {!hasQueryData && citedSources.length === 0 ? (

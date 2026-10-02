@@ -74,12 +74,12 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-auto pt-0">
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Strongest</div>
-                <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "—"}</div>
+                <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "-"}</div>
                 <div className="num text-[12px] font-bold text-[#2e9e5b]">{strongest?.mentioned || 0}/{totalQueries}</div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#b1442a]">Weakest</div>
-                <div className="text-[13px] font-semibold text-[#23211b] mt-1">{weakest?.model || "—"}</div>
+                <div className="text-[13px] font-semibold text-[#23211b] mt-1">{weakest?.model || "-"}</div>
                 <div className="num text-[12px] font-bold text-[#9a6a12]">{weakest?.mentioned || 0}/{totalQueries}</div>
               </div>
               <div className="bg-[#fbf7ee] p-3">

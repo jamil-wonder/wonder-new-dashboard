@@ -17,7 +17,7 @@ interface UserContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  // login/signup no longer establish a session by themselves — both end
+  // login/signup no longer establish a session by themselves - both end
   // with a code emailed to the address given, and resolve to that email
   // (or throw on invalid credentials / a rejected email) so the caller can
   // send the user to /verify-email. The only way to actually get a token
@@ -26,7 +26,7 @@ interface UserContextType {
   signup: (email: string, pass: string, name: string) => Promise<{ email: string }>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   resendOtp: (email: string) => Promise<void>;
-  // Google sign-in skips the OTP step entirely — the backend already trusts
+  // Google sign-in skips the OTP step entirely - the backend already trusts
   // Google's own email verification, so /api/auth/google returns a real
   // access_token directly instead of an OtpRequiredResponse.
   loginWithGoogle: (credential: string) => Promise<void>;
@@ -119,10 +119,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(false);
       }
     } catch (err) {
-      // A 401/403 means the token is genuinely invalid/expired — that's a
+      // A 401/403 means the token is genuinely invalid/expired - that's a
       // real logout. Anything else (network blip, backend cold-start
       // timeout, a 5xx) is NOT proof the token is bad, and used to wipe the
-      // token + force a fresh OTP every time regardless — e.g. after just
+      // token + force a fresh OTP every time regardless - e.g. after just
       // closing and reopening a tab, if the host happened to be spinning
       // back up from idle on that first request. Now those cases keep the
       // token and fall back to the last-known cached profile instead of
@@ -136,7 +136,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setIsAuthenticated(false);
       } else if (!hydrateFromStoredUser(true)) {
-        // No cached profile to fall back to either — leave the token in
+        // No cached profile to fall back to either - leave the token in
         // place and let the next request retry rather than logging out.
         setIsAuthenticated(Boolean(getAuthToken()));
       }
@@ -165,7 +165,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return { email: res?.email || emailStr };
   };
 
-  // Shared by verifyOtp and loginWithGoogle — both hit an endpoint that
+  // Shared by verifyOtp and loginWithGoogle - both hit an endpoint that
   // returns the same Token shape ({ access_token, user }) and both mean
   // "a real session now exists", just reached via a different challenge.
   const applyTokenResponse = (res: any, fallbackEmail: string) => {

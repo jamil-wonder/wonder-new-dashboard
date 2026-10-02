@@ -11,7 +11,7 @@ import { useBusiness } from "../../context/BusinessContext";
 
 // This used to always compute "the most recent past Sunday 6am," purely
 // from the current calendar date, with no connection to any real business
-// at all — so it showed the same "Updated last week (Sep 6) 6:00 AM" for a
+// at all - so it showed the same "Updated last week (Sep 6) 6:00 AM" for a
 // business that had never been scanned before today. Now it prefers the
 // active business's own real latest-scan timestamp (Phase 5 if it exists,
 // Phase 1 otherwise) and only falls back to the generic Sunday-cycle
@@ -100,10 +100,10 @@ export default function NavTabs() {
   return (
     <div className="flex items-center justify-between gap-5 px-3 sm:px-6 border-t border-[#efe7d6]">
       {/* Below sm, this is narrower than the full tab set (6-7 items with
-          icon + label) — instead of wrapping/squishing, it scrolls
+          icon + label) - instead of wrapping/squishing, it scrolls
           horizontally so every tab stays reachable and legible. Desktop
           (sm+) never overflows so overflow-x-auto has no visible effect
-          there — the row already fits. */}
+          there - the row already fits. */}
       <div className="flex gap-4 sm:gap-7 font-medium text-[13px] sm:text-[14.5px] text-[#8a8273] overflow-x-auto no-scrollbar">
         {items.map((item) => {
           const isActive = pathname === item.href || (item.href === "/overview" && pathname === "/");

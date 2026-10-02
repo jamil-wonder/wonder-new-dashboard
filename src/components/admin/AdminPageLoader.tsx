@@ -17,7 +17,7 @@ export default function AdminPageLoader() {
   );
 }
 
-// Used inside a panel's own body (tab switches, refetches) — sits in the
+// Used inside a panel's own body (tab switches, refetches) - sits in the
 // content area only, doesn't cover the header/tab nav like AdminPageLoader.
 export function AdminSectionLoader({ label = "Loading..." }: { label?: string }) {
   return (
