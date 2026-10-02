@@ -7,6 +7,7 @@ import { useBusiness } from "../../context/BusinessContext";
 import type { Business } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi } from "../../lib/api";
+import { validateLocationInput } from "../../lib/onboardingLocation";
 
 const DEFAULT_QG = { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 };
 type QG = typeof DEFAULT_QG;
@@ -130,9 +131,18 @@ export default function BusinessProfilesPanel() {
     }
   };
 
+  // Location is optional here, but when present it feeds every local-search
+  // question ("Best restaurant in <location>?"), so a street address or
+  // postcode is flagged live and blocked on save.
+  const locationHint = formLocation.trim() ? validateLocationInput(formLocation) : null;
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formUrl.trim()) return;
+    if (locationHint) {
+      showToast(locationHint, "error");
+      return;
+    }
 
     const formattedUrl = formUrl.trim().startsWith("http") ? formUrl.trim() : `https://${formUrl.trim()}`;
     const servicesList = typeof formServices === "string" 
@@ -144,7 +154,7 @@ export default function BusinessProfilesPanel() {
       url: formattedUrl,
       businessName: formName.trim(),
       category: formCategory.trim(),
-      location: formLocation.trim(),
+      location: formLocation.replace(/\s+/g, " ").trim(),
       logoUrl: formLogoUrl.trim(),
       businessDescription: formDesc.trim(),
       aiDescription: formAiDesc.trim(),
@@ -205,7 +215,11 @@ export default function BusinessProfilesPanel() {
               <div key={label}>
                 <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">{label}</label>
                 <input value={val} onChange={(e) => set(e.target.value)} required={req} placeholder={ph}
+                  aria-invalid={label === "Location" && Boolean(locationHint)}
                   className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors" />
+                {label === "Location" && locationHint && (
+                  <p className="text-[11.5px] text-[#9a6a12] mt-1.5 leading-snug">{locationHint}</p>
+                )}
               </div>
             ))}
           </div>

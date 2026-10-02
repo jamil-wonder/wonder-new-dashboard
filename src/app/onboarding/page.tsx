@@ -1,13 +1,48 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Globe, ArrowRight, ArrowLeft, Pencil, Check, Plus, X, RefreshCw, ChevronDown } from "lucide-react";
-import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
+import { WonderscoreLogo, WonderscoreSpinner } from "../../components/ui/WonderscoreSpinner";
+import WorkspaceLoadError from "../../components/ui/WorkspaceLoadError";
+import LocationStep from "../../components/onboarding/LocationStep";
 import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
-import { fetchApi } from "../../lib/api";
+import { fetchApi, parseApiError, setActiveBusinessId } from "../../lib/api";
+import {
+  normalizeDomain,
+  parseDetectedLocations,
+  validateLocationInput,
+  type DetectedLocation,
+} from "../../lib/onboardingLocation";
+
+// Identical to the layout's own loading screen, so a decision that happens
+// here (e.g. "this account is already set up, go to the dashboard") is
+// perceived as one continuous load — never a frame of the wizard.
+function WorkspaceSpinner() {
+  return (
+    <div className="min-h-screen bg-[#fdfcf8] flex items-center justify-center">
+      <WonderscoreSpinner size={40} label="Loading your workspace…" />
+    </div>
+  );
+}
+
+const SCAN_STEPS = [
+  "Reading your website…",
+  "Looking for your locations…",
+  "Finding your business details…",
+  "Almost there…",
+];
+
+function ScanningLabel() {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setIndex((i) => Math.min(i + 1, SCAN_STEPS.length - 1)), 3500);
+    return () => clearInterval(timer);
+  }, []);
+  return <>{SCAN_STEPS[index]}</>;
+}
 
 const DEFAULT_QG = { branded: 5, nonBranded: 5, localSeo: 5, broadSeo: 5 };
 type QG = typeof DEFAULT_QG;
@@ -201,12 +236,14 @@ function AcceptOrEditText({
   rows = 3,
   placeholder,
   suggested,
+  onEnter,
 }: {
   value: string;
   onChange: (v: string) => void;
   rows?: number;
   placeholder: string;
   suggested: boolean;
+  onEnter?: () => void;
 }) {
   const [editing, setEditing] = useState(!suggested);
 
@@ -229,6 +266,26 @@ function AcceptOrEditText({
           {value || <span className="text-[#9b927f] italic">Nothing found — add this yourself.</span>}
         </p>
       </div>
+    );
+  }
+
+  // rows={1} means a single-line field (e.g. the business name): a textarea
+  // there let Enter put a newline inside the saved value.
+  if (rows === 1) {
+    return (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onEnter?.();
+          }
+        }}
+        autoFocus
+        placeholder={placeholder}
+        className="w-full text-[14px] p-3 border border-[#ece3d1] rounded-xl bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
+      />
     );
   }
 
@@ -349,7 +406,7 @@ const STEP_ORDER: StepId[] = [
 // One question per screen, progress bar, never a long form — per the
 // platform-flow spec (Part 2). The URL step is its own screen before the
 // wizard starts since it's what unlocks every later step's pre-fill.
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Settings > Business Profiles' "Add Profile" button sends existing
@@ -360,7 +417,13 @@ export default function OnboardingPage() {
   // straight to your dashboard") would immediately bounce them back out
   // before they could add anything.
   const isAddingAnother = searchParams?.get("add") === "1";
-  const { businesses, hasLoadedOnce, refetchBusinesses } = useBusiness();
+  const {
+    businesses,
+    hasLoadedOnce,
+    loadError,
+    isLoading: isBusinessesLoading,
+    refetchBusinesses,
+  } = useBusiness();
   const { showToast } = useToast();
 
   const [stepIndex, setStepIndex] = useState(-1); // -1 = url step, 0..n = STEP_ORDER
@@ -373,7 +436,11 @@ export default function OnboardingPage() {
   const [nameWasSuggested, setNameWasSuggested] = useState(false);
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
-  const [locationWasSuggested, setLocationWasSuggested] = useState(false);
+  const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
+  // The URL the current prefill data came from — lets "Back" to the URL step
+  // and straight forward again skip a pointless re-crawl that would also
+  // overwrite everything the user has already edited.
+  const lastScrapedUrlRef = useRef("");
   const [description, setDescription] = useState("");
   const [descriptionWasSuggested, setDescriptionWasSuggested] = useState(false);
   const [aiDescription, setAiDescription] = useState("");
@@ -405,7 +472,14 @@ export default function OnboardingPage() {
   // (for services/audience) a generic hardcoded list that's the same
   // regardless of what the business actually is. Fired once right after
   // the URL is known, and again on demand via each step's Regenerate.
-  const fetchSuggestions = async (targetUrl: string, targetName: string, targetScrapedDesc: string) => {
+  // `hints` carries values that were only just detected and so aren't in
+  // this render's state yet (the closure would otherwise send them blank).
+  const fetchSuggestions = async (
+    targetUrl: string,
+    targetName: string,
+    targetScrapedDesc: string,
+    hints?: { location?: string }
+  ) => {
     if (!targetUrl) return;
     setIsSuggesting(true);
     try {
@@ -415,7 +489,7 @@ export default function OnboardingPage() {
           url: targetUrl,
           businessName: targetName,
           category,
-          location,
+          location: hints?.location ?? location,
           scrapedDescription: targetScrapedDesc,
         }),
       });
@@ -441,12 +515,12 @@ export default function OnboardingPage() {
   // Existing users going through OTP for a routine login (not first-time
   // signup) already have a business — send them straight through instead
   // of onboarding again every time they log in.
+  const alreadySetUp = !isAddingAnother && businesses.length > 0;
   useEffect(() => {
-    if (isAddingAnother) return;
-    if (hasLoadedOnce && businesses.length > 0) {
+    if (hasLoadedOnce && alreadySetUp) {
       router.replace("/overview");
     }
-  }, [hasLoadedOnce, businesses.length, router, isAddingAnother]);
+  }, [hasLoadedOnce, alreadySetUp, router]);
 
   // A visitor who already ran the free /scan preview and then created an
   // account shouldn't be asked to paste their URL again or wait through
@@ -454,7 +528,7 @@ export default function OnboardingPage() {
   // already found here, one-time-use, so onboarding can pick up right
   // where the preview left off instead of starting cold.
   useEffect(() => {
-    if (stepIndex !== -1) return;
+    if (stepIndex !== -1 || !hasLoadedOnce || alreadySetUp) return;
     let prefill: any = null;
     try {
       const raw = localStorage.getItem("wonder_scan_prefill");
@@ -464,29 +538,52 @@ export default function OnboardingPage() {
     localStorage.removeItem("wonder_scan_prefill");
 
     setUrl(prefill.url);
+    lastScrapedUrlRef.current = prefill.url;
     if (prefill.businessName) {
       setName(prefill.businessName);
       setNameWasSuggested(true);
     }
-    if (prefill.location) {
-      setLocation(prefill.location);
-      setLocationWasSuggested(true);
-    }
+    // Only the structured, validated list is trusted. An older prefill (or
+    // any code path) that stashed a raw address string as `location` is
+    // ignored on purpose — that raw string is what produced the nonsense
+    // "locations" in the first place.
+    const detected = parseDetectedLocations(prefill.locations);
+    setDetectedLocations(detected);
+    const prefilledLocation = detected.length === 1 ? detected[0].label : "";
+    setLocation(prefilledLocation);
     if (prefill.description) {
       setDescription(prefill.description);
       setDescriptionWasSuggested(true);
     }
     setStepIndex(0);
-    fetchSuggestions(prefill.url, prefill.businessName || "", prefill.description || "");
+    fetchSuggestions(prefill.url, prefill.businessName || "", prefill.description || "", { location: prefilledLocation });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIndex]);
+  }, [stepIndex, hasLoadedOnce, alreadySetUp]);
 
   const handleFetch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
+    if (!url.trim() || isFetching) return;
     setErrorMsg("");
-    setIsFetching(true);
     const cleanUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
+
+    // Saving is keyed on the site's domain, so adding a site the account
+    // already has would silently overwrite that business instead of adding a
+    // new one. Say so up front, before spending a crawl on it.
+    const duplicate = businesses.find((b) => normalizeDomain(b.url) === normalizeDomain(cleanUrl));
+    if (duplicate) {
+      setErrorMsg(`You already have ${duplicate.name || "this business"} in your account — you can edit it in Settings.`);
+      return;
+    }
+
+    // Came back to this step and re-submitted the same site: keep everything
+    // already filled in rather than re-crawling and overwriting the edits.
+    if (lastScrapedUrlRef.current && lastScrapedUrlRef.current === cleanUrl) {
+      setUrl(cleanUrl);
+      setStepIndex(0);
+      return;
+    }
+
+    setIsFetching(true);
     try {
       // record_scan: false — this is a background prefill crawl to
       // autofill name/description/location, not a user-requested Analyzer
@@ -499,21 +596,29 @@ export default function OnboardingPage() {
       });
       const scrapedName = res?.businessName || "";
       const scrapedDesc = res?.description || "";
-      const scrapedLocation = Array.isArray(res?.addresses) && res.addresses[0] ? res.addresses[0] : "";
+      // Never `addresses[0]`: that list was unordered and full of raw page
+      // text. `locations` is the validated, city-level, ranked result — and
+      // when there are several we must NOT pick one silently, the user does.
+      const detected = parseDetectedLocations(res?.locations);
+      const detectedLocation = detected.length === 1 ? detected[0].label : "";
       setName(scrapedName);
       setNameWasSuggested(Boolean(scrapedName));
       setDescription(scrapedDesc);
       setDescriptionWasSuggested(Boolean(scrapedDesc));
-      setLocation(scrapedLocation);
-      setLocationWasSuggested(Boolean(scrapedLocation));
+      setDetectedLocations(detected);
+      setLocation(detectedLocation);
       setUrl(cleanUrl);
+      lastScrapedUrlRef.current = cleanUrl;
       setStepIndex(0);
-      fetchSuggestions(cleanUrl, scrapedName, scrapedDesc);
+      fetchSuggestions(cleanUrl, scrapedName, scrapedDesc, { location: detectedLocation });
     } catch (err: any) {
       // A failed scrape shouldn't dead-end signup — fall through to the
       // same manual-entry steps, just empty, with an honest note why.
+      setDetectedLocations([]);
+      setLocation("");
       setErrorMsg("Couldn't reach that website automatically — you can still fill in the details yourself.");
       setUrl(cleanUrl);
+      lastScrapedUrlRef.current = "";
       setStepIndex(0);
     } finally {
       setIsFetching(false);
@@ -521,17 +626,26 @@ export default function OnboardingPage() {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+    // Last line of defence: these are required downstream (Search Tracker
+    // can't generate questions without a category and a location).
+    const problem = validateStep("name") || validateStep("category") || validateStep("location");
+    if (problem) {
+      setErrorMsg(problem.message);
+      setStepIndex(STEP_ORDER.indexOf(problem.step));
+      return;
+    }
     setIsSaving(true);
     setErrorMsg("");
     try {
       const servicesList = services.split(",").map((s) => s.trim()).filter(Boolean);
-      await fetchApi("/api/user/businesses", {
+      const created = await fetchApi<{ id?: string }>("/api/user/businesses", {
         method: "POST",
         body: JSON.stringify({
           url,
-          businessName: name.trim(),
+          businessName: name.replace(/\s+/g, " ").trim(),
           category: category.trim(),
-          location: location.trim(),
+          location: location.replace(/\s+/g, " ").trim(),
           businessDescription: description.trim(),
           aiDescription: aiDescription.trim(),
           services: servicesList,
@@ -539,28 +653,41 @@ export default function OnboardingPage() {
           questionGeneration: normalizeQG(qg),
         }),
       });
+      // When adding a 2nd/3rd business, land on the one just added, not on
+      // whichever was active before.
+      if (isAddingAnother && created?.id) setActiveBusinessId(String(created.id));
       await refetchBusinesses();
       showToast("Your business is set up — let's take a look.", "success");
       router.replace("/overview");
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Couldn't save your business. Please try again.");
+    } catch (err) {
+      setErrorMsg(parseApiError(err, "Couldn't save your business. Please try again."));
       setIsSaving(false);
     }
   };
 
-  const handleSkip = () => router.replace("/overview");
+  const handleSkip = () => router.replace(isAddingAnother ? "/settings?tab=entity" : "/overview");
 
   const currentStep = stepIndex >= 0 ? STEP_ORDER[stepIndex] : "url";
   const totalSteps = STEP_ORDER.length;
 
-  const canAdvance = (): boolean => {
-    if (currentStep === "name") return name.trim().length > 0;
-    return true;
-  };
+  const locationError = validateLocationInput(location);
+
+  // Name, category and location are the three things everything downstream
+  // (scoring, question generation, local search) depends on — the rest of
+  // the steps stay optional.
+  function validateStep(step: StepId): { step: StepId; message: string } | null {
+    if (step === "name" && !name.trim()) return { step, message: "Give your business a name." };
+    if (step === "category" && !category.trim()) {
+      return { step, message: "Pick the closest category — it helps us ask AI the right questions about you." };
+    }
+    if (step === "location" && locationError) return { step, message: locationError };
+    return null;
+  }
 
   const goNext = () => {
-    if (!canAdvance()) {
-      setErrorMsg("Give your business a name.");
+    const problem = validateStep(currentStep);
+    if (problem) {
+      setErrorMsg(problem.message);
       return;
     }
     setErrorMsg("");
@@ -571,15 +698,36 @@ export default function OnboardingPage() {
     setStepIndex((i) => i + 1);
   };
 
+  // Back from the first question returns to the URL step (it used to dead-end
+  // there, so a mistyped URL meant reloading the page).
   const goBack = () => {
     setErrorMsg("");
-    setStepIndex((i) => Math.max(0, i - 1));
+    setStepIndex((i) => Math.max(-1, i - 1));
   };
 
-  if (!hasLoadedOnce) {
+  // Decide BEFORE rendering anything wizard-shaped. These are plain render
+  // branches, not effects, so there's no frame where the wrong screen paints.
+  if (!hasLoadedOnce) return <WorkspaceSpinner />;
+  if (loadError && businesses.length === 0) {
+    return <WorkspaceLoadError onRetry={refetchBusinesses} isRetrying={isBusinessesLoading} />;
+  }
+  if (alreadySetUp) return <WorkspaceSpinner />;
+  if (isAddingAnother && businesses.length >= 3) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#15463b]" />
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-[460px] bg-white border border-[#ece3d1] rounded-[24px] p-7 text-center">
+          <h1 className="font-spectral text-[22px] font-semibold text-[#15463b]">You&apos;ve reached the business limit</h1>
+          <p className="text-[13.5px] text-[#8a8273] mt-2 leading-relaxed">
+            An account can hold up to 3 business profiles. Remove one in Settings to add another.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.replace("/settings?tab=entity")}
+            className="mt-5 w-full py-3.5 bg-[#15463b] text-white text-[14px] font-bold rounded-xl hover:bg-[#1a5c44] transition-colors cursor-pointer"
+          >
+            Back to Business Profiles
+          </button>
+        </div>
       </div>
     );
   }
@@ -588,7 +736,15 @@ export default function OnboardingPage() {
     url: { title: "Add your business", sub: "Enter your website and we'll pull in what we can find automatically." },
     name: { title: "What's your business called?", sub: "We found this on your site — keep it or fix it." },
     category: { title: "What category best fits?", sub: "Pick the closest match." },
-    location: { title: "Where are you based?", sub: "We found this on your site — confirm or update it." },
+    location: {
+      title: "Where are you based?",
+      sub:
+        detectedLocations.length > 1
+          ? "Your business has more than one location — pick the main one to track."
+          : detectedLocations.length === 1
+          ? "We found this on your site — confirm or update it."
+          : "Tell us the city or area you mainly serve.",
+    },
     description: { title: "How would you describe the business?", sub: "A short, plain-English summary." },
     aiDescription: { title: "Anything AI models should know?", sub: "Extra context to help AI describe you accurately (optional)." },
     services: { title: "What services do you offer?", sub: "Tap to select, or add your own." },
@@ -669,7 +825,7 @@ export default function OnboardingPage() {
                     {isFetching ? (
                       <>
                         <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                        Scanning your website…
+                        <ScanningLabel />
                       </>
                     ) : (
                       <>
@@ -700,11 +856,18 @@ export default function OnboardingPage() {
                         rows={1}
                         placeholder="Acme Inc."
                         suggested
+                        onEnter={goNext}
                       />
                     ) : (
                       <input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            goNext();
+                          }
+                        }}
                         autoFocus
                         placeholder="Acme Inc."
                         className="w-full text-[14px] p-3 border border-[#ece3d1] rounded-xl bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
@@ -719,23 +882,16 @@ export default function OnboardingPage() {
               )}
 
               {currentStep === "location" && (
-                locationWasSuggested ? (
-                  <AcceptOrEditText
-                    value={location}
-                    onChange={setLocation}
-                    rows={1}
-                    placeholder="Austin, TX"
-                    suggested
-                  />
-                ) : (
-                  <input
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    autoFocus
-                    placeholder="e.g. Austin, TX"
-                    className="w-full text-[14px] p-3 border border-[#ece3d1] rounded-xl bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
-                  />
-                )
+                <LocationStep
+                  detected={detectedLocations}
+                  value={location}
+                  onChange={(v) => {
+                    setLocation(v);
+                    if (errorMsg) setErrorMsg("");
+                  }}
+                  onEnter={goNext}
+                  invalid={Boolean(errorMsg) && Boolean(locationError)}
+                />
               )}
 
               {currentStep === "description" && (
@@ -825,10 +981,11 @@ export default function OnboardingPage() {
 
         {stepIndex >= 0 && (
           <div className="mt-6 flex items-center gap-3">
-            {stepIndex > 0 && (
+            {stepIndex >= 0 && (
               <button
                 type="button"
                 onClick={goBack}
+                aria-label="Back"
                 className="shrink-0 w-11 h-11 rounded-xl border border-[#ece3d1] text-[#15463b] hover:bg-[#eef3f0] transition-colors cursor-pointer flex items-center justify-center"
               >
                 <ArrowLeft className="w-4.5 h-4.5" />
@@ -862,9 +1019,19 @@ export default function OnboardingPage() {
           onClick={handleSkip}
           className="w-full text-center text-[12.5px] font-medium text-[#8a8273] hover:text-[#15463b] transition-colors cursor-pointer bg-transparent border-none py-1 mt-3"
         >
-          Skip for now
+          {isAddingAnother ? "Cancel" : "Skip for now"}
         </button>
       </motion.div>
     </div>
+  );
+}
+
+// useSearchParams() needs a Suspense boundary; the fallback is the same
+// loading screen the layout shows, so there's no visual seam.
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<WorkspaceSpinner />}>
+      <OnboardingContent />
+    </Suspense>
   );
 }

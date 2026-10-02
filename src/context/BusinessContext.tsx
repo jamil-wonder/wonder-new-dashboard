@@ -71,6 +71,11 @@ interface BusinessContextType {
   // not isLoading, or a page whose own effect refetches on mount will
   // unmount itself the moment it mounts and loop forever.
   hasLoadedOnce: boolean;
+  // True when the most recent fetch FAILED (network blip, backend restart,
+  // 5xx). Without this, a failed fetch is indistinguishable from "this
+  // account genuinely has no businesses" — so an existing user hit by a
+  // transient error was shown the first-time onboarding wizard.
+  loadError: boolean;
   switchBusiness: (id: string) => void;
   updateActiveBusiness: (updates: Partial<Business>) => void;
   setBusinesses: React.Dispatch<React.SetStateAction<Business[]>>;
@@ -200,6 +205,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [switching, setSwitching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [liveDeepCompetitors, setLiveDeepCompetitorsRaw] = useState<any[]>([]);
   const activeUrlRef = useRef<string | undefined>(undefined);
 
@@ -218,7 +224,12 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       const apiData = await fetchApi<any[]>("/api/user/businesses");
-      if (Array.isArray(apiData)) {
+      if (!Array.isArray(apiData)) {
+        setLoadError(true);
+      } else {
+        // Cleared only on a real success — clearing it when a retry merely
+        // STARTS would flash the empty/first-time UI for the whole round trip.
+        setLoadError(false);
         const mapped: Business[] = apiData.map((b) => {
           const rawDomain = b.domain || b.url || "";
           const cleanDomain = rawDomain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
@@ -300,7 +311,10 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {
-      // Keep state smooth
+      // Keep whatever businesses we already have on screen (a failed refetch
+      // must not wipe them), but record the failure so a first load that
+      // failed is never mistaken for "no businesses yet".
+      setLoadError(true);
     } finally {
       setIsLoading(false);
       setHasLoadedOnce(true);
@@ -331,6 +345,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     setBusinesses([]);
     setActiveId("");
     setHasLoadedOnce(false);
+    setLoadError(false);
 
     if (currentIdentity) {
       fetchUserBusinesses();
@@ -418,6 +433,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         businesses,
         isLoading,
         hasLoadedOnce,
+        loadError,
         switchBusiness,
         updateActiveBusiness,
         setBusinesses,

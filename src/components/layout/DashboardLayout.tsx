@@ -6,12 +6,19 @@ import DashboardHeader from "./DashboardHeader";
 import { useUser } from "../../context/UserContext";
 import { useBusiness } from "../../context/BusinessContext";
 import { WonderscoreSpinner } from "../ui/WonderscoreSpinner";
+import WorkspaceLoadError from "../ui/WorkspaceLoadError";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, isLoading: isUserLoading, user } = useUser();
-  const { hasLoadedOnce: hasBusinessesLoadedOnce } = useBusiness();
+  const {
+    hasLoadedOnce: hasBusinessesLoadedOnce,
+    loadError: businessesLoadError,
+    businesses,
+    isLoading: isBusinessesLoading,
+    refetchBusinesses,
+  } = useBusiness();
 
   const isAuthPage = pathname === "/auth";
   const isVerifyPage = pathname === "/verify-email";
@@ -91,6 +98,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <WonderscoreSpinner size={40} label="Loading your workspace…" />
       </div>
     );
+  }
+
+  // A FAILED first fetch leaves businesses empty, which every page below
+  // would read as "this account has nothing yet" — an existing user would
+  // see first-time onboarding or empty states. Say what actually happened
+  // instead. (A failed REFETCH with businesses already on screen is left
+  // alone: that data is still the best we have.)
+  if (businessesLoadError && businesses.length === 0) {
+    return <WorkspaceLoadError onRetry={refetchBusinesses} isRetrying={isBusinessesLoading} />;
   }
 
   if (isOnboardingPage) {

@@ -7,6 +7,7 @@ import { Search, Loader2, ArrowRight, Lock } from "lucide-react";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { fetchApi, getNewScanId } from "../../lib/api";
 import { getGrade, getVisibilityText } from "../../lib/scoreGrading";
+import { parseDetectedLocations, type DetectedLocation } from "../../lib/onboardingLocation";
 
 type Stage = "entry" | "scanning" | "result" | "unlocked";
 
@@ -126,6 +127,9 @@ function ScanContent() {
   const [score, setScore] = useState<number | null>(null);
   const [businessName, setBusinessName] = useState("");
   const [location, setLocation] = useState("");
+  // Everything the crawl found, handed to onboarding if they sign up — so a
+  // multi-location business gets the pick-one step instead of a guess.
+  const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
   const [description, setDescription] = useState("");
   const [findings, setFindings] = useState<Finding[]>([]);
   const [findingsLoading, setFindingsLoading] = useState(false);
@@ -197,11 +201,15 @@ function ScanContent() {
       // The scrape already found real location/description signal — losing
       // it here means the competitor lookup below has nothing to anchor on
       // but a bare name, which is exactly what let it return same-name-ish
-      // matches from the wrong country entirely.
-      const detectedLocation = Array.isArray(scrapeRes?.addresses) && scrapeRes.addresses[0] ? scrapeRes.addresses[0] : "";
+      // matches from the wrong country entirely. Anchor only on a city we're
+      // sure is THE location: with several candidates a guess would pin the
+      // lookup to the wrong city, so leave it open (onboarding asks later).
+      const locations = parseDetectedLocations(scrapeRes?.locations);
+      const detectedLocation = locations.length === 1 ? locations[0].label : "";
       const detectedDescription = scrapeRes?.description || "";
       setScore(totalScore);
       setBusinessName(detectedName);
+      setDetectedLocations(locations);
       setLocation(detectedLocation);
       setDescription(detectedDescription);
       setUrl(cleanUrl);
@@ -307,7 +315,10 @@ function ScanContent() {
     // ran this preview — hand off what we already found so it can skip
     // straight past re-typing the URL and re-crawling the site.
     try {
-      localStorage.setItem("wonder_scan_prefill", JSON.stringify({ url, businessName, location, description }));
+      localStorage.setItem(
+        "wonder_scan_prefill",
+        JSON.stringify({ url, businessName, description, locations: detectedLocations })
+      );
     } catch {}
     router.push("/auth?signup=true");
   };
