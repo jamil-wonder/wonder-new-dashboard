@@ -195,7 +195,9 @@ function ScanContent() {
     try {
       const scrapeRes = await fetchApi<any>("/api/scrape", {
         method: "POST",
-        body: JSON.stringify({ url: cleanUrl }),
+        // record_scan: false - a preview crawl must never be saved against an account
+        // (or later show up as an analysis the user never ran).
+        body: JSON.stringify({ url: cleanUrl, record_scan: false }),
       });
       const totalScore = scrapeRes?.scores?.total ?? 0;
       const detectedName = scrapeRes?.businessName || cleanUrl.replace(/^https?:\/\//, "").split("/")[0];

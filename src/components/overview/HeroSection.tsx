@@ -263,7 +263,7 @@ type ChangeCandidate = {
 type ChangeItem = { icon: string; bg: string; color: string; title: string; sub: string; metric: "rank" | "mentions" | "audit" };
 
 export default function HeroSection({ data }: { data: OverviewData }) {
-  const { score, visibilityText, previousScore, scanPoints, latestPhase1At, latestPhase1Score, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
+  const { score, visibilityText, previousScore, scanPoints, latestPhase1At, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
 
   const delta = previousScore !== null ? score - previousScore : null;
   const locText = data.location ? ` in ${data.location}` : "";
@@ -504,9 +504,6 @@ export default function HeroSection({ data }: { data: OverviewData }) {
           return (
             <div className="text-[11px] text-[#b3a98f] mt-1">
               Website last re-scanned {formatPointTimestamp(latestPhase1At)}
-              {typeof latestPhase1Score === "number" && (
-                <> {"· "}Technical score {latestPhase1Score}</>
-              )}
             </div>
           );
         })()}
