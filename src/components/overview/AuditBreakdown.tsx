@@ -5,21 +5,21 @@ import React from "react";
 import Link from "next/link";
 import { MessageSquare, BookOpen, FileCode2, Building2, FileSearch, Cpu, FileText, Lightbulb, TrendingUp, Shield, ArrowRight } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
+import EmptyState from "../ui/EmptyState";
+import { areaBadge } from "../../lib/areaBadge";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   MessageSquare, BookOpen, FileCode2, Building2, FileSearch, Cpu, FileText,
 };
 
+// C1: the same Good / Fair / Needs work thresholds as the Analyzer (derived from the score)
 function getBarColor(score: number) {
-  if (score >= 80) return "#1e7d4f";
-  if (score >= 60) return "#d6a23a";
-  return "#d9694a";
+  return areaBadge(score).bar;
 }
 
 function getStatus(score: number) {
-  if (score >= 80) return { text: "Strong", color: "#1e7d4f", bg: "#dcefe2" };
-  if (score >= 60) return { text: "OK", color: "#9a6a12", bg: "#f7e7c4" };
-  return { text: "Needs work", color: "#b1442a", bg: "#f6dcd5" };
+  const b = areaBadge(score);
+  return { text: b.label, color: b.color, bg: b.bg };
 }
 
 const QUICK_WIN_ICONS = [Lightbulb, TrendingUp, Shield];
@@ -42,18 +42,13 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
         </div>
 
         {!hasAnalyserData || auditAreas.length === 0 ? (
-          <div className="mt-4 p-4 rounded-lg bg-[#f9e9ec] text-center">
-            <p className="text-[12.5px] text-[#a86d7e]">Run the Analyzer to see all six scored areas.</p>
-            <Link href="/analyser" className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[#1e7d4f]">
-              Open Analyzer <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
+          <EmptyState message="No website scan yet - run the Analyzer to see all six scored areas." href="/analyser" actionLabel="Open Analyzer" />
         ) : (
           <div className="flex flex-col flex-1 justify-between mt-[18px]">
             {auditAreas.slice(0, 6).map((item) => {
               const IconComponent = ICON_MAP[item.iconName] || FileText;
-              const barColor = item.barColor || getBarColor(item.score);
-              const status = item.statusText ? { text: item.statusText, color: item.statusColor, bg: item.statusBg } : getStatus(item.score);
+              const barColor = getBarColor(item.score);
+              const status = getStatus(item.score);
               return (
                 <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
                   <IconComponent className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#7a7363] shrink-0" />

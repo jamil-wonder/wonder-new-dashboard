@@ -1,5 +1,6 @@
 "use client";
 
+import { needsImprovement } from "../../lib/areaBadge";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -296,22 +297,29 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     }
   }
 
-  if (totalQueries > 0 && modelMentions.length > 0) {
-    const sortedModels = [...modelMentions].sort((a, b) => a.mentioned - b.mentioned);
-    const weakestModel = sortedModels[0];
-    const strongestModel = sortedModels[sortedModels.length - 1];
+  // D2: only models whose answers came back are compared, each against its own
+  // answered count, and a model that never mentioned you is never a "strength".
+  if (totalQueries > 0 && data.modelInsights.compared > 0) {
+    const { strongest: strongestModel, weakest: weakestModel, noneMention } = data.modelInsights;
     if (weakestModel) {
       candidates.push({
         sentiment: "bad", metric: "mentions", priority: 2, icon: "▼",
         title: `${weakestModel.model} mentions you least`,
-        sub: `Appearing in only ${weakestModel.mentioned} of ${totalQueries} audited queries`,
+        sub: `Named in only ${weakestModel.mentioned} of the ${weakestModel.total} questions it answered`,
       });
     }
     if (strongestModel) {
       candidates.push({
         sentiment: "good", metric: "mentions", priority: 2, icon: "▲",
-        title: `${strongestModel.model} mention strength`,
-        sub: `Appearing in ${strongestModel.mentioned} of ${totalQueries} audited queries`,
+        title: `${strongestModel.model} mentions you most`,
+        sub: `Named in ${strongestModel.mentioned} of the ${strongestModel.total} questions it answered`,
+      });
+    }
+    if (noneMention) {
+      candidates.push({
+        sentiment: "bad", metric: "mentions", priority: 2, icon: "▼",
+        title: "No AI model has mentioned you yet",
+        sub: `Checked ${data.modelInsights.compared} model${data.modelInsights.compared === 1 ? "" : "s"} that answered`,
       });
     }
   }
@@ -320,11 +328,14 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     const sortedAreas = [...auditAreas].sort((a, b) => a.score - b.score);
     const weakestArea = sortedAreas[0];
     const strongestArea = sortedAreas[sortedAreas.length - 1];
-    candidates.push({
-      sentiment: "bad", metric: "audit", priority: 1, icon: "▼",
-      title: `Improve: ${weakestArea.label}`,
-      sub: `Scored ${weakestArea.score}/100 - lowest of 6 audit areas`,
-    });
+    // C1: nothing to improve in an area that is already Good (90+)
+    if (needsImprovement(weakestArea.score)) {
+      candidates.push({
+        sentiment: "bad", metric: "audit", priority: 1, icon: "▼",
+        title: `Improve: ${weakestArea.label}`,
+        sub: `Scored ${weakestArea.score}/100 - lowest of 6 audit areas`,
+      });
+    }
     candidates.push({
       sentiment: "good", metric: "audit", priority: 1, icon: "▲",
       title: `Strong: ${strongestArea.label}`,

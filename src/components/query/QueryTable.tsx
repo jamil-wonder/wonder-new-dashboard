@@ -74,7 +74,10 @@ export default function QueryTable({
           const modelRes = q.resultsByModel?.[selectedModel];
           const hasModelRes = modelRes !== undefined;
 
-          const isAudited = hasModelRes && (modelRes.status as string) !== "Pending";
+          // A model that failed / did not run is "Unavailable" (missing data),
+          // never "Not mentioned" - and has no answer to open (A4).
+          const isUnavailable = hasModelRes && modelRes.status === "Unavailable";
+          const isAudited = hasModelRes && (modelRes.status as string) !== "Pending" && !isUnavailable;
           const statusVal = hasModelRes ? modelRes.status : "Pending";
           const isMentioned = statusVal === "Mentioned";
 
@@ -143,6 +146,13 @@ export default function QueryTable({
                       <span>Not mentioned</span>
                     </span>
                   )
+                ) : isUnavailable ? (
+                  <span
+                    className="text-[11px] font-bold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-2 py-1 rounded-lg inline-flex items-center gap-1"
+                    title={modelRes?.fetchStatus === "not_run" ? "This model was not run" : "This model could not be reached for this question - use Retry above"}
+                  >
+                    Unavailable
+                  </span>
                 ) : (
                   <span className="text-[11px] font-medium text-[#8a8273] bg-[#f5f0e6] border border-[#e2d8c4] px-2 py-1 rounded-md inline-flex items-center gap-1 animate-pulse">
                     Pending...

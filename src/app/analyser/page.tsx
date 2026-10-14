@@ -1,5 +1,7 @@
 "use client";
 
+import { areaBadge } from "../../lib/areaBadge";
+import { assessInsight, CONFIDENCE_STYLE, type InsightProfile } from "../../lib/aiConfidence";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
@@ -380,17 +382,29 @@ export default function AnalyserPage() {
           }
 
           const isOffline = item.summary && item.summary.includes("offline");
-          const conf = isOffline ? "Low" : item.isKnown || item.sentiment === "Positive" ? "High" : "Medium";
+          // The model couldn't be reached: missing data, not "doesn't know
+          // this business" (A4) - shown as Failed, with no invented fields.
+          const unavailable = item.fetchStatus === "failed" || Boolean(isOffline);
+          // C2: confidence comes from checks on what the model said
+          const assessed = assessInsight({ ...item, fetchStatus: unavailable ? "failed" : item.fetchStatus }, {
+            name: businessName,
+            category: finalScan?.category || category,
+            location: finalScan?.location || location,
+          });
 
           return {
             model: label,
             icon,
-            confidence: conf,
-            confidenceColor: conf === "High" ? "#1e7d4f" : conf === "Medium" ? "#9a6a12" : "#b1442a",
-            confidenceBg: conf === "High" ? "#dcefe2" : conf === "Medium" ? "#f7e7c4" : "#f6dcd5",
-            summary: item.summary || `${label} indexed ${domain} entity details.`,
-            verifiedFields: item.platforms?.length ? item.platforms.map((p: string) => p) : ["Name", "URL", "Location"],
-            missingFields: isOffline ? ["API Offline"] : ["Hours"],
+            unavailable,
+            confidence: assessed.level,
+            confidenceColor: CONFIDENCE_STYLE[assessed.level].color,
+            confidenceBg: CONFIDENCE_STYLE[assessed.level].bg,
+            summary: unavailable
+              ? `${label} couldn't be reached this time. Re-scan to try again.`
+              : item.summary || `${label} indexed ${domain} entity details.`,
+            verifiedFields: assessed.verified,
+            missingFields: assessed.missing,
+            discrepancy: assessed.discrepancy,
             raw: item,
           };
         });
@@ -592,6 +606,29 @@ export default function AnalyserPage() {
 
   const s = scanData || {};
 
+  // C2: re-derive confidence from the stored model answer every time, so
+  // analyses saved before the checks existed show the same thing as new ones.
+  const insightProfile: InsightProfile = {
+    name: businessName,
+    category: s.category || category,
+    location: s.location || location,
+  };
+  const insightsView = aiInsights.map((ai) => {
+    if (!ai?.raw) return ai;
+    const unavailable = ai.raw.fetchStatus === "failed" || Boolean(ai.raw.summary && String(ai.raw.summary).includes("offline"));
+    const a = assessInsight({ ...ai.raw, fetchStatus: unavailable ? "failed" : ai.raw.fetchStatus }, insightProfile);
+    return {
+      ...ai,
+      unavailable,
+      confidence: a.level,
+      confidenceColor: CONFIDENCE_STYLE[a.level].color,
+      confidenceBg: CONFIDENCE_STYLE[a.level].bg,
+      verifiedFields: a.verified,
+      missingFields: a.missing,
+      discrepancy: a.discrepancy,
+    };
+  });
+
   return (
     <div className="space-y-5 pb-12 relative">
 
@@ -641,6 +678,16 @@ export default function AnalyserPage() {
                   {selectedAiInsight.summary || "No summary returned for this model."}
                 </p>
               </section>
+
+              {selectedAiInsight.discrepancy && (
+                <section className="rounded-xl border border-[#f0c5ba] bg-[#fff0ec] p-4">
+                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#b1442a] mb-1.5">Discrepancy</div>
+                  <p className="text-[13.5px] font-semibold text-[#8f2f1a] leading-snug">{selectedAiInsight.discrepancy.message}</p>
+                  <div className="mt-2 text-[12.5px] text-[#3a352b] leading-snug">
+                    <strong className="text-[#15463b]">Quick win:</strong> {selectedAiInsight.discrepancy.quickWin}
+                  </div>
+                </section>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <section className="rounded-xl border border-[#d7eedf] bg-[#f3fbf6] p-4">
@@ -759,7 +806,8 @@ export default function AnalyserPage() {
 
         {/* Score card */}
         {(() => {
-          const currentTotalScore = typeof s.scores?.total === "number" ? s.scores.total : (activeBusiness?.completeness || 78);
+          // Website health only ever comes from the crawl (never the Wonder Score, never a made-up default)
+          const currentTotalScore = typeof s.scores?.total === "number" ? s.scores.total : (activeBusiness?.latestPhase1Score ?? 0);
           const { grade: dynamicGrade, visibilityText, bg: pillBg, text: pillText } = getVisibilityInfo(currentTotalScore, s.scores?.grade);
           const ringCircumference = 207.34;
           const strokeDashLength = Math.max(0, Math.min(207.34, (currentTotalScore / 100) * 207.34));
@@ -771,7 +819,7 @@ export default function AnalyserPage() {
           return (
             <div className="bg-[#15463b] rounded-[18px] p-6 text-white flex flex-col justify-between">
               <div>
-                <div className="font-mono-spline text-[10px] tracking-[0.16em] uppercase text-[#86b89f]">Overall Score</div>
+                <div className="font-mono-spline text-[10px] tracking-[0.16em] uppercase text-[#86b89f]">Website health</div>
                 
                 <div className="flex items-center justify-between gap-2 mt-3.5">
                   <div className="flex items-baseline gap-0.5">
@@ -847,13 +895,19 @@ export default function AnalyserPage() {
           <div className="flex flex-col gap-4">
             {auditAreas.map((item) => {
               const IconComponent = ICON_MAP[item.iconName] || FileCode2;
+              const badge = areaBadge(item.score);
               return (
                 <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
-                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: item.statusBg }}>
-                    <IconComponent className="w-4 h-4" style={{ color: item.statusColor }} />
+                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: badge.bg }}>
+                    <IconComponent className="w-4 h-4" style={{ color: badge.color }} />
                   </div>
                   <div className="group relative flex items-center gap-1 flex-1 min-w-0">
                     <span className="text-[11.5px] sm:text-[13.5px] text-[#23211b] font-medium truncate">{item.label}</span>
+                    {item.capped && (
+                      <span title={item.cappedReason} className="shrink-0 text-[9.5px] font-semibold text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.5 rounded">
+                        Capped at 50
+                      </span>
+                    )}
                     <Info className="hidden sm:block w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
 
                     {/* Floating Tooltip Popover */}
@@ -864,14 +918,14 @@ export default function AnalyserPage() {
                     </div>
                   </div>
                   <div className="w-[70px] sm:w-[140px] md:w-[200px] h-[7px] bg-[#eee9de] rounded-full overflow-hidden shrink-0">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${item.score}%`, backgroundColor: item.barColor }} />
+                    <div className="h-full rounded-full transition-all" style={{ width: `${item.score}%`, backgroundColor: badge.bar }} />
                   </div>
                   <span className="num text-[11px] sm:text-[13px] font-bold text-[#23211b] w-9 sm:w-[50px] text-right shrink-0">
                     {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
                   </span>
                   <span className="hidden sm:inline-block font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[68px] shrink-0"
-                    style={{ color: item.statusColor, backgroundColor: item.statusBg }}>
-                    {item.statusText}
+                    style={{ color: badge.color, backgroundColor: badge.bg }}>
+                    {badge.label}
                   </span>
                 </div>
               );
@@ -889,7 +943,7 @@ export default function AnalyserPage() {
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {aiInsights.map((ai) => {
+          {insightsView.map((ai) => {
             return (
               <button
                 key={ai.model}
@@ -911,8 +965,14 @@ export default function AnalyserPage() {
                   </span>
                 </div>
                 <p className="text-[12px] text-[#6f6757] leading-relaxed min-h-[72px] line-clamp-4">{ai.summary}</p>
+                {ai.discrepancy && (
+                  <p className="text-[11.5px] font-semibold text-[#b1442a] bg-[#fdeeea] border border-[#f0c5ba] rounded-md px-2 py-1.5 leading-snug">
+                    Discrepancy: {ai.discrepancy.message}
+                  </p>
+                )}
                 
                 {/* Verified vs Missing Entity parameters */}
+                {!ai.unavailable && (
                 <div className="border-t border-[#f0ebe0] pt-2.5 mt-auto">
                   <div className="text-[9.5px] uppercase font-mono-spline text-[#9b927f] tracking-wide mb-1.5">Verified Parameters</div>
                   <div className="flex flex-wrap gap-1">
@@ -928,6 +988,7 @@ export default function AnalyserPage() {
                     ))}
                   </div>
                 </div>
+                )}
               </button>
             );
           })}

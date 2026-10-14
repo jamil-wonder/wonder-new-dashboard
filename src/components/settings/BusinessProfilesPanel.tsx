@@ -1,5 +1,6 @@
 "use client";
 
+import { computeProfileCompleteness } from "../../lib/profileCompleteness";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Edit, Building2, Tag, MapPin, Globe, CheckCircle2, X } from "lucide-react";
@@ -58,6 +59,7 @@ export default function BusinessProfilesPanel() {
   const [formName, setFormName] = useState("");
   const [formUrl, setFormUrl] = useState("");
   const [formCategory, setFormCategory] = useState("");
+  const [formSubType, setFormSubType] = useState("");
   const [formLocation, setFormLocation] = useState("");
   const [formLogoUrl, setFormLogoUrl] = useState("");
   const [formDesc, setFormDesc] = useState("");
@@ -98,7 +100,7 @@ export default function BusinessProfilesPanel() {
 
   const openEdit = (p: Business) => {
     setEditId(p.id);
-    setFormName(p.name); setFormUrl(p.url); setFormCategory(p.category);
+    setFormName(p.name); setFormUrl(p.url); setFormCategory(p.category); setFormSubType(p.subType || "");
     setFormLocation(p.location); setFormLogoUrl(p.logoUrl || "");
     setFormDesc(p.description || ""); setFormAiDesc(p.aiDescription || "");
     setFormServices(p.services || ""); setFormAudience(p.targetAudience || "");
@@ -154,6 +156,7 @@ export default function BusinessProfilesPanel() {
       url: formattedUrl,
       businessName: formName.trim(),
       category: formCategory.trim(),
+      subType: formSubType.trim(),
       location: formLocation.replace(/\s+/g, " ").trim(),
       logoUrl: formLogoUrl.trim(),
       businessDescription: formDesc.trim(),
@@ -210,6 +213,7 @@ export default function BusinessProfilesPanel() {
               { label: "Business Name", val: formName, set: setFormName, ph: "Acme Inc.", req: true },
               { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://example.com/", req: true },
               { label: "Category", val: formCategory, set: setFormCategory, ph: "e.g. Restaurant, Consulting" },
+              { label: "Specific type (optional)", val: formSubType, set: setFormSubType, ph: "e.g. Indian, Italian, Tax advisory" },
               { label: "Location", val: formLocation, set: setFormLocation, ph: "e.g. Austin, TX" },
             ].map(({ label, val, set, ph, req }) => (
               <div key={label}>
@@ -298,6 +302,18 @@ export default function BusinessProfilesPanel() {
                 <p className="text-[10.5px] text-[#9b927f] mt-1.5">
                   Updates automatically from your Search Tracker runs - not editable here.
                 </p>
+                <details className="mt-2 text-[11.5px] text-[#6f6757]">
+                  <summary className="cursor-pointer font-medium text-[#15463b]">Why these?</summary>
+                  <p className="mt-1 mb-1.5 leading-snug">
+                    Matched on {formCategory || "your category"}{formSubType ? ` · ${formSubType}` : ""}{formLocation ? ` · ${formLocation}` : ""}.
+                    {!formSubType && " Add a specific type above to keep them to the same kind of business."}
+                  </p>
+                  <ul className="space-y-1">
+                    {formSystemCompetitors.map((c, i) => (
+                      <li key={c.domain || i}><span className="font-medium text-[#3a352b]">{c.name || c.domain}</span>{c.evidence ? ` - ${c.evidence}` : ""}</li>
+                    ))}
+                  </ul>
+                </details>
               </div>
             )}
           </div>
@@ -378,7 +394,10 @@ export default function BusinessProfilesPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
         {businesses.map((p, idx) => {
           const isActive = p.id === activeBusiness.id;
-          const pct = p.completeness || 0;
+          // Profile completeness = how much of the PROFILE is filled in (A6/L5),
+          // never the Wonder Score the field `completeness` actually holds.
+          const profile = computeProfileCompleteness(p);
+          const pct = profile.percent;
           const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
           const formattedUrl = p.url.startsWith("http") ? p.url : `https://${p.url}`;
 
@@ -468,6 +487,11 @@ export default function BusinessProfilesPanel() {
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
                     {p.location || "Location not set"}
                   </span>
+                  {p.locationProblem && (
+                    <span title={p.locationProblem} className="inline-flex items-center gap-1.5 border border-[#f0dfae] bg-[#faf1da] text-[#9a6a12] px-2.5 py-1 rounded-lg font-medium">
+                      Not a city or area - edit it
+                    </span>
+                  )}
                 </div>
 
                 {/* Clean Completeness Progress Bar */}
@@ -482,6 +506,12 @@ export default function BusinessProfilesPanel() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
+                  {profile.missing.length > 0 && (
+                    <p className="mt-2 text-[11.5px] leading-snug text-[#8a8273]" title={profile.missing.map((m) => m.label).join(", ")}>
+                      Still to add: {profile.missing.slice(0, 3).map((m) => m.label).join(", ")}
+                      {profile.missing.length > 3 ? ` +${profile.missing.length - 3} more` : ""}
+                    </p>
+                  )}
                 </div>
               </div>
 

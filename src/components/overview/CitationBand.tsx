@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Building, CheckCircle2, Compass, MapPin, SearchCheck, Star } from "lucide-react";
+import { ArrowRight, Building, CheckCircle2, Compass, MapPin, Star } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
 import SourcesSidebar from "../query/SourcesSidebar";
+import EmptyState from "../ui/EmptyState";
 
 function cleanDomain(domain: string) {
   return String(domain || "")
@@ -73,17 +73,7 @@ export default function CitationBand({ data }: { data: OverviewData }) {
       </div>
 
       {!hasQueryData && (
-        <div className="mt-5 flex items-center justify-between gap-4 rounded-xl bg-white/5 border border-white/10 p-4">
-          <div className="flex items-center gap-3">
-            <SearchCheck className="w-5 h-5 text-[#a8d860] shrink-0" />
-            <p className="text-[13px] text-[#d9eee7]">
-              Run Query to see which websites AI cites for this business.
-            </p>
-          </div>
-          <Link href="/query" className="shrink-0 rounded-lg bg-white text-[#15463b] px-3 py-2 text-[12px] font-semibold">
-            Run Query
-          </Link>
-        </div>
+        <EmptyState variant="dark" message="No Search Tracker run yet - run it to see which websites AI cites for this business." href="/query" actionLabel="Run Query" />
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-5">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
+import EmptyState from "../ui/EmptyState";
 
 const MODEL_COLORS: Record<string, { bar: string; label: string }> = {
   ChatGPT:   { bar: "#2e9e5b", label: "#2e9e5b" },
@@ -20,12 +21,9 @@ const MODEL_ICONS: Record<string, string> = {
 };
 
 export default function PlatformVisSection({ data }: { data: OverviewData }) {
-  const { modelMentions, totalQueries, missingCount, hasQueryData } = data;
-
-  const sorted = [...modelMentions].sort((a, b) => b.mentioned - a.mentioned);
-  const strongest = sorted[0];
-  const weakest = sorted[sorted.length - 1];
-  const potentialGain = sorted.reduce((acc, m) => acc + (totalQueries - m.mentioned), 0);
+  const { modelMentions, missingCount, hasQueryData, unavailableModels } = data;
+  // D2: strongest / weakest only over models that answered, never a zero "strength"
+  const { strongest, weakest, noneMention } = data.modelInsights;
 
   return (
     <div className="bg-white border border-[#ece3d1] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col">
@@ -38,12 +36,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
         </div>
 
         {!hasQueryData ? (
-          <div className="mt-4 p-4 rounded-lg bg-[#f8f5ee] text-center">
-            <p className="text-[12.5px] text-[#9b927f]">Run AI Query analysis to see which models mention you.</p>
-            <Link href="/query" className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[#1e7d4f]">
-              Open Queries <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
+          <EmptyState message="No Search Tracker run yet - run it to see which AI models mention you." href="/query" actionLabel="Open Queries" />
         ) : (
           <div className="flex flex-col flex-1 mt-0">
             <div className="flex flex-col gap-3.5 mt-3.5 mb-4">
@@ -71,16 +64,23 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
               })}
             </div>
 
+            {unavailableModels.length > 0 && (
+              <p className="text-[11.5px] text-[#92400e] bg-[#fef3c7] border border-[#fde68a] rounded-md px-2.5 py-1.5 mb-3 leading-snug">
+                {unavailableModels.join(" and ")} couldn&apos;t be reached this run, so {unavailableModels.length === 1 ? "it isn't" : "they aren't"} counted above.
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-auto pt-0">
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Strongest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "-"}</div>
-                <div className="num text-[12px] font-bold text-[#2e9e5b]">{strongest?.mentioned || 0}/{totalQueries}</div>
+                <div className="num text-[12px] font-bold text-[#2e9e5b]">
+                  {strongest ? `${strongest.mentioned}/${strongest.total}` : noneMention ? "no mentions yet" : "-"}
+                </div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#b1442a]">Weakest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{weakest?.model || "-"}</div>
-                <div className="num text-[12px] font-bold text-[#9a6a12]">{weakest?.mentioned || 0}/{totalQueries}</div>
+                <div className="num text-[12px] font-bold text-[#9a6a12]">{weakest ? `${weakest.mentioned}/${weakest.total}` : "-"}</div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
                 <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Potential</div>

@@ -10,7 +10,7 @@ import { fetchApi } from "../../lib/api";
 export default function ReportsPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
-  const data = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore);
+  const data = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore, activeBusiness?.id, activeBusiness?.latestAnalysis);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);

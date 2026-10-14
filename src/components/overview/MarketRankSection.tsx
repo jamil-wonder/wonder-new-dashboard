@@ -1,5 +1,6 @@
 "use client";
 
+import EmptyState from "../ui/EmptyState";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CompetitorRankRow } from "../../lib/competitorRanking";
@@ -28,12 +29,7 @@ export default function MarketRankSection({ rows }: Props) {
         </div>
 
         {rows.length === 0 ? (
-          <div className="mt-4 p-4 rounded-lg bg-[#f6efe0] text-center">
-            <p className="text-[12.5px] text-[#9a8a5e]">Market rankings appear automatically after your next Query run.</p>
-            <Link href="/query" className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[#1e7d4f]">
-              Open Query <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
+          <EmptyState variant="warm" message="Market rankings appear once a Search Tracker run has found your competitors." href="/query" actionLabel="Open Query" />
         ) : (
           <div className="flex flex-col flex-1 justify-between mt-3.5">
             {rows.map((comp) => (

@@ -1,6 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { continueBlockedReason, requiredFieldProblem } from "../../lib/onboardingValidation";
+import { initialScanState, runScan, scanReducer } from "../../lib/onboardingScan";
+import { Suspense, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Globe, ArrowRight, ArrowLeft, Pencil, Check, Plus, X, RefreshCw, ChevronDown } from "lucide-react";
@@ -435,7 +437,11 @@ function OnboardingContent() {
 
   const [stepIndex, setStepIndex] = useState(-1); // -1 = url step, 0..n = STEP_ORDER
   const [url, setUrl] = useState("");
-  const [isFetching, setIsFetching] = useState(false);
+  // G2: the website scan is an explicit state machine (idle -> scanning -> suggested | failed)
+  const [scan, dispatchScan] = useReducer(scanReducer, initialScanState);
+  const isFetching = scan.status === "scanning";
+  const scanRequestRef = useRef(0);                       // which scan is current: answers from older ones are ignored
+  const scanAbortRef = useRef<AbortController | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -532,6 +538,16 @@ function OnboardingContent() {
     }
   }, [hasLoadedOnce, alreadySetUp, router]);
 
+  // G2: entering the URL step always starts clean - no "failed" or "suggested"
+  // left over from an earlier visit - and cancels anything still in flight.
+  useEffect(() => {
+    if (stepIndex !== -1) return;
+    scanAbortRef.current?.abort();
+    scanRequestRef.current += 1;
+    dispatchScan({ type: "RESET" });
+  }, [stepIndex]);
+  useEffect(() => () => { scanAbortRef.current?.abort(); }, []);
+
   // A visitor who already ran the free /scan preview and then created an
   // account shouldn't be asked to paste their URL again or wait through
   // another crawl - /scan's "Create free account" button stashes what it
@@ -568,6 +584,8 @@ function OnboardingContent() {
       setDescription(prefill.description);
       setDescriptionWasSuggested(true);
     }
+    dispatchScan({ type: "START" });
+    dispatchScan({ type: "SUCCESS" });
     setStepIndex(0);
     fetchSuggestions(prefill.url, prefill.businessName || "", prefill.description || "", { location: prefilledLocation, category: prefilledCategory });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -596,17 +614,37 @@ function OnboardingContent() {
       return;
     }
 
-    setIsFetching(true);
-    try {
-      // record_scan: false - this is a background prefill crawl to
-      // autofill name/description/location, not a user-requested Analyzer
-      // run. Without this flag, a brand-new business showed up on the
-      // Dashboard already "scanned" the moment onboarding finished, even
-      // though the user never opened the Analyzer tab themselves.
-      const res = await fetchApi<any>("/api/scrape", {
+    // G2: one scan at a time, stopped after 30 s. A late answer from a scan that
+    // timed out, was cancelled or was reset is ignored (requestId no longer current).
+    const requestId = ++scanRequestRef.current;
+    scanAbortRef.current?.abort();
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
+    dispatchScan({ type: "START" });
+    const outcome = await runScan(
+      (signal) => fetchApi<any>("/api/scrape", {
         method: "POST",
+        // record_scan: false - this is a background prefill crawl to
+        // autofill name/description/location, not a user-requested Analyzer
+        // run. Without this flag, a brand-new business showed up on the
+        // Dashboard already "scanned" the moment onboarding finished, even
+        // though the user never opened the Analyzer tab themselves.
         body: JSON.stringify({ url: cleanUrl, record_scan: false }),
-      });
+        signal,
+      }),
+      controller,
+    );
+    if (requestId !== scanRequestRef.current) return;      // cancelled / reset / superseded: ignore
+    if (outcome.kind !== "ok") {
+      // A failed scrape must not dead-end signup: stay here, say why, and offer
+      // "try again" or "fill it in myself" (see the failed notice below).
+      setUrl(cleanUrl);
+      lastScrapedUrlRef.current = "";
+      dispatchScan({ type: outcome.kind === "timeout" ? "TIMEOUT" : "FAILURE" });
+      return;
+    }
+    try {
+      const res = outcome.value;
       const scrapedName = res?.businessName || "";
       const scrapedDesc = res?.description || "";
       // Never `addresses[0]`: that list was unordered and full of raw page
@@ -627,22 +665,36 @@ function OnboardingContent() {
       setCategorySuggested(Boolean(detectedCategory));
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = cleanUrl;
+      dispatchScan({ type: "SUCCESS" });
       setStepIndex(0);
       fetchSuggestions(cleanUrl, scrapedName, scrapedDesc, { location: detectedLocation, category: detectedCategory });
-    } catch (err: any) {
-      // A failed scrape shouldn't dead-end signup - fall through to the
-      // same manual-entry steps, just empty, with an honest note why.
-      setDetectedLocations([]);
-      setLocation("");
-      setCategory("");
-      setCategorySuggested(false);
-      setErrorMsg("Couldn't reach that website automatically - you can still fill in the details yourself.");
+    } catch {
+      // the answer arrived but could not be used
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = "";
-      setStepIndex(0);
-    } finally {
-      setIsFetching(false);
+      dispatchScan({ type: "FAILURE" });
     }
+  };
+
+  // Stop a scan that is still running and go back to the empty URL form.
+  const cancelScan = () => {
+    scanAbortRef.current?.abort();
+    scanRequestRef.current += 1;
+    dispatchScan({ type: "RESET" });
+  };
+
+  // After a failed scan: carry on with the wizard, every field empty.
+  const continueManually = () => {
+    const cleanUrl = url.trim().startsWith("http") ? url.trim() : `https://${url.trim()}`;
+    setDetectedLocations([]);
+    setLocation("");
+    setCategory("");
+    setCategorySuggested(false);
+    setUrl(cleanUrl);
+    lastScrapedUrlRef.current = "";
+    setErrorMsg("");
+    dispatchScan({ type: "RESET" });
+    setStepIndex(0);
   };
 
   const handleSave = async () => {
@@ -666,6 +718,8 @@ function OnboardingContent() {
           businessName: name.replace(/\s+/g, " ").trim(),
           category: category.trim(),
           location: location.replace(/\s+/g, " ").trim(),
+          // G3: keep the postcode of the detected location the user chose (if they chose one)
+          locationPostcode: detectedLocations.find((d) => d.label.toLowerCase() === location.replace(/\s+/g, " ").trim().toLowerCase())?.postalCode || "",
           businessDescription: description.trim(),
           aiDescription: aiDescription.trim(),
           services: servicesList,
@@ -696,12 +750,7 @@ function OnboardingContent() {
   // (scoring, question generation, local search) depends on - the rest of
   // the steps stay optional.
   function validateStep(step: StepId): { step: StepId; message: string } | null {
-    if (step === "name" && !name.trim()) return { step, message: "Give your business a name." };
-    if (step === "category" && !category.trim()) {
-      return { step, message: "Pick the closest category - it helps us ask AI the right questions about you." };
-    }
-    if (step === "location" && locationError) return { step, message: locationError };
-    return null;
+    return requiredFieldProblem(step, { name, category, location });
   }
 
   const goNext = () => {
@@ -724,6 +773,12 @@ function OnboardingContent() {
     setErrorMsg("");
     setStepIndex((i) => Math.max(-1, i - 1));
   };
+
+  // G1: Continue is disabled - with the reason shown next to it - until the
+  // three things everything downstream needs are valid. On the last step all
+  // three are re-checked, so clearing one after moving on can't slip through.
+  const isLastStep = stepIndex >= totalSteps - 1;
+  const blockingProblem = stepIndex < 0 ? null : continueBlockedReason(currentStep, isLastStep, { name, category, location });
 
   // Decide BEFORE rendering anything wizard-shaped. These are plain render
   // branches, not effects, so there's no frame where the wrong screen paints.
@@ -820,7 +875,7 @@ function OnboardingContent() {
               {stepTitles[currentStep].sub}
             </p>
 
-            {errorMsg && (
+            {errorMsg && errorMsg !== blockingProblem?.message && (
               <div className="mt-4 p-3 bg-[#fdf2f0] border border-[#f6dcd5] rounded-xl text-[12.5px] font-medium text-[#b1442a]">
                 {errorMsg}
               </div>
@@ -853,10 +908,30 @@ function OnboardingContent() {
                     ) : (
                       <>
                         <WonderscoreLogo size={16} color="white" />
-                        Fetch my business details
+                        {scan.status === "failed" ? "Try again" : "Fetch my business details"}
                       </>
                     )}
                   </button>
+                  {scan.status === "scanning" && (
+                    <p className="text-[12px] text-[#8a8273] leading-snug text-center" role="status">
+                      This usually takes 10-20 seconds. If it takes longer than 30 we&apos;ll stop and you can fill it in yourself.{" "}
+                      <button type="button" onClick={cancelScan} className="text-[#15463b] underline underline-offset-2 cursor-pointer bg-transparent border-none p-0">
+                        Cancel
+                      </button>
+                    </p>
+                  )}
+                  {scan.status === "failed" && (
+                    <div role="alert" className="p-3.5 bg-[#fdf2f0] border border-[#f6dcd5] rounded-xl">
+                      <p className="text-[12.5px] font-medium text-[#b1442a] leading-snug">{scan.message}</p>
+                      <button
+                        type="button"
+                        onClick={continueManually}
+                        className="mt-2.5 text-[12.5px] font-semibold text-[#15463b] underline underline-offset-2 cursor-pointer bg-transparent border-none p-0"
+                      >
+                        Fill in the details myself
+                      </button>
+                    </div>
+                  )}
                 </form>
               )}
 
@@ -921,7 +996,7 @@ function OnboardingContent() {
                     if (errorMsg) setErrorMsg("");
                   }}
                   onEnter={goNext}
-                  invalid={Boolean(errorMsg) && Boolean(locationError)}
+                  invalid={Boolean(locationError) && location.trim().length > 0}
                 />
               )}
 
@@ -1010,6 +1085,12 @@ function OnboardingContent() {
           </motion.div>
         </AnimatePresence>
 
+        {stepIndex >= 0 && blockingProblem && (
+          <p id="continue-reason" role="status" className="mt-5 text-[12.5px] font-medium text-[#9a6a12] bg-[#fdf6e3] border border-[#f0dfae] rounded-lg px-3 py-2 leading-snug">
+            {blockingProblem.message}
+          </p>
+        )}
+
         {stepIndex >= 0 && (
           <div className="mt-6 flex items-center gap-3">
             {stepIndex >= 0 && (
@@ -1025,7 +1106,8 @@ function OnboardingContent() {
             <button
               type="button"
               onClick={goNext}
-              disabled={isSaving}
+              disabled={isSaving || Boolean(blockingProblem)}
+              aria-describedby={blockingProblem ? "continue-reason" : undefined}
               className="flex-1 py-3.5 bg-[#15463b] text-white text-[14px] font-bold rounded-xl hover:bg-[#1a5c44] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isSaving ? (

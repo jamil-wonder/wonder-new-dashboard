@@ -105,6 +105,13 @@ function formatModelReplyText(
   const mentionLine = mentioned
     ? `- Status: Mentioned${position ? ` (approx rank #${position})` : ""}`
     : "- Status: Not Mentioned in top returned results";
+  // B1: show both ways a mention can happen, with the evidence for each
+  const namedLine = result?.namedInAnswer
+    ? `- Named in the answer: yes${result?.namedEvidence ? ` - "${cleanText(result.namedEvidence)}"` : ""}`
+    : "- Named in the answer: no";
+  const citedLine = result?.citedAsSource
+    ? "- Cited as a source: yes (your site was one of the sources)"
+    : "- Cited as a source: no";
 
   const whyLine = reasoning
     ? `- Why: ${cleanText(reasoning)}`
@@ -117,7 +124,7 @@ function formatModelReplyText(
 
   const sections = [
     `${shorten(baseAnswer)}`,
-    `Mention Check\n${mentionLine}\n${whyLine}`,
+    `Mention Check\n${mentionLine}\n${namedLine}\n${citedLine}\n${whyLine}`,
     `Where It Was Seen\n${evidenceLines.join("\n")}`,
   ];
 

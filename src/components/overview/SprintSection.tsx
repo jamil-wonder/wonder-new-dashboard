@@ -1,5 +1,6 @@
 "use client";
 
+import { areasToImprove } from "../../lib/areaBadge";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -40,7 +41,8 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
   const { blogDrafts, auditAreas, totalQueries, queryEvidence, queryModelEvidence, missingCount } = data;
   const [selectedCard, setSelectedCard] = useState<SprintCard | null>(null);
 
-  const weakArea = [...auditAreas].sort((a, b) => a.score - b.score)[0];
+  // C1: only an area below 90 is worth fixing
+  const weakArea = areasToImprove(auditAreas)[0];
   const topQuery = queryEvidence[0];
   const modelSummary = useMemo(() => {
     return queryModelEvidence.map((group) => ({
@@ -98,7 +100,9 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
       title: weakArea ? `Fix: ${weakArea.label}` : "Review website scan",
       desc: weakArea
         ? `This area scored ${weakArea.score}/100. Improve it to strengthen AI visibility.`
-        : "Open the analyzer to review score balance, content, schema, and trust signals.",
+        : auditAreas.length > 0
+          ? "Every website area scores 90 or more - nothing to fix right now."
+          : "Open the analyzer to review score balance, content, schema, and trust signals.",
       note: weakArea ? "Code and fixes ready" : "Open analyzer",
       link: "/analyser",
       btn: "View Analyzer",

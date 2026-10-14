@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchApi, getScanHistory, type ScanPoint } from "../lib/api";
 import { getAllSourcesForQueries } from "../lib/querySources";
 import { getGrade, getVisibilityText } from "../lib/scoreGrading";
+import { queriesFromLatestJob } from "../lib/trackerResults";
+import { modelInsights, type ModelInsights } from "../lib/modelInsights";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const QUERY_CACHE_VERSION = "v3";
@@ -49,8 +51,6 @@ function isMentionedResult(result: any) {
   if (!result) return false;
   return (
     result.status === "Mentioned" ||
-    result.matchType === "site_matched" ||
-    result.targetSite?.status === "matched" ||
     Boolean(result.mentioned)
   );
 }
@@ -114,7 +114,7 @@ function getQueryEvidence(query: any, models: string[]) {
     const parsed = parseJsonResponse(result?.llmResponse || result?.answerSnippet);
     const targetSite = result?.targetSite || parsed?.target || null;
 
-    if (isMentionedResult(result) || targetSite?.status === "matched") {
+    if (isMentionedResult(result)) {
       matchedModels.push(modelName);
     }
 
@@ -214,13 +214,17 @@ export interface OverviewData {
   location?: string;
 
   // Audit areas
-  auditAreas: { id: string; label: string; score: number; iconName: string; barColor: string; statusText: string; statusColor: string; statusBg: string }[];
+  auditAreas: { id: string; label: string; score: number; iconName: string; barColor: string; statusText: string; statusColor: string; statusBg: string; capped?: boolean; cappedReason?: string }[];
 
   // AI insights from analyser
   aiInsights: string[];
 
   // Query model stats
   modelMentions: { model: string; mentioned: number; total: number }[];
+  // D2: strongest / weakest over the models that actually answered (never a zero "strength")
+  modelInsights: ModelInsights;
+  // models that gave no usable answer this run - left out of every comparison
+  unavailableModels: string[];
   totalQueries: number;
 
   // Cited sources from queries
@@ -263,7 +267,7 @@ function ordinal(n: number) {
   return `${n}th`;
 }
 
-export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number, latestPhase1At?: string | null, latestPhase1Score?: number | null, hasVisibilityScoreProp?: boolean): OverviewData {
+export function useOverviewData(url: string, refreshSignal?: unknown, fallbackScore?: number, latestPhase1At?: string | null, latestPhase1Score?: number | null, hasVisibilityScoreProp?: boolean, businessId?: string, serverAnalysis?: { scan?: any; areas?: any[]; insights?: any[]; analysedAt?: string } | null): OverviewData {
   // The score/grade above normally come from a 2-hour, localStorage-only
   // scan cache - great for a live "just scanned" session, but it means the
   // score and trend chart go blank after 2 hours, after logout (which wipes
@@ -280,10 +284,10 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
   // the Phase 1 technical score. The technical trend (dbTrend, unchanged)
   // still feeds nothing but its own audit-area breakdown now, not the
   // headline number.
-  const [dbVisibilityTrend, setDbVisibilityTrend] = useState<(ScanPoint & { week_id?: string })[]>([]);
+  const [dbWonderTrend, setDbWonderTrend] = useState<(ScanPoint & { week_id?: string })[]>([]);
   useEffect(() => {
     setDbTrend([]);
-    setDbVisibilityTrend([]);
+    setDbWonderTrend([]);
     if (!url) return;
     let cancelled = false;
     fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}`)
@@ -295,13 +299,13 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
         setDbTrend(points);
       })
       .catch(() => {});
-    fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}&metric=visibility`)
+    fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(url)}&metric=wonder`)
       .then((res) => {
         if (cancelled || !res || !Array.isArray(res.points)) return;
         const points: (ScanPoint & { week_id?: string })[] = res.points
           .filter((p: any) => typeof p.score === "number")
           .map((p: any) => ({ score: p.score, timestamp: p.created_at || "", week_id: p.week_id || undefined }));
-        setDbVisibilityTrend(points);
+        setDbWonderTrend(points);
       })
       .catch(() => {});
     return () => {
@@ -309,9 +313,34 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     };
   }, [url]);
 
+  // D1: the Search Tracker half of the Overview reads the SAME stored run the
+  // Query page reads (GET /api/phase5/latest-job), not a 2-hour browser cache
+  // that goes blank after logout, on another device, or after two hours.
+  const [serverJob, setServerJob] = useState<any | null>(null);
+  useEffect(() => {
+    setServerJob(null);
+    if (!businessId) return;
+    let cancelled = false;
+    fetchApi<any>(`/api/phase5/latest-job?business_id=${encodeURIComponent(businessId)}`)
+      .then((res) => { if (!cancelled && res?.found) setServerJob(res); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // refreshSignal changes the moment a Query run finishes: read the new run
+  }, [businessId, refreshSignal]);
+
   return useMemo(() => {
-    const analyserCache = loadAnalyserCache(url);
-    const queryQueries: any[] | null = loadQueryCache(url);
+    // Analyzer half: the saved analysis from the server (durable) or the local
+    // cache, whichever is newer.
+    const localAnalyser = loadAnalyserCache(url);
+    const serverAnalyserMs = serverAnalysis?.analysedAt ? Date.parse(serverAnalysis.analysedAt) : NaN;
+    const localAnalyserMs = Number(localAnalyser?.timestamp || 0);
+    const analyserCache =
+      serverAnalysis?.scan && (!localAnalyser || (!Number.isNaN(serverAnalyserMs) && serverAnalyserMs >= localAnalyserMs))
+        ? { scanData: serverAnalysis.scan, auditAreas: serverAnalysis.areas || [], aiInsights: serverAnalysis.insights || [], timestamp: serverAnalyserMs }
+        : localAnalyser;
+    // Tracker half: the stored run if there is one, else whatever this browser still has.
+    const serverQueries: any[] = serverJob ? queriesFromLatestJob(serverJob) : [];
+    const queryQueries: any[] | null = serverQueries.length > 0 ? serverQueries : loadQueryCache(url);
     // localScanPoints only ever holds scans run from THIS browser this
     // session - recordScanHistory() is only ever called from the Analyser
     // page, so a scheduler run (server-side, no browser involved) can only
@@ -354,11 +383,11 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // fallback, so a business with no visibility history yet still shows
     // something instead of a bare 0.
     // Either signal is enough: the prop comes from the business's own
-    // latest_phase5_score, dbVisibilityTrend comes from a real completed
+    // latest_phase5_score, dbWonderTrend comes from a real completed
     // visibility-history point - either one means a Search Tracker run has
     // actually happened, which is the only thing that justifies presenting
     // `score` as tested AI visibility rather than a technical fallback.
-    const hasVisibilityScore = Boolean(hasVisibilityScoreProp) || dbVisibilityTrend.length > 0;
+    const hasVisibilityScore = Boolean(hasVisibilityScoreProp) || dbWonderTrend.length > 0;
 
     // `score` (and everything derived from it below) must NEVER silently
     // become the Phase 1 technical number - it used to fall back to
@@ -370,14 +399,14 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // score. fallbackScore is only trusted here when the caller has
     // already confirmed (via hasVisibilityScoreProp) that it's a real
     // visibility number, not a technical one.
-    const score = (dbVisibilityTrend.length > 0 ? Math.round(dbVisibilityTrend[dbVisibilityTrend.length - 1].score) : null)
+    const score = (dbWonderTrend.length > 0 ? Math.round(dbWonderTrend[dbWonderTrend.length - 1].score) : null)
       ?? (hasVisibilityScoreProp ? fallbackScore : null)
       ?? 0;
     const grade = getGrade(score);
     const visibilityText = getVisibilityText(score);
 
-    const previousScore = dbVisibilityTrend.length >= 2
-      ? dbVisibilityTrend[dbVisibilityTrend.length - 2].score
+    const previousScore = dbWonderTrend.length >= 2
+      ? dbWonderTrend[dbWonderTrend.length - 2].score
       : null;
 
     // Competitors are no longer derived here from cached query "sources" -
@@ -398,6 +427,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // AI insights - cached as objects { model, summary, ... } or plain strings
     const rawInsights: any[] = analyserCache?.aiInsights || [];
     const aiInsights: string[] = rawInsights
+      .filter((item: any) => !(item && typeof item === "object" && item.unavailable))
       .map((item: any) => {
         if (typeof item === "string") return item;
         if (item && typeof item === "object") {
@@ -412,10 +442,22 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // Query model stats
     const models = ["ChatGPT", "Claude", "Perplexity", "Gemini"];
     const totalQueries = queryQueries?.length || 0;
-    const modelMentions = models.map(model => {
-      const mentioned = queryQueries?.filter(q => isMentionedResult(q.resultsByModel?.[model])).length || 0;
-      return { model, mentioned, total: totalQueries };
-    });
+    // A model that failed / did not run for a question is "Unavailable" (A4):
+    // it doesn't count in that model's total, and a model with no usable
+    // answers at all is left out rather than shown as "0 of 20".
+    const isUnavailableResult = (r: any) => r?.status === "Unavailable";
+    const modelMentions = models
+      .map(model => {
+        const answered = queryQueries?.filter(q => q.resultsByModel?.[model] && !isUnavailableResult(q.resultsByModel[model])).length || 0;
+        const mentioned = queryQueries?.filter(q => isMentionedResult(q.resultsByModel?.[model])).length || 0;
+        return { model, mentioned, total: totalQueries > 0 ? answered || 0 : totalQueries };
+      })
+      .filter(m => totalQueries === 0 || m.total > 0);
+    const unavailableModels = totalQueries > 0
+      ? models.filter((model) => !modelMentions.some((m) => m.model === model)
+          && (queryQueries || []).some((q) => q.resultsByModel?.[model]))
+      : [];
+    const insightsAcrossModels = modelInsights(modelMentions);
 
     // Cited sources from query results - same shared, validated logic the
     // Query table/sidebar use, so this can never show junk (stray
@@ -427,6 +469,9 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // themselves at render time.
     const citedSources = getAllSourcesForQueries(queryQueries || []);
     const missingCount = queryQueries?.filter(q => {
+      // every model unavailable = no answer to judge, not a miss
+      const anyAnswered = models.some(m => q.resultsByModel?.[m] && !isUnavailableResult(q.resultsByModel[m]));
+      if (!anyAnswered && q.resultsByModel && Object.keys(q.resultsByModel).length > 0) return false;
       const anyMentioned = models.some(m => isMentionedResult(q.resultsByModel?.[m]));
       return !anyMentioned;
     }).length || 0;
@@ -471,14 +516,24 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
 
     // Quick wins from AI insights + score gaps
     const quickWins: { text: string; type: "boost" | "warn" | "info" }[] = [];
+    // C2: a model that contradicts the profile (wrong place / wrong kind of
+    // business) comes first - it is the most useful thing to fix.
+    rawInsights.forEach((item: any) => {
+      const d = item && typeof item === "object" ? item.discrepancy : null;
+      if (d?.quickWin) quickWins.push({ text: `${item.model || "An AI model"}: ${d.quickWin}`, type: "warn" });
+    });
     if (aiInsights.length > 0) {
       aiInsights.slice(0, 2).forEach(t => quickWins.push({ text: t, type: "boost" }));
     }
     // The "points behind" quick win now lives in overview/page.tsx, computed
     // from useCompetitorRanking() once real nearestAbove data is merged in.
-    const weakestModel = [...modelMentions].sort((a, b) => a.mentioned - b.mentioned)[0];
-    if (weakestModel && totalQueries > 0 && weakestModel.mentioned < totalQueries * 0.3) {
-      quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned}/${totalQueries} queries - a priority to fix.`, type: "warn" });
+    // D2: weakest model among those that answered, by its own answered count
+    const weakestModel = insightsAcrossModels.weakest;
+    if (weakestModel && weakestModel.total > 0 && weakestModel.mentioned / weakestModel.total < 0.3) {
+      quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned} of the ${weakestModel.total} questions it answered - a priority to fix.`, type: "warn" });
+    }
+    if (insightsAcrossModels.noneMention && insightsAcrossModels.compared > 0) {
+      quickWins.push({ text: "None of the AI models that answered have mentioned you yet - start with the gaps in your Search Tracker.", type: "warn" });
     }
 
     // The trend CHART must plot the same score the headline number above
@@ -488,7 +543,7 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // as its most recent entry). No technical fallback here at all now -
     // `scanPoints` is local Analyzer-only history and must never surface
     // outside the Analyzer page (see `score` above for the same rule).
-    const chartPoints = dbVisibilityTrend;
+    const chartPoints = dbWonderTrend;
 
     return {
       score,
@@ -508,6 +563,8 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       auditAreas,
       aiInsights,
       modelMentions,
+      modelInsights: insightsAcrossModels,
+      unavailableModels,
       totalQueries,
       citedSources,
       missingCount,
@@ -525,5 +582,5 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // never see that the underlying cache changed and every figure here
     // (missingCount, citedSources, modelMentions, ...) would stay frozen at
     // whatever it was the first time this hook ran for this url.
-  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, hasVisibilityScoreProp, dbTrend, dbVisibilityTrend]);
+  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, hasVisibilityScoreProp, dbTrend, dbWonderTrend, serverJob, serverAnalysis]);
 }

@@ -2,6 +2,9 @@
 // and audit areas it displays. Shared by a fresh run and by restoring the last
 // saved analysis from the server, so both always show exactly the same thing.
 
+import { areaBadge } from "./areaBadge";
+import { hasLocalBusinessSchema } from "./schemaType";
+
 export function userEmailFallback(domain: string): string {
   if (!domain) return "info@domain.com";
   const clean = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -46,7 +49,16 @@ export function buildAnalysis(scrapeRes: any, ctx: AnalysisContext): { scan: any
   const presenceScore = socialsFound >= 3 ? 95 : socialsFound === 2 ? 85 : socialsFound === 1 ? 75 : 60;
 
   // 5. Topic Coverage (Structured Schema Entity Graph)
-  const coverageScore = schemasFound >= 3 ? 92 : schemasFound === 2 ? 82 : schemasFound === 1 ? 70 : 45;
+  // C3: without a LocalBusiness-family @type (Restaurant, Store, Hotel, ...) the
+  // markup doesn't tell AI what kind of business this is or where, so this
+  // area is capped at 50 however much other schema there is.
+  const hasLocalType =
+    typeof scores.schema?.hasLocalBusinessType === "boolean"
+      ? scores.schema.hasLocalBusinessType
+      : hasLocalBusinessSchema(scrapeRes.schemas);
+  const rawCoverage = schemasFound >= 3 ? 92 : schemasFound === 2 ? 82 : schemasFound === 1 ? 70 : 45;
+  const coverageScore = hasLocalType ? rawCoverage : Math.min(rawCoverage, 50);
+  const coverageCapped = !hasLocalType && rawCoverage > 50;
 
   // 6. Technical Health (Infrastructure & Mobile Readiness)
   let techScore = 0;
@@ -97,13 +109,19 @@ export function buildAnalysis(scrapeRes: any, ctx: AnalysisContext): { scan: any
   };
 
 
+  const area = (id: string, label: string, score: number, iconName: string, extra: Record<string, unknown> = {}) => {
+    const b = areaBadge(score);
+    return { id, label, score, statusText: b.label, statusColor: b.color, statusBg: b.bg, barColor: b.bar, iconName, ...extra };
+  };
   const areas = [
-    { id: "sentiment", label: "How AI describes you", score: sentimentScore, statusText: sentimentScore >= 75 ? "GOOD" : "OKAY", statusColor: sentimentScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: sentimentScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: sentimentScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "MessageSquare" },
-    { id: "sources", label: "Where AI gets its information", score: sourcesScore, statusText: sourcesScore >= 75 ? "GOOD" : "OKAY", statusColor: sourcesScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: sourcesScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: sourcesScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "BookOpen" },
-    { id: "content", label: "Content quality", score: contentScore, statusText: contentScore >= 75 ? "GOOD" : "RISING", statusColor: contentScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: contentScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: contentScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "FileCode2" },
-    { id: "presence", label: "Presence across platforms", score: presenceScore, statusText: presenceScore >= 75 ? "GOOD" : "OKAY", statusColor: presenceScore >= 75 ? "#1e7d4f" : "#9a6a12", statusBg: presenceScore >= 75 ? "#dcefe2" : "#f7e7c4", barColor: presenceScore >= 75 ? "#2e9e5b" : "#d6a23a", iconName: "Building2" },
-    { id: "coverage", label: "Topic coverage", score: coverageScore, statusText: coverageScore >= 75 ? "GOOD" : coverageScore >= 60 ? "RISING" : "NEEDS WORK", statusColor: coverageScore >= 75 ? "#1e7d4f" : coverageScore >= 60 ? "#9a6a12" : "#b1442a", statusBg: coverageScore >= 75 ? "#dcefe2" : coverageScore >= 60 ? "#f7e7c4" : "#f6dcd5", barColor: coverageScore >= 75 ? "#2e9e5b" : coverageScore >= 60 ? "#d6a23a" : "#dc6b6b", iconName: "FileSearch" },
-    { id: "technical", label: "Technical health", score: techScore, statusText: techScore >= 75 ? "GOOD" : "NEEDS WORK", statusColor: techScore >= 75 ? "#1e7d4f" : "#b1442a", statusBg: techScore >= 75 ? "#dcefe2" : "#f6dcd5", barColor: techScore >= 75 ? "#2e9e5b" : "#dc6b6b", iconName: "Cpu" },
+    area("sentiment", "How AI describes you", sentimentScore, "MessageSquare"),
+    area("sources", "Where AI gets its information", sourcesScore, "BookOpen"),
+    area("content", "Content quality", contentScore, "FileCode2"),
+    area("presence", "Presence across platforms", presenceScore, "Building2"),
+    area("coverage", "Topic coverage", coverageScore, "FileSearch", coverageCapped
+      ? { capped: true, cappedReason: "No LocalBusiness-type schema (e.g. Restaurant, Store, Hotel) on the site, so this area is capped at 50." }
+      : {}),
+    area("technical", "Technical health", techScore, "Cpu"),
   ];
 
   return { scan, areas };

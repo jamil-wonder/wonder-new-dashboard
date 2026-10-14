@@ -11,7 +11,11 @@ export interface Business {
   name: string;
   url: string;
   category: string;
+  subType?: string;
   location: string;
+  // G3: the saved location split into parts (null when the saved text isn't a city/area)
+  locationData?: { area: string; city: string; country: string; postcode: string } | null;
+  locationProblem?: string | null;
   logoUrl: string;
   completeness: number;
   // True only once a real Search Tracker (Phase 5) run has completed for
@@ -20,6 +24,15 @@ export interface Business {
   // `completeness` as "Wonder Score" / "AI Visibility" must check this
   // first or it ends up claiming AI-tested results that were never run.
   hasVisibilityScore: boolean;
+  // J6: the Wonder Score is only ever written when a scan run COMPLETES, so
+  // `completeness` (above) is that number and never changes mid-run. While a
+  // run is in flight `scanRunActive` is set: the header shows "Calculating…"
+  // and keeps the last complete score visible.
+  scanRunActive?: { run_id: string; trigger?: string; started_at?: string } | null;
+  latestWonderInputs?: { mention_rate?: number | null; technical_score?: number | null; market_position?: number | null; market_measured?: boolean; score_margin?: number | null } | null;
+  latestWonderAt?: string | null;
+  // Unrounded (one decimal) - `completeness` is this rounded for the headline
+  latestWonderScore?: number | null;
   initial: string;
   isUserEdited?: boolean;
   description?: string;
@@ -45,6 +58,8 @@ export interface Business {
   // reminder and win-proof emails key off server-side.
   completedActions?: { action_id: string; title: string; category?: string; completed_at: string; week_id: string; baseline_mentions?: number | null; reported_win?: boolean }[];
   blogVoice?: string;
+  blogLanguage?: string;
+  blogLanguageDetected?: { code: string; label: string; source: string };
   blogKeywords?: string[];
   // When each score type last updated - separate from `completeness`
   // (the headline, visibility-first) so the UI can show "the Analyzer
@@ -224,9 +239,15 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Set just before a background refresh so it doesn't flip isLoading (which
+  // would blink every page's spinner while we quietly watch a running scan).
+  const silentRefetchRef = useRef(false);
+
   const fetchUserBusinesses = useCallback(async () => {
+    const silent = silentRefetchRef.current;
+    silentRefetchRef.current = false;
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const apiData = await fetchApi<any[]>("/api/user/businesses");
       if (!Array.isArray(apiData)) {
         setLoadError(true);
@@ -267,22 +288,28 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           // insertion into competitor rankings). Falls back to the
           // technical score only for a business that's never had a real
           // Search Tracker run yet, so it isn't stuck at "0" the whole time.
-          const hasVisibilityScore = typeof b.latest_phase5_score === "number" && b.latest_phase5_score > 0;
-          const finalScore = hasVisibilityScore
-            ? Math.round(b.latest_phase5_score)
-            : typeof b.latest_phase1_score === "number" && b.latest_phase1_score > 0
-              ? b.latest_phase1_score
-              : 0;
+          // J6/A1: the headline is the stored Wonder Score of the latest COMPLETE
+          // scan run - nothing else. No technical or visibility fallback: a business
+          // with no complete run has no score yet, rather than a half-measured one.
+          const hasVisibilityScore = typeof b.latest_wonder_score === "number";
+          const finalScore = hasVisibilityScore ? Math.round(b.latest_wonder_score) : 0;
 
           return {
             id: String(b.id || b._id || b.domain || displayName),
             name: displayName,
             url: rawDomain || "",
             category: b.category || "",
+            subType: b.subType || "",
             location: b.location || "",
+            locationData: b.locationData || null,
+            locationProblem: b.locationProblem || null,
             logoUrl: b.logo_url || b.logoUrl || "",
             completeness: finalScore,
             hasVisibilityScore,
+            scanRunActive: b.scan_run_active && typeof b.scan_run_active === "object" ? b.scan_run_active : null,
+            latestWonderInputs: b.latest_wonder_inputs && typeof b.latest_wonder_inputs === "object" ? b.latest_wonder_inputs : null,
+            latestWonderAt: b.latest_wonder_at || null,
+            latestWonderScore: typeof b.latest_wonder_score === "number" ? b.latest_wonder_score : null,
             initial: displayName.charAt(0).toUpperCase(),
             isUserEdited,
             description: b.businessDescription || b.business_description || b.description || "",
@@ -303,6 +330,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             latestPhase5At: b.latest_phase5_at || null,
             latestPhase1Score: typeof b.latest_phase1_score === "number" ? b.latest_phase1_score : null,
             blogVoice: b.blogVoice || b.blog_voice || "",
+            blogLanguage: b.blogLanguage || "",
+            blogLanguageDetected: b.blogLanguageDetected || undefined,
             blogKeywords: Array.isArray(b.blogKeywords) ? b.blogKeywords : [],
           };
         });
@@ -322,7 +351,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       // failed is never mistaken for "no businesses yet".
       setLoadError(true);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
       setHasLoadedOnce(true);
     }
   }, []);
@@ -359,6 +388,19 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, user?.id, user?.email, fetchUserBusinesses]);
 
   const activeBusiness = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? EMPTY_BUSINESS;
+
+  // J6: while a scan run is in flight (the Sunday run, "Run now", a tracker
+  // run from another tab) the header says "Calculating…". Quietly re-check
+  // every 15s so it flips to the new score the moment the run completes.
+  const hasActiveScanRun = businesses.some((b) => Boolean(b.scanRunActive));
+  useEffect(() => {
+    if (!hasActiveScanRun) return;
+    const timer = setInterval(() => {
+      silentRefetchRef.current = true;
+      fetchUserBusinesses();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [hasActiveScanRun, fetchUserBusinesses]);
 
   // Keep the ref in sync so setLiveDeepCompetitors always persists under
   // the CURRENT business's key, not a stale one from a prior render.

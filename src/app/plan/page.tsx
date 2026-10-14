@@ -1,5 +1,6 @@
 "use client";
 
+import { areasToImprove } from "../../lib/areaBadge";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -103,7 +104,7 @@ function useDoneTracking(businessId: string, serverDoneIds: string[]) {
 export default function PlanPage() {
   const { activeBusiness } = useBusiness();
   const { showToast } = useToast();
-  const overviewData = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore);
+  const overviewData = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore, activeBusiness?.id, activeBusiness?.latestAnalysis);
   const serverDoneIds = (activeBusiness?.completedActions || []).map((a) => a.action_id);
   const { done, markDone } = useDoneTracking(activeBusiness?.id || "", serverDoneIds);
 
@@ -210,7 +211,9 @@ export default function PlanPage() {
   }
 
   const drafts: any[] = Array.isArray(weeklyData?.drafts) ? weeklyData.drafts : [];
-  const weakestAreas = [...overviewData.auditAreas].sort((a, b) => a.score - b.score);
+  // C1: only areas below 90 have anything to fix
+  const weakestAreas = areasToImprove(overviewData.auditAreas).filter((a) => !a.capped);
+  const cappedArea = overviewData.auditAreas.find((a) => a.capped);
   const topGaps = overviewData.queryEvidence.filter((q) => q.missing.length > 0).slice(0, 2);
 
   // Assemble this week's 5 actions: 2 content, 2 presence/quick-win, 1 flex
@@ -254,6 +257,21 @@ export default function PlanPage() {
       impact: weakestAreas[0].score < 50 ? "High" : "Medium",
       title: `Fix: ${weakestAreas[0].label}`,
       why: `This area scored ${weakestAreas[0].score}/100 - your weakest right now.`,
+      doItYourselfHref: "/analyser",
+      doItYourselfLabel: "Open in Analyzer",
+    });
+  }
+
+  // C3: a site with no LocalBusiness-type schema is capped at 50 on that area, so
+  // adding it is the first thing to do this week.
+  if (cappedArea) {
+    actions.unshift({
+      id: "schema-localbusiness",
+      kind: "flex",
+      categoryLabel: "Technical fix",
+      impact: "High",
+      title: "Add LocalBusiness schema to your website",
+      why: "Your site's markup doesn't say what kind of business you are or where, so AI models can't place you and this area is capped at 50. Add LocalBusiness markup (e.g. Restaurant, Store, Hotel) with your address and phone.",
       doItYourselfHref: "/analyser",
       doItYourselfLabel: "Open in Analyzer",
     });

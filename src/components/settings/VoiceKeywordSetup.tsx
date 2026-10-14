@@ -84,10 +84,12 @@ export default function VoiceKeywordSetup() {
   const [newKeywordInput, setNewKeywordInput] = useState("");
   const [isAddingKw, setIsAddingKw] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [language, setLanguage] = useState("");   // "" = detect from the website / address
 
   useEffect(() => {
     if (activeBusiness) {
       setVoiceText(activeBusiness.blogVoice || "");
+      setLanguage(activeBusiness.blogLanguage || "");
       if (Array.isArray(activeBusiness.blogKeywords) && activeBusiness.blogKeywords.length > 0) {
         setKeywords(activeBusiness.blogKeywords);
       } else {
@@ -97,7 +99,7 @@ export default function VoiceKeywordSetup() {
     // Re-sync only when the business or its SAVED voice/keywords change. Keyed
     // on the whole object this wiped unsaved edits on every background refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBusiness?.id, activeBusiness?.blogVoice, (activeBusiness?.blogKeywords || []).join("")]);
+  }, [activeBusiness?.id, activeBusiness?.blogVoice, activeBusiness?.blogLanguage, (activeBusiness?.blogKeywords || []).join("")]);
 
   const handleAddKeyword = () => {
     const val = newKeywordInput.trim();
@@ -126,6 +128,7 @@ export default function VoiceKeywordSetup() {
           business_id: activeBusiness.id,
           voice: voiceText,
           keywords,
+          language,
         }),
       });
 
@@ -133,6 +136,7 @@ export default function VoiceKeywordSetup() {
         updateActiveBusiness({
           blogVoice: voiceText,
           blogKeywords: keywords,
+          blogLanguage: language,
         });
         showToast("Voice & keywords saved successfully!", "success");
       }
@@ -169,6 +173,34 @@ export default function VoiceKeywordSetup() {
             placeholder="e.g. Warm, local, expert, calm, helpful, premium but not formal."
             className="flex-1 font-sans text-[13.5px] leading-relaxed text-[#23211b] border border-[#ece3d1] rounded-xl p-3.5 outline-none bg-[#fdfcf8] resize-none min-h-[120px] focus:border-[#15463b] focus:bg-white transition-colors"
           />
+        </div>
+
+        {/* F3: which English the blogs are written in */}
+        <div className="flex flex-col lg:col-span-2">
+          <label className="font-spectral text-[16px] font-semibold text-[#15463b] mb-2">
+            Writing language
+          </label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="max-w-[360px] font-sans text-[13.5px] text-[#23211b] border border-[#ece3d1] rounded-xl p-3 outline-none bg-[#fdfcf8] focus:border-[#15463b] focus:bg-white transition-colors"
+          >
+            <option value="">
+              Detect automatically{activeBusiness?.blogLanguageDetected ? ` (${activeBusiness.blogLanguageDetected.label})` : ""}
+            </option>
+            <option value="en-GB">British English</option>
+            <option value="en-US">American English</option>
+            <option value="en-IE">Irish English</option>
+            <option value="en-AU">Australian English</option>
+            <option value="en-NZ">New Zealand English</option>
+            <option value="en-CA">Canadian English</option>
+            <option value="en-IN">Indian English</option>
+            <option value="en-ZA">South African English</option>
+            <option value="en-SG">Singapore English</option>
+          </select>
+          <p className="text-[11.5px] text-[#8a8273] mt-1.5">
+            Chosen from your address (then your website&apos;s language) unless you set it here.
+          </p>
         </div>
 
         {/* Target Keywords */}

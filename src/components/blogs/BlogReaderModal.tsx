@@ -22,6 +22,8 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
   const sections = Array.isArray(blog.sections) ? blog.sections : [];
   const score = blog.humanizedScore || blog.score || 94;
   const wordCount = blog.wordCount || 1200;
+  const languageLabel: string | null = blog.language ? ({ "en-GB": "British English", "en-US": "American English", "en-IE": "Irish English", "en-AU": "Australian English", "en-NZ": "New Zealand English", "en-CA": "Canadian English", "en-IN": "Indian English", "en-ZA": "South African English", "en-SG": "Singapore English" } as Record<string, string>)[blog.language] || blog.language : null;
+  const checkList: string[] = Array.isArray(blog.checkBeforePublishing) ? blog.checkBeforePublishing.filter(Boolean) : [];
 
   const handleCopyFullArticle = () => {
     const fullText = `# ${title}\n\n${metaDescription}\n\n` +
@@ -95,7 +97,7 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
               </div>
               <div>
                 <div className="text-[12px] font-semibold text-[#6f6757]">This article's readability score</div>
-                <div className="font-mono-spline text-[11px] text-[#8a8273] mt-0.5">{wordCount} Words · {sections.length} Sections</div>
+                <div className="font-mono-spline text-[11px] text-[#8a8273] mt-0.5">{wordCount} Words · {sections.length} Sections{languageLabel ? ` · ${languageLabel}` : ""}</div>
               </div>
             </div>
 
@@ -107,6 +109,27 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
                   </span>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* F1: what to confirm before this goes live. Statements about the business
+              come only from the profile / website; anything unsourced and specific
+              was removed, and the draft never invents a customer story. */}
+          <div className="p-4 rounded-xl bg-[#fff8e6] border border-[#f0dfae]">
+            <span className="font-mono-spline text-[9.5px] font-bold text-[#9a6a12] uppercase tracking-wider block mb-2">
+              Check before publishing
+            </span>
+            {checkList.length > 0 ? (
+              <ul className="space-y-1.5 list-disc pl-4">
+                {checkList.map((item: string, i: number) => (
+                  <li key={i} className="text-[13px] text-[#4a4437] leading-snug">{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[13px] text-[#4a4437] leading-snug">
+                This draft was written before claim-checking was added. Confirm every statement about your business
+                (prices, hours, awards, history) against your own records before publishing.
+              </p>
             )}
           </div>
 

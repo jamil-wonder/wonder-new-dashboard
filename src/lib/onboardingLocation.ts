@@ -52,6 +52,13 @@ const US_ZIP = /\b\d{5}(?:-\d{4})?\b/;
 
 // The saved location feeds every local-search question we ask AI ("Best
 // restaurant in <location>?"), so it must be a city/area, not a street address.
+// a country on its own is no use for local searches (keep in step with the backend's country list)
+const COUNTRY_ONLY = new Set([
+  "uk", "gb", "united kingdom", "great britain", "england", "scotland", "wales", "northern ireland",
+  "us", "usa", "united states", "united states of america", "ireland", "australia", "canada", "new zealand",
+  "india", "south africa", "singapore", "uae", "united arab emirates", "bangladesh",
+]);
+
 export function validateLocationInput(raw: string): string | null {
   const value = raw.replace(/\s+/g, " ").trim();
   if (!value) return "Tell us where you're based so we can track the local searches your customers make.";
@@ -59,8 +66,13 @@ export function validateLocationInput(raw: string): string | null {
   if (value.length > 80) return "Keep the location short - a city or area is enough.";
   if (!/[A-Za-zÀ-ɏ]{2}/.test(value)) return "Enter a city or area, like “London, UK”.";
   if (/[@/]|https?:|www\./i.test(value)) return "Enter a city or area, like “London, UK”.";
+  if (value.split(" ").length > 6) return "Enter a city or area, like “London, UK” - not a description.";
   if (UK_POSTCODE.test(value) || US_ZIP.test(value) || (/\d/.test(value) && STREET_WORD.test(value))) {
     return "Enter a city or area (like “London, UK”), not a full street address or postcode.";
+  }
+  if (/\d/.test(value)) return "Enter a city or area, like “London, UK” - a place name has no numbers in it.";
+  if (COUNTRY_ONLY.has(value.toLowerCase().replace(/[^a-z ]/g, "").trim())) {
+    return "Add a city or area as well as the country, like “London, UK”.";
   }
   return null;
 }

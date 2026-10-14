@@ -8,7 +8,8 @@ import UserDropdownMenu from "./UserDropdownMenu";
 import { Bell, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { WonderscoreLogo } from "../ui/WonderscoreSpinner";
-import { fetchApi, getScanHistory } from "../../lib/api";
+import { fetchApi } from "../../lib/api";
+import ScoreBreakdownPopover from "../ui/ScoreBreakdown";
 
 export default function DashboardHeader() {
   const { activeBusiness } = useBusiness();
@@ -16,14 +17,10 @@ export default function DashboardHeader() {
   const [historyPrevScore, setHistoryPrevScore] = useState<number | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
 
-  // Only ever the real AI-visibility (Wonder) score - never the Phase 1
-  // technical fallback. activeBusiness.completeness silently holds the
-  // technical score when no Search Tracker run exists yet; showing that
-  // number here under "Wonder Score" framing is exactly the mismatch that
-  // had this page and the Overview hero (which reads the real visibility
-  // score directly) showing two different numbers for the same business
-  // at the same time. The technical score belongs on the Analyzer page
-  // only - nowhere else.
+  // The Wonder Score of the latest COMPLETE scan run (J6) - it never moves
+  // mid-run. While a run is in flight we say "Calculating…" and keep this
+  // last complete score on screen.
+  const calculating = Boolean(activeBusiness?.scanRunActive);
   const rawScore = activeBusiness?.hasVisibilityScore ? (activeBusiness?.completeness ?? 0) : 0;
   const scoreDisplay = rawScore > 0 ? rawScore : null;
 
@@ -34,21 +31,11 @@ export default function DashboardHeader() {
 
     if (!activeBusiness?.url) return;
 
-    // Check client-side recorded scan history first
-    const localScans = getScanHistory(activeBusiness.url);
-    if (localScans.length >= 1) {
-      setHasScanned(true);
-    }
-    if (localScans.length >= 2) {
-      // Current scan is at localScans[length - 1], previous scan is at localScans[length - 2]
-      const prev = Math.round(localScans[localScans.length - 2].score);
-      setHistoryPrevScore(prev);
-      return;
-    }
-
-    // Fallback: query backend (only if we have a real score to compare against)
+    // Previous score = the previous COMPLETE run's Wonder Score. (The old
+    // browser-local history held Analyzer-only technical scores, which are
+    // not comparable with the Wonder Score.)
     if (rawScore > 0) {
-      fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(activeBusiness.url)}&metric=visibility`)
+      fetchApi<any>(`/api/user/history/site-trend?site=${encodeURIComponent(activeBusiness.url)}&metric=wonder`)
         .then((res) => {
           if (res && Array.isArray(res.points) && res.points.length >= 2) {
             setHasScanned(true);
@@ -98,7 +85,11 @@ export default function DashboardHeader() {
                 the logo + bell/avatar row. */}
             {hasBusiness && (
               <div className="flex sm:hidden items-center gap-1.5 shrink-0">
-                {scoreDisplay !== null ? (
+                {calculating ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-2.5 py-1 rounded-full animate-pulse">
+                    Calculating…{scoreDisplay !== null ? ` (last ${scoreDisplay})` : ""}
+                  </span>
+                ) : scoreDisplay !== null ? (
                   <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-1 rounded-full">
                     {scoreDisplay}
                   </span>
@@ -192,10 +183,20 @@ export default function DashboardHeader() {
                 <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f]">
                   Wonder Score
                 </div>
-                {scoreDisplay !== null ? (
-                  <div className="text-[11px] text-[#9b927f]">
-                    {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
-                  </div>
+                {calculating ? (
+                  <>
+                    <div className="num text-[13px] font-medium mt-0.5 text-[#92400e] animate-pulse">Calculating…</div>
+                    {scoreDisplay !== null && (
+                      <div className="text-[11px] text-[#9b927f]">Last complete run: {scoreDisplay}</div>
+                    )}
+                  </>
+                ) : scoreDisplay !== null ? (
+                  <>
+                    <div className="text-[11px] text-[#9b927f]">
+                      {scoreDisplay >= 80 ? "High AI Visibility" : scoreDisplay >= 65 ? "Good AI Visibility" : scoreDisplay >= 50 ? "Moderate Visibility" : "Low Visibility"}
+                    </div>
+                    <ScoreBreakdownPopover inputs={activeBusiness?.latestWonderInputs} score={activeBusiness?.latestWonderScore} />
+                  </>
                 ) : (
                   <>
                     <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet scanned</div>

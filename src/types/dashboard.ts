@@ -3,7 +3,7 @@ export interface SearchQueryItem {
   type: "branded" | "non-branded" | "local-seo" | "broad-seo";
   label: string;
   query: string;
-  status: "Mentioned" | "Not Mentioned";
+  status: "Mentioned" | "Not Mentioned" | "Unavailable";
   rank: number | null;
   matchType?: "site_matched" | "partial" | "no_match";
   sources: string[];
@@ -14,7 +14,10 @@ export interface SearchQueryItem {
   llmResponse?: string;
   targetSite?: any;
   resultsByModel?: Record<string, {
-    status: "Mentioned" | "Not Mentioned";
+    // "Unavailable" = the model failed or did not run: missing data, never a miss (A4)
+    status: "Mentioned" | "Not Mentioned" | "Unavailable";
+    // "failed" can be retried; "not_run" (e.g. a model switched off) cannot
+    fetchStatus?: "ok" | "failed" | "not_run";
     rank: number | null;
     sources: string[];
     answerSnippet?: string;
@@ -23,6 +26,10 @@ export interface SearchQueryItem {
     llmResponse?: string;
     targetSite?: any;
     matchType?: "site_matched" | "partial" | "no_match";
+    // B1: why it counts as a mention
+    namedInAnswer?: boolean;
+    citedAsSource?: boolean;
+    namedEvidence?: string;
   }>;
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { mapProviderResults } from "../../lib/trackerResults";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
@@ -17,6 +18,16 @@ import { useToast } from "../../context/ToastContext";
 import { buildRankedCompetitors } from "../../lib/competitorRanking";
 import { getAllSourcesForQueries } from "../../lib/querySources";
 import { fetchApi, parseApiError } from "../../lib/api";
+
+
+// A run ends as "incomplete" when too many AI model answers failed (J6/A4):
+// polling must stop, and no score exists to show.
+const isTerminalJobStatus = (status: unknown) =>
+  status === "completed" || status === "failed" || status === "cancelled" || status === "incomplete";
+const INCOMPLETE_RUN_MESSAGE =
+  "Run incomplete — some AI models couldn't be reached, so no score was recorded. Try again in a few minutes.";
+const CITATIONS_MISSING_MESSAGE =
+  "Run incomplete — most AI answers came back without any sources, so we can't tell whether your site was cited. No score was recorded. Try again in a few minutes.";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const ACTIVE_QUERY_JOB_MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -46,42 +57,6 @@ const QUESTION_CATEGORIES: Array<{
   { key: "localSeo", label: "Local SEO", hint: "Location-specific prompts" },
   { key: "broadSeo", label: "Broad SEO", hint: "Nearby-area prompts" },
 ];
-
-function extractDomain(urlOrDomain: string): string {
-  const raw = (urlOrDomain || "").trim().toLowerCase();
-  if (!raw) return "";
-  try {
-    const host = new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname;
-    return host.replace(/^www\./, "").replace(/[),.;:]+$/g, "");
-  } catch {
-    return raw.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].replace(/[),.;:]+$/g, "");
-  }
-}
-
-function extractSourcesFromProviderData(pData: any): string[] {
-  if (!pData) return [];
-  const directSources = Array.isArray(pData.sources) ? pData.sources : [];
-  const directRefs = Array.isArray(pData.references) ? pData.references : [];
-  const directUrls = Array.isArray(pData.source_urls || pData.sourceUrls) ? (pData.source_urls || pData.sourceUrls) : [];
-
-  let jsonRefs: string[] = [];
-  const rawText = pData.llm_response || pData.llmResponse || pData.reasoning || "";
-  if (rawText && typeof rawText === "string") {
-    try {
-      const unfenced = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-      const parsed = JSON.parse(unfenced);
-      if (parsed && Array.isArray(parsed.references)) {
-        jsonRefs = parsed.references;
-      }
-    } catch {}
-  }
-
-  const merged = [...directSources, ...directRefs, ...directUrls, ...jsonRefs]
-    .map((v) => extractDomain(String(v)))
-    .filter((d) => d && d !== "example.com");
-
-  return Array.from(new Set(merged));
-}
 
 function normalizeQuestionMix(value?: Partial<QuestionMix> | null): QuestionMix {
   const source = value || {};
@@ -294,7 +269,16 @@ export default function QueryPage() {
   const [isSourcesSidebarOpen, setIsSourcesSidebarOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  // When the four AI models were actually asked (a run inside the week re-uses those answers)
+  const [answersCollectedAt, setAnswersCollectedAt] = useState<string | null>(null);
+  // B2: citation-capture health of the latest run (from the backend)
+  const [citationsMissingMajority, setCitationsMissingMajority] = useState(false);
   const [isScanComplete, setIsScanComplete] = useState(false);
+  // Latest finished run for this business: needed to retry only its failed answers (A4)
+  const [lastJobId, setLastJobId] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  // Bumped after a retry is queued so the resume-polling effect picks the job up
+  const [retryNonce, setRetryNonce] = useState(0);
   const [processedCount, setProcessedCount] = useState(0);
   // Locked-20 mechanic (platform-flow spec Part 3): once a business locks
   // its core 20 questions, editing them isn't silent anymore - adding a
@@ -336,20 +320,30 @@ export default function QueryPage() {
   const modelScores = useMemo(() => {
     const models = ["ChatGPT", "Claude", "Perplexity", "Gemini"];
     const total = queriesList.length || 20;
-    const scores: Record<string, { mentioned: number; total: number; pct: number }> = {};
+    const scores: Record<string, { mentioned: number; total: number; pct: number; unavailable: number; failed: number }> = {};
 
     models.forEach((mName) => {
       let count = 0;
+      let unavailable = 0;
+      let failed = 0;
       queriesList.forEach((q) => {
         const mRes = q.resultsByModel?.[mName];
-        if (mRes && mRes.status === "Mentioned") {
+        if (mRes && mRes.status === "Unavailable") {
+          unavailable++;
+          if (mRes.fetchStatus !== "not_run") failed++;
+        } else if (mRes && mRes.status === "Mentioned") {
           count++;
         }
       });
+      // Unavailable answers are left out of the total: 0 of 20 "mentioned"
+      // must never be shown for a model that simply failed to answer (A4).
+      const answered = Math.max(0, total - unavailable);
       scores[mName] = {
         mentioned: count,
-        total,
-        pct: Math.round((count / total) * 100),
+        total: answered,
+        pct: answered > 0 ? Math.round((count / answered) * 100) : 0,
+        unavailable,
+        failed,
       };
     });
 
@@ -809,6 +803,9 @@ export default function QueryPage() {
       .then((res) => {
         if (cancelled || !res?.found || !res.results) return;
         applyJobResultsToQueries(res.results);
+        if (res.job_id) setLastJobId(res.job_id);
+        setAnswersCollectedAt(res.answers_collected_at || res.created_at || null);
+        setCitationsMissingMajority(Boolean(res.run_health?.citations_missing_majority));
         if (Array.isArray(res.deep_competitors) && res.deep_competitors.length > 0) {
           setLiveDeepCompetitors(res.deep_competitors);
         }
@@ -854,7 +851,7 @@ export default function QueryPage() {
     const hasModelRes = modelRes !== undefined;
 
     const isAudited = hasModelRes
-      ? (modelRes.status as string) !== "Pending"
+      ? (modelRes.status as string) !== "Pending" && (modelRes.status as string) !== "Unavailable"
       : Boolean(q.status) && (q.status as string) !== "Pending";
 
     const statusVal = hasModelRes ? modelRes.status : q.status;
@@ -864,7 +861,7 @@ export default function QueryPage() {
     if (activeStatus === "mentioned") {
       matchesStatus = isAudited && isMentioned;
     } else if (activeStatus === "not-mentioned") {
-      matchesStatus = isAudited && !isMentioned;
+      matchesStatus = isAudited && !isMentioned && (statusVal as string) !== "Unavailable";
     } else if (activeStatus === "pending") {
       matchesStatus = !isAudited || (statusVal as string) === "Pending";
     }
@@ -920,16 +917,6 @@ export default function QueryPage() {
     showToast("New prompt added to list! Click 'Run' to analyze.");
   };
 
-  // Helper to map backend provider key to model label
-  const mapModelName = (raw: string) => {
-    const lower = raw.toLowerCase();
-    if (lower.includes("chatgpt") || lower.includes("openai")) return "ChatGPT";
-    if (lower.includes("perplexity")) return "Perplexity";
-    if (lower.includes("claude") || lower.includes("anthropic")) return "Claude";
-    if (lower.includes("gemini") || lower.includes("google")) return "Gemini";
-    return raw;
-  };
-
   // Helper to process job results into queriesList with target site match resolution
   const applyJobResultsToQueries = useCallback((resultsObj: Record<string, any>) => {
     setQueriesList((prevList) => {
@@ -948,67 +935,15 @@ export default function QueryPage() {
 
         if (!qDoc || !qDoc.providers) return q;
 
-        const providers = qDoc.providers;
-        const resultsByModel: Record<string, any> = {};
-
-        let overallMentioned = false;
-        let overallMatchType: "site_matched" | "partial" | "no_match" = "no_match";
-        let bestRank: number | null = null;
-        let allSources: string[] = [];
-
-        Object.keys(providers).forEach((pKey) => {
-          const pData = providers[pKey];
-          const modelName = mapModelName(pKey);
-          const targetSite = pData.target_site || pData.targetSite || null;
-
-          const isTargetMatched = targetSite?.status === "matched";
-          const isTargetPartial = targetSite?.status === "partial";
-          const isM = Boolean(pData.mentioned) || isTargetMatched;
-
-          const matchType: "site_matched" | "partial" | "no_match" =
-            isTargetMatched ? "site_matched" : isTargetPartial ? "partial" : "no_match";
-
-          const pos = typeof pData.position === "number" ? pData.position : null;
-          
-          // Extract sources from sources, references, source_urls, and JSON-parsed reply text
-          const src = extractSourcesFromProviderData(pData);
-
-          if (isM) overallMentioned = true;
-          if (matchType === "site_matched" || (matchType === "partial" && overallMatchType !== "site_matched")) {
-            overallMatchType = matchType;
-          }
-
-          if (pos !== null && (bestRank === null || pos < bestRank)) bestRank = pos;
-          src.forEach((sItem: string) => { if (!allSources.includes(sItem)) allSources.push(sItem); });
-
-          const statusString: "Mentioned" | "Not Mentioned" = isM ? "Mentioned" : "Not Mentioned";
-
-          resultsByModel[modelName] = {
-            status: statusString,
-            rank: pos,
-            sources: src,
-            matchType,
-            sourceUrls: pData.source_urls || pData.sourceUrls || [],
-            references: pData.references || [],
-            answerSnippet: pData.reasoning || pData.llm_response || pData.llmResponse || "",
-            evidence: pData.reasoning || "",
-            reasoning: pData.reasoning || "",
-            llmResponse: pData.llm_response || pData.llmResponse || "",
-            targetSite,
-            competitorScores: pData.competitor_scores || pData.competitorScores || [],
-          };
-        });
-
-        const finalStatus: "Mentioned" | "Not Mentioned" = overallMentioned ? "Mentioned" : "Not Mentioned";
-
+        const mapped = mapProviderResults(qDoc.providers);
         return {
           ...q,
-          status: finalStatus,
-          rank: bestRank,
-          matchType: overallMatchType,
-          sources: allSources,
-          answerSnippet: resultsByModel["ChatGPT"]?.answerSnippet || resultsByModel["Perplexity"]?.answerSnippet || q.answerSnippet,
-          resultsByModel,
+          status: mapped.status,
+          rank: mapped.rank,
+          matchType: mapped.matchType,
+          sources: mapped.sources,
+          answerSnippet: mapped.answerSnippet || q.answerSnippet,
+          resultsByModel: mapped.resultsByModel,
         };
       });
 
@@ -1050,17 +985,38 @@ export default function QueryPage() {
         if (Array.isArray(statusRes?.deep_competitors) && statusRes.deep_competitors.length > 0) {
           setLiveDeepCompetitors(statusRes.deep_competitors);
         }
-        if (statusRes && (statusRes.status === "completed" || statusRes.status === "failed" || statusRes.status === "cancelled")) {
+        if (statusRes && (isTerminalJobStatus(statusRes.status))) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
           clearActiveJob();
           setProcessedCount(statusRes.total || queriesList.length);
           setIsScanComplete(true);
           if (statusRes.status === "completed") refetchBusinesses();
+          if (statusRes.status === "incomplete") showToast(statusRes?.run_health?.incomplete_reason === "citations_missing" ? CITATIONS_MISSING_MESSAGE : INCOMPLETE_RUN_MESSAGE, "error");
         }
       } catch {}
     }, 1500);
-  }, [queriesList.length, domain, getActiveJobKey, clearActiveJob, showToast, saveActiveJob, applyJobResultsToQueries, refetchBusinesses]);
+  }, [queriesList.length, domain, getActiveJobKey, clearActiveJob, showToast, saveActiveJob, applyJobResultsToQueries, refetchBusinesses, retryNonce]);
+
+  // A4: re-run ONLY the model answers that failed, in the same job.
+  const handleRetryFailed = useCallback(async () => {
+    if (!lastJobId || isRetrying) return;
+    setIsRetrying(true);
+    try {
+      const res = await fetchApi<any>(`/api/phase5/retry-failed/${lastJobId}`, { method: "POST" });
+      saveActiveJob(lastJobId, 0, res?.total || queriesList.length);
+      setIsScanning(true);
+      setIsScanComplete(false);
+      setProcessedCount(0);
+      showToast(`Retrying ${res?.total ?? "the"} unavailable answers…`, "info");
+      setRetryNonce((n) => n + 1);
+      refetchBusinesses();
+    } catch (err: any) {
+      showToast("Couldn't start the retry. Please try again in a moment.", "error");
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [lastJobId, isRetrying, saveActiveJob, queriesList.length, showToast, refetchBusinesses]);
 
   // 4. Live Audit Execution when user clicks "Run"
   const handleStartScan = useCallback(async () => {
@@ -1095,7 +1051,10 @@ export default function QueryPage() {
 
       if (res && res.job_id) {
         const jobId = res.job_id;
+        setLastJobId(jobId);
         saveActiveJob(jobId, 0, queriesList.length);
+        // A scan run exists now: let the header show "Calculating…" right away (J6)
+        refetchBusinesses();
 
         // 1. Primary SSE Stream for live progress updates
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -1114,11 +1073,12 @@ export default function QueryPage() {
             if (statusData.results) {
               applyJobResultsToQueries(statusData.results);
             }
+            if (statusData.run_health) setCitationsMissingMajority(Boolean(statusData.run_health.citations_missing_majority));
             if (Array.isArray(statusData.deep_competitors) && statusData.deep_competitors.length > 0) {
               setLiveDeepCompetitors(statusData.deep_competitors);
             }
             // ONLY stop when backend returns terminal job status ("completed", "failed", "cancelled")
-            if (statusData.status === "completed" || statusData.status === "failed" || statusData.status === "cancelled") {
+            if (isTerminalJobStatus(statusData.status)) {
               es.close();
               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
               pollIntervalRef.current = null;
@@ -1133,6 +1093,7 @@ export default function QueryPage() {
               // and this page's own fresh score end up showing two
               // different numbers for the same business at the same time.
               if (statusData.status === "completed") refetchBusinesses();
+          if (statusData.status === "incomplete") showToast(statusData?.run_health?.incomplete_reason === "citations_missing" ? CITATIONS_MISSING_MESSAGE : INCOMPLETE_RUN_MESSAGE, "error");
             }
           } catch {}
         };
@@ -1149,12 +1110,14 @@ export default function QueryPage() {
             if (statusRes && statusRes.results) {
               applyJobResultsToQueries(statusRes.results);
             }
+            if (statusRes?.answers_collected_at) setAnswersCollectedAt(statusRes.answers_collected_at);
+            if (statusRes?.run_health) setCitationsMissingMajority(Boolean(statusRes.run_health.citations_missing_majority));
             if (Array.isArray(statusRes?.deep_competitors) && statusRes.deep_competitors.length > 0) {
               setLiveDeepCompetitors(statusRes.deep_competitors);
             }
 
             // ONLY stop when backend job status is terminal ("completed", "failed", "cancelled")
-            if (statusRes && (statusRes.status === "completed" || statusRes.status === "failed" || statusRes.status === "cancelled")) {
+            if (statusRes && (isTerminalJobStatus(statusRes.status))) {
               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
               pollIntervalRef.current = null;
               if (eventSourceRef.current) eventSourceRef.current.close();
@@ -1162,6 +1125,7 @@ export default function QueryPage() {
               setProcessedCount(queriesList.length);
               setIsScanComplete(true);
               if (statusRes.status === "completed") refetchBusinesses();
+          if (statusRes.status === "incomplete") showToast(statusRes?.run_health?.incomplete_reason === "citations_missing" ? CITATIONS_MISSING_MESSAGE : INCOMPLETE_RUN_MESSAGE, "error");
             }
           } catch {}
         }, 1000);
@@ -1219,7 +1183,29 @@ export default function QueryPage() {
         selectedModel={selectedModel}
         onSelectModel={setSelectedModel}
         modelScores={modelScores}
+        onRetryFailed={lastJobId ? handleRetryFailed : undefined}
+        isRetrying={isRetrying || isScanning}
       />
+
+      {/* B2: citation capture failed for most answers - say so instead of silently scoring "not cited" */}
+      {!isLoadingQuestions && queriesList.length > 0 && citationsMissingMajority && (
+        <div role="alert" className="text-[12.5px] text-[#7a4a06] bg-[#fdf3dc] border border-[#f0dfae] rounded-xl px-4 py-3">
+          <strong>Sources are missing from most answers.</strong> The AI models answered, but for most questions we couldn&apos;t
+          capture the sources they used, so we can&apos;t tell whether your site was cited. This run was not scored. Try again in a
+          few minutes{lastJobId ? " or use Retry on the unavailable rows." : "."}
+        </div>
+      )}
+
+      {/* Say plainly what the numbers are based on, and when it was last asked */}
+      {!isLoadingQuestions && queriesList.length > 0 && answersCollectedAt && (
+        <div className="text-[12px] text-[#6f6757] bg-[#fdfcf8] border border-[#ece3d1] rounded-xl px-4 py-2.5">
+          Last checked{" "}
+          <strong className="text-[#3a352b]">
+            {new Date(answersCollectedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+          </strong>
+          {" "}with ChatGPT, Claude, Perplexity and Gemini. The models answer a little differently each time, so small score changes can be noise.
+        </div>
+      )}
 
       {/* Top summary - "appeared X/20, rank, closing N gaps could help you
           catch the competitor right above you" per the platform-flow spec's
@@ -1235,7 +1221,7 @@ export default function QueryPage() {
         // claims you're absent from questions nobody has asked yet, which
         // isn't true. Gaps can only be counted among questions that have
         // real results.
-        const runCount = queriesList.filter((q) => (q.status as string) !== "Pending").length;
+        const runCount = queriesList.filter((q) => (q.status as string) !== "Pending" && (q.status as string) !== "Unavailable").length;
         const appearedCount = queriesList.filter((q) => q.status === "Mentioned").length;
         const gapsCount = runCount - appearedCount;
         const userRow = competitorRows.find((c) => c.isUser);
@@ -1254,8 +1240,8 @@ export default function QueryPage() {
         return (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 text-[13px]">
             <span className="font-semibold text-[#23211b]">
-              Appeared <span className="text-[#15463b]">{appearedCount}/{runCount}</span>
-              {runCount < totalQ && <span className="text-[#9b927f] font-normal"> ({totalQ - runCount} not run yet)</span>}
+              Mentioned on at least one model: <span className="text-[#15463b]">{appearedCount}/{runCount}</span>
+              {runCount < totalQ && <span className="text-[#9b927f] font-normal"> ({totalQ - runCount} not run or unavailable)</span>}
             </span>
             {userRow && (
               <span className="font-semibold text-[#23211b]">
@@ -1375,7 +1361,7 @@ export default function QueryPage() {
         <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <span className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
-              Competitor Score Comparison
+              Market score comparison
             </span>
             <span className="text-[12.5px] text-[#8a8273]">
               {competitorRows[0]?.isUser

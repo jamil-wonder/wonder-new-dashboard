@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ArrowRight, Globe } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
 import { OverviewData } from "../../hooks/useOverviewData";
+import EmptyState from "../ui/EmptyState";
 
 function domainInitials(domain: string) {
   return domain.replace(/^www\./, "").replace(/\.(com|co\.uk|org|net|io).*/, "").substring(0, 2).toUpperCase();
@@ -42,10 +43,7 @@ export default function SourcesSection({ data }: { data: OverviewData }) {
         </p>
 
         {!hasQueryData && citedSources.length === 0 ? (
-          <div className="mt-4 p-4 rounded-lg bg-[#f6efe0] text-center">
-            <Globe className="w-5 h-5 text-[#b3a98f] mx-auto mb-1" />
-            <p className="text-[12.5px] text-[#9a8a5e]">Run AI Queries to see which sources get cited alongside you.</p>
-          </div>
+          <EmptyState variant="warm" message="No Search Tracker run yet - run it to see which sources get cited alongside you." href="/query" actionLabel="Open Queries" />
         ) : citedSources.length > 0 ? (
           <>
             <div className="font-mono-spline text-[9px] tracking-wider uppercase text-[#9a8a5e] mt-4">
@@ -68,10 +66,7 @@ export default function SourcesSection({ data }: { data: OverviewData }) {
             </div>
           </>
         ) : (
-          <div className="mt-4 p-4 rounded-lg bg-[#f6efe0] text-center">
-            <Globe className="w-5 h-5 text-[#b3a98f] mx-auto mb-1" />
-            <p className="text-[12.5px] text-[#9a8a5e]">No sources cited yet for this business.</p>
-          </div>
+          <EmptyState variant="warm" message="The last run found no sources cited alongside this business." />
         )}
       </div>
 

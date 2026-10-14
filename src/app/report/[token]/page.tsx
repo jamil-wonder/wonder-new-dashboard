@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { WonderscoreLogo } from "../../../components/ui/WonderscoreSpinner";
 import { fetchApi } from "../../../lib/api";
+import { ScoreBreakdownTable } from "../../../components/ui/ScoreBreakdown";
 
 interface PublicReport {
   businessName: string;
@@ -15,7 +16,13 @@ interface PublicReport {
   // because Search Tracker has never completed a run for this business -
   // this page must never present that as a tested AI-visibility result.
   visibilityVerified: boolean;
+  // The three inputs behind the score (A1), named exactly as in the app
+  scoreExact?: number | null;
+  scoreBreakdown?: { mention_rate?: number | null; technical_score?: number | null; market_position?: number | null; market_measured?: boolean; score_margin?: number | null } | null;
   previousScore: number | null;
+  // the complete run "vs" compares against (always at least 6 days older), if there is one
+  previousScoreAt?: string | null;
+  whatMovedAvailable?: boolean;
   competitorAverage: number | null;
   rank: number | null;
   competitors: { name: string; domain: string; score: number }[];
@@ -107,7 +114,7 @@ export default function SharedReportPage() {
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {report.visibilityVerified && delta !== null && (
                   <span className={`text-[12px] font-semibold ${delta > 0 ? "text-[#1e7d4f]" : delta < 0 ? "text-[#b1442a]" : "text-[#8a8273]"}`}>
-                    {delta > 0 ? `+${delta}` : delta} vs last week
+                    {delta > 0 ? `+${delta}` : delta} vs {report.previousScoreAt ? new Date(report.previousScoreAt).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "last week"}
                   </span>
                 )}
                 {!report.visibilityVerified && (
@@ -125,6 +132,15 @@ export default function SharedReportPage() {
                 No AI model (ChatGPT, Claude, Perplexity, Gemini) has been queried about this business yet, so there's no Wonder
                 Score to show. Run Search Tracker at least once to generate a real report.
               </p>
+            </div>
+          )}
+
+          {report.visibilityVerified && report.scoreBreakdown && (
+            <div className="mt-5 pt-5 border-t border-[#efe7d6]">
+              <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f] mb-2">
+                How this score is calculated
+              </div>
+              <ScoreBreakdownTable inputs={report.scoreBreakdown} score={report.scoreExact ?? report.score} />
             </div>
           )}
 
