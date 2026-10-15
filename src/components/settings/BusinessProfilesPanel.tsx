@@ -1,5 +1,6 @@
 "use client";
 
+import { CATEGORY_OPTIONS, matchCategory } from "../../lib/categories";
 import { computeProfileCompleteness } from "../../lib/profileCompleteness";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -59,6 +60,8 @@ export default function BusinessProfilesPanel() {
   const [formName, setFormName] = useState("");
   const [formUrl, setFormUrl] = useState("");
   const [formCategory, setFormCategory] = useState("");
+  // G5: set when the category was picked from the website scan rather than by the owner
+  const [categoryFromScan, setCategoryFromScan] = useState(false);
   const [formSubType, setFormSubType] = useState("");
   const [formLocation, setFormLocation] = useState("");
   const [formLogoUrl, setFormLogoUrl] = useState("");
@@ -100,7 +103,10 @@ export default function BusinessProfilesPanel() {
 
   const openEdit = (p: Business) => {
     setEditId(p.id);
-    setFormName(p.name); setFormUrl(p.url); setFormCategory(p.category); setFormSubType(p.subType || "");
+    // a business with no category yet gets the one the website scan found, if it matches the list
+    const scanned = !p.category ? matchCategory(p.latestScrapeResult?.category) : "";
+    setCategoryFromScan(Boolean(scanned));
+    setFormName(p.name); setFormUrl(p.url); setFormCategory(p.category || scanned); setFormSubType(p.subType || "");
     setFormLocation(p.location); setFormLogoUrl(p.logoUrl || "");
     setFormDesc(p.description || ""); setFormAiDesc(p.aiDescription || "");
     setFormServices(p.services || ""); setFormAudience(p.targetAudience || "");
@@ -212,15 +218,35 @@ export default function BusinessProfilesPanel() {
             {[
               { label: "Business Name", val: formName, set: setFormName, ph: "Acme Inc.", req: true },
               { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://example.com/", req: true },
-              { label: "Category", val: formCategory, set: setFormCategory, ph: "e.g. Restaurant, Consulting" },
+              { label: "Category", val: formCategory, set: setFormCategory, ph: "", select: true },
               { label: "Specific type (optional)", val: formSubType, set: setFormSubType, ph: "e.g. Indian, Italian, Tax advisory" },
               { label: "Location", val: formLocation, set: setFormLocation, ph: "e.g. Austin, TX" },
-            ].map(({ label, val, set, ph, req }) => (
+            ].map(({ label, val, set, ph, req, select }: { label: string; val: string; set: (v: string) => void; ph: string; req?: boolean; select?: boolean }) => (
               <div key={label}>
                 <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">{label}</label>
+                {select ? (
+                  <>
+                    <select
+                      value={val}
+                      onChange={(e) => { set(e.target.value); setCategoryFromScan(false); }}
+                      className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
+                    >
+                      <option value="">Choose a category</option>
+                      {/* a category saved before this list existed stays selectable */}
+                      {val && !CATEGORY_OPTIONS.includes(val) && <option value={val}>{val}</option>}
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    {categoryFromScan && (
+                      <p className="text-[11.5px] text-[#1e7d4f] mt-1.5 leading-snug">Picked from your website - change it if it&apos;s not right.</p>
+                    )}
+                  </>
+                ) : (
                 <input value={val} onChange={(e) => set(e.target.value)} required={req} placeholder={ph}
                   aria-invalid={label === "Location" && Boolean(locationHint)}
                   className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors" />
+                )}
                 {label === "Location" && locationHint && (
                   <p className="text-[11.5px] text-[#9a6a12] mt-1.5 leading-snug">{locationHint}</p>
                 )}

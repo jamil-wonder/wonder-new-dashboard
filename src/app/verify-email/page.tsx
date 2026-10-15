@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
+import { parseApiError } from "../../lib/api";
 import { useUser } from "../../context/UserContext";
 
 const OTP_LENGTH = 6;
@@ -90,16 +91,7 @@ function OtpBoxes({
   );
 }
 
-function parseErrorMessage(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err || "");
-  const match = raw.match(/API Error \(\d+\):\s*(.*)/);
-  const body = match ? match[1] : raw;
-  try {
-    const parsed = JSON.parse(body);
-    if (typeof parsed?.detail === "string") return parsed.detail;
-  } catch {}
-  return body || "Couldn't verify that code - try again.";
-}
+const verifyErrorMessage = (err: unknown) => parseApiError(err, "We couldn't check that code. Please try again.", "verify");
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -160,7 +152,7 @@ function VerifyEmailContent() {
       // with zero businesses sees the onboarding step.
       window.location.href = "/onboarding";
     } catch (err) {
-      setErrorMsg(parseErrorMessage(err));
+      setErrorMsg(verifyErrorMessage(err));
       setIsVerifying(false);
     }
   };
@@ -190,7 +182,7 @@ function VerifyEmailContent() {
       await resendOtp(email);
       setResendMsg("A fresh code is on its way - check your inbox.");
     } catch (err) {
-      setResendMsg(parseErrorMessage(err));
+      setResendMsg(verifyErrorMessage(err));
     } finally {
       setIsResending(false);
     }

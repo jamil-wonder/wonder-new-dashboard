@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import SegmentedControl from "../ui/SegmentedControl";
 
 interface ModelSwitcherProps {
   selectedModel: string;
@@ -45,42 +46,33 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
             outer flex-wrap only helps once this whole block doesn't fit
             next to the score card; it can't shrink the block itself. Below
             sm this scrolls horizontally instead of clipping the last tab. */}
-        <div className="flex bg-[#f5f0e6] p-1 border border-[#e8dfc8] rounded-lg relative gap-0.5 max-w-full overflow-x-auto no-scrollbar">
-          {modelList.map((mName) => {
-            const m = DEFAULT_MODELS_CFG[mName];
-            const isActive = selectedModel === mName;
-            return (
-              <button
-                key={mName}
-                onClick={() => onSelectModel(mName)}
-                className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-md text-[12px] sm:text-[13px] font-medium cursor-pointer border-none bg-transparent z-10 transition-colors duration-150 shrink-0 whitespace-nowrap"
-                style={{ color: isActive ? "#fff" : "#6f6757" }}
-              >
-                {/* ── Sliding background pill ── */}
-                {isActive && (
-                  <motion.span
-                    layoutId="model-glider"
-                    className="absolute inset-0 rounded-md bg-[#15463b] shadow-xs"
-                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    style={{ zIndex: -1 }}
-                  />
-                )}
-
-                {/* Icon: invert to white when active */}
-                <span className="w-4 h-4 shrink-0 flex items-center justify-center overflow-hidden relative z-10">
-                  <Image
-                    src={m.icon}
-                    width={16}
-                    height={16}
-                    alt={mName}
-                    className={`object-contain transition-all duration-200 ${isActive ? "brightness-0 invert" : ""}`}
-                  />
-                </span>
-                <span className="relative z-10">{mName}</span>
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          ariaLabel="AI model"
+          options={modelList.map((m) => ({ id: m, label: m }))}
+          value={selectedModel}
+          onChange={onSelectModel}
+          className="flex bg-[#f5f0e6] p-1 border border-[#e8dfc8] rounded-lg relative gap-0.5 max-w-full overflow-x-auto no-scrollbar"
+          itemClassName={() =>
+            "relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-md text-[12px] sm:text-[13px] font-medium cursor-pointer border-none bg-transparent z-10 transition-colors duration-150 shrink-0 whitespace-nowrap"
+          }
+          itemStyle={(isActive) => ({ color: isActive ? "#fff" : "#6f6757" })}
+          gliderId="model-glider"
+          renderOption={(opt, isActive) => (
+            <>
+              {/* Icon: invert to white when active */}
+              <span className="w-4 h-4 shrink-0 flex items-center justify-center overflow-hidden relative z-10">
+                <Image
+                  src={DEFAULT_MODELS_CFG[opt.id].icon}
+                  width={16}
+                  height={16}
+                  alt=""
+                  className={`object-contain transition-all duration-200 ${isActive ? "brightness-0 invert" : ""}`}
+                />
+              </span>
+              <span className="relative z-10">{opt.label}</span>
+            </>
+          )}
+        />
 
         {/* ── Live Model Score Card ── */}
         {modelUnavailable ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { classifyChange, noiseLabel } from "../../../lib/scoreChange";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -47,12 +48,16 @@ export default function SharedReportPage() {
   const [report, setReport] = useState<PublicReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     fetchApi<PublicReport>(`/api/public/reports/${encodeURIComponent(token)}`)
       .then((res) => setReport(res))
-      .catch(() => setNotFound(true))
+      .catch((err) => {
+        setExpired((err as { status?: number })?.status === 410);
+        setNotFound(true);
+      })
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -68,13 +73,17 @@ export default function SharedReportPage() {
     return (
       <div className="min-h-screen bg-[#fdfcf8] flex flex-col items-center justify-center px-4 text-center">
         <WonderscoreLogo size={32} color="#15463b" />
-        <p className="mt-4 text-[15px] font-semibold text-[#23211b]">This report link isn't valid.</p>
-        <p className="text-[13px] text-[#8a8273] mt-1">It may have been removed. Ask whoever sent it for a fresh link.</p>
+        <p className="mt-4 text-[15px] font-semibold text-[#23211b]">{expired ? "This report link has expired." : "This report link isn't available."}</p>
+        <p className="text-[13px] text-[#8a8273] mt-1">
+          {expired ? "Report links work for 30 days." : "It may have been turned off."} Ask whoever sent it for a fresh link.
+        </p>
       </div>
     );
   }
 
   const delta = report.score !== null && report.previousScore !== null ? report.score - report.previousScore : null;
+  // A5: a move inside the AI-answer noise margin is not shown as a change
+  const change = classifyChange(delta, report.scoreBreakdown?.score_margin);
 
   return (
     <div className="min-h-screen bg-[#fdfcf8] flex flex-col items-center px-4 py-10 md:py-16">
@@ -113,8 +122,8 @@ export default function SharedReportPage() {
               <div className="font-spectral text-[19px] font-semibold text-[#23211b]">{report.businessName || report.domain}</div>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {report.visibilityVerified && delta !== null && (
-                  <span className={`text-[12px] font-semibold ${delta > 0 ? "text-[#1e7d4f]" : delta < 0 ? "text-[#b1442a]" : "text-[#8a8273]"}`}>
-                    {delta > 0 ? `+${delta}` : delta} vs {report.previousScoreAt ? new Date(report.previousScoreAt).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "last week"}
+                  <span className={`text-[12px] font-semibold ${change.kind === "up" ? "text-[#1e7d4f]" : change.kind === "down" ? "text-[#b1442a]" : "text-[#8a8273]"}`}>
+                    {change.kind === "noise" ? noiseLabel(change.margin) : delta > 0 ? `+${delta}` : delta} vs {report.previousScoreAt ? new Date(report.previousScoreAt).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "last week"}
                   </span>
                 )}
                 {!report.visibilityVerified && (

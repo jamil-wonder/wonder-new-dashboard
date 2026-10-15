@@ -33,6 +33,8 @@ export interface Business {
   latestWonderAt?: string | null;
   // Unrounded (one decimal) - `completeness` is this rounded for the headline
   latestWonderScore?: number | null;
+  // L1: how the latest website scan went. ok === false means it never reached the site: no score is shown.
+  lastCrawl?: { ok: boolean; http_status?: number | null; reason?: string | null; at?: string } | null;
   initial: string;
   isUserEdited?: boolean;
   description?: string;
@@ -291,7 +293,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           // J6/A1: the headline is the stored Wonder Score of the latest COMPLETE
           // scan run - nothing else. No technical or visibility fallback: a business
           // with no complete run has no score yet, rather than a half-measured one.
-          const hasVisibilityScore = typeof b.latest_wonder_score === "number";
+          // L1: when the latest website scan failed there is no current score to show
+          const lastCrawl = b.last_crawl && typeof b.last_crawl === "object" ? b.last_crawl : null;
+          const hasVisibilityScore = typeof b.latest_wonder_score === "number" && lastCrawl?.ok !== false;
           const finalScore = hasVisibilityScore ? Math.round(b.latest_wonder_score) : 0;
 
           return {
@@ -310,6 +314,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             latestWonderInputs: b.latest_wonder_inputs && typeof b.latest_wonder_inputs === "object" ? b.latest_wonder_inputs : null,
             latestWonderAt: b.latest_wonder_at || null,
             latestWonderScore: typeof b.latest_wonder_score === "number" ? b.latest_wonder_score : null,
+            lastCrawl,
             initial: displayName.charAt(0).toUpperCase(),
             isUserEdited,
             description: b.businessDescription || b.business_description || b.description || "",

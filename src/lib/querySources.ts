@@ -73,6 +73,21 @@ export function getAllSourcesForQuery(query: QuerySourceShape | null | undefined
   return Array.from(set);
 }
 
+/** B4: the valid source domains ONE model cited for this question (the Tracker column follows the selected model). */
+export function getSourcesForModel(query: QuerySourceShape | null | undefined, model: string): string[] {
+  const result = query?.resultsByModel?.[model];
+  if (!result) return [];
+  const set = new Set<string>();
+  const add = (value: unknown) => {
+    const normalized = normalizeDomain(String(value || ""));
+    if (normalized && isValidSourceDomain(normalized)) set.add(normalized);
+  };
+  (result.sources || []).forEach(add);
+  (result.sourceUrls || []).forEach(add);
+  (result.references || []).forEach(add);
+  return Array.from(set);
+}
+
 /** The union of every valid source domain cited across ALL models AND ALL
  * queries in the current run - the "view all sources" list. */
 export function getAllSourcesForQueries(queries: QuerySourceShape[] | null | undefined): string[] {

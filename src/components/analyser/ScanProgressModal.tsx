@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WonderscoreLogo } from "../ui/WonderscoreSpinner";
+import { useDialogBehavior } from "../ui/Dialog";
 
 interface ScanProgressModalProps {
   isOpen: boolean;
@@ -14,6 +15,28 @@ interface ScanProgressModalProps {
   loadingTextOverride?: string;
   processed?: number;
   total?: number;
+}
+
+// Same behaviour as <Dialog> (Escape minimises, focus kept inside, focus restored) on the animated card.
+function ScanCard({ onDismiss, labelledBy, children }: { onDismiss: () => void; labelledBy: string; children: React.ReactNode }) {
+  const { panelRef, onKeyDown } = useDialogBehavior({ onClose: onDismiss });
+  return (
+    <motion.div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+      initial={{ opacity: 0, scale: 0.95, y: 15 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 15 }}
+      transition={{ type: "spring", damping: 26, stiffness: 190 }}
+      className="relative w-full max-w-md bg-[#fdfcf8] border border-[#ece3d1] rounded-2xl p-6 md:p-8 shadow-[0_16px_48px_rgba(60,48,28,0.12)] overflow-hidden z-10 outline-none"
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 export default function ScanProgressModal({
@@ -141,13 +164,7 @@ export default function ScanProgressModal({
       />
 
       {/* Modal Card */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        transition={{ type: "spring", damping: 26, stiffness: 190 }}
-        className="relative w-full max-w-md bg-[#fdfcf8] border border-[#ece3d1] rounded-2xl p-6 md:p-8 shadow-[0_16px_48px_rgba(60,48,28,0.12)] overflow-hidden z-10"
-      >
+      <ScanCard onDismiss={() => setIsDismissed(true)} labelledBy="scan-progress-title">
         <div className="flex flex-col relative z-10">
           {/* Header */}
           <div className="flex items-center justify-between w-full mb-6">
@@ -159,11 +176,12 @@ export default function ScanProgressModal({
               >
                 <WonderscoreLogo size={22} color="#15463b" />
               </motion.div>
-              <h3 className="text-[19px] font-semibold text-[#15463b] font-spectral leading-tight">
+              <h3 id="scan-progress-title" className="text-[19px] font-semibold text-[#15463b] font-spectral leading-tight">
                 {title}
               </h3>
             </div>
             <button
+              type="button"
               onClick={() => setIsDismissed(true)}
               className="flex items-center gap-1 text-[11.5px] font-bold text-[#6f6757] hover:text-[#15463b] bg-[#f5f0e6] hover:bg-[#ebdcc5]/60 px-3 py-1.5 rounded-lg transition-colors cursor-pointer border-none"
             >
@@ -205,7 +223,7 @@ export default function ScanProgressModal({
             </span>
           </div>
         </div>
-      </motion.div>
+      </ScanCard>
     </div>
   );
 }

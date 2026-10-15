@@ -1,11 +1,16 @@
 "use client";
 
+import SegmentedControl from "../../components/ui/SegmentedControl";
 import React, { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Loader2, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { authModeFromParam, authUrl, type AuthMode } from "../../lib/authRoutes";
+import { Loader2, Lock, Mail, User as UserIcon, ArrowRight, Eye, EyeOff } from "lucide-react";
+
+const MIN_PASSWORD_LENGTH = 8;
 import { motion } from "framer-motion";
 import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
+import { parseApiError } from "../../lib/api";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 
@@ -18,11 +23,17 @@ function AuthPageContent() {
   // preview's "Create free account") pass ?signup=true expecting to land
   // straight on the signup form - this used to be silently ignored, always
   // defaulting to login regardless of which button sent someone here.
-  const [mode, setMode] = useState<"login" | "signup">(
-    searchParams.get("signup") === "true" ? "signup" : "login"
-  );
+  // H1: the tab is whatever the URL says (/auth or /auth?signup=true); the tab
+  // buttons change the URL, so a link, the back button and a click all agree.
+  const router = useRouter();
+  const mode: AuthMode = authModeFromParam(searchParams.get("signup"));
+  const switchMode = (next: AuthMode) => {
+    setErrorMsg("");
+    if (next !== mode) router.replace(authUrl(next), { scroll: false });
+  };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -65,7 +76,7 @@ function AuthPageContent() {
       // loginWithGoogle already sets isAuthenticated; the redirect effect
       // above handles navigation once it flips.
     } catch (err: any) {
-      setErrorMsg(err?.message || "Google sign-in failed.");
+      setErrorMsg(parseApiError(err, "Google sign-in didn't work. Please try again.", "login"));
       setGoogleLoading(false);
     }
   };
@@ -81,6 +92,12 @@ function AuthPageContent() {
 
     if (mode === "signup" && !name.trim()) {
       setErrorMsg("Please enter your full name.");
+      return;
+    }
+
+    // H4: the same rule the server enforces (only when creating an account - signing in never blocks on length)
+    if (mode === "signup" && password.length < MIN_PASSWORD_LENGTH) {
+      setErrorMsg(`Choose a password with at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
 
@@ -100,7 +117,7 @@ function AuthPageContent() {
         window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}`);
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || "Authentication failed. Please check credentials.");
+      setErrorMsg(parseApiError(err, "We couldn't sign you in. Please check your details and try again.", mode === "login" ? "login" : "signup"));
       setLoading(false);
     }
   };
@@ -133,30 +150,21 @@ function AuthPageContent() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-[#f5f0e6] p-1 border border-[#e8dfc8] rounded-xl gap-1 mb-6">
-          <button
-            type="button"
-            onClick={() => { setMode("login"); setErrorMsg(""); }}
-            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all cursor-pointer border-none ${
-              mode === "login"
-                ? "bg-[#15463b] text-white shadow-xs"
-                : "bg-transparent text-[#6f6757] hover:text-[#23211b]"
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode("signup"); setErrorMsg(""); }}
-            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all cursor-pointer border-none ${
-              mode === "signup"
-                ? "bg-[#15463b] text-white shadow-xs"
-                : "bg-transparent text-[#6f6757] hover:text-[#23211b]"
-            }`}
-          >
-            Create Account
-          </button>
-        </div>
+        <SegmentedControl
+          ariaLabel="Sign in or create an account"
+          options={[
+            { id: "login", label: "Sign In" },
+            { id: "signup", label: "Create Account" },
+          ]}
+          value={mode}
+          onChange={(id) => switchMode(id as AuthMode)}
+          className="flex bg-[#f5f0e6] p-1 border border-[#e8dfc8] rounded-xl gap-1 mb-6"
+          itemClassName={(active) =>
+            `flex-1 py-2 text-[13px] font-bold rounded-lg transition-all cursor-pointer border-none ${
+              active ? "bg-[#15463b] text-white shadow-xs" : "bg-transparent text-[#6f6757] hover:text-[#23211b]"
+            }`
+          }
+        />
 
         {/* Error Alert */}
         {errorMsg && (
@@ -210,14 +218,37 @@ function AuthPageContent() {
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-[#9b927f]" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                aria-describedby={mode === "signup" ? "password-rule" : undefined}
                 required
-                className="w-full text-[14px] pl-10 pr-4 py-2.5 border border-[#ece3d1] rounded-xl bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
+                className="w-full text-[14px] pl-10 pr-11 py-2.5 border border-[#ece3d1] rounded-xl bg-[#fdfcf8] outline-none focus:border-[#15463b] transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute right-3 top-3 text-[#9b927f] hover:text-[#15463b] cursor-pointer bg-transparent border-none p-0"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {mode === "signup" && (
+              <p id="password-rule" className={`mt-1.5 text-[12px] ${password.length > 0 && password.length < MIN_PASSWORD_LENGTH ? "text-[#b1442a]" : "text-[#9b927f]"}`}>
+                At least {MIN_PASSWORD_LENGTH} characters.
+              </p>
+            )}
+            {mode === "login" && (
+              <div className="mt-2 text-right">
+                <a href="/auth/forgot" className="text-[12.5px] font-medium text-[#15463b] hover:underline">
+                  Forgot password?
+                </a>
+              </div>
+            )}
           </div>
 
           <button

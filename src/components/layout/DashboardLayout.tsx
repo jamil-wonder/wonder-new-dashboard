@@ -20,7 +20,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     refetchBusinesses,
   } = useBusiness();
 
-  const isAuthPage = pathname === "/auth";
+  // /auth/forgot and /auth/reset are for someone who can't sign in, so they
+  // must render with no session at all.
+  const isAuthPage = pathname === "/auth" || pathname === "/auth/forgot" || pathname === "/auth/reset";
   const isVerifyPage = pathname === "/verify-email";
   // /scan runs the free, no-login preview (platform-flow spec Part 1:
   // "value before every ask") - reached by redirect from the actual
@@ -47,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // other page) but renders without the header/nav - with the nav visible,
   // a brand-new signup could just click away to Overview before ever
   // giving business info, defeating the point of asking for it first.
-  const isOnboardingPage = pathname === "/onboarding";
+  const isOnboardingPage = pathname === "/onboarding" || pathname === "/first-run";
 
   // Route protection guard. There is no such thing as an authenticated-but-
   // unverified session that gets dashboard access - signup, login, and a

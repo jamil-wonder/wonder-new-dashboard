@@ -1,0 +1,288 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { useBusiness } from "../../context/BusinessContext";
+import { fetchApi, parseApiError } from "../../lib/api";
+import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
+import ProgressScreen from "../../components/ui/ProgressScreen";
+import FailedState from "../../components/ui/FailedState";
+import ScoreBreakdownPopover from "../../components/ui/ScoreBreakdown";
+import { deriveStages, questionsFromGeneration, type FirstRunQuestion, type RunStatus } from "../../lib/firstRun";
+
+type Phase = "starting" | "generating" | "review" | "running" | "done" | "error";
+
+const POLL_MS = 3000;
+const MAX_POLL_FAILURES = 6;
+
+// J5: after the profile steps - write the 20 questions, let the owner look at them, run ONE scan
+// (website + the four AI models) with a progress screen, then the first score.
+export default function FirstRunPage() {
+  const router = useRouter();
+  const { activeBusiness, hasLoadedOnce, refetchBusinesses } = useBusiness();
+  const [phase, setPhase] = useState<Phase>("starting");
+  const [questions, setQuestions] = useState<FirstRunQuestion[]>([]);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [status, setStatus] = useState<RunStatus | null>(null);
+  const [error, setError] = useState("");
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [starting, setStarting] = useState(false);
+  const initRef = useRef(false);
+  const failuresRef = useRef(0);
+
+  const business = activeBusiness?.id ? activeBusiness : null;
+
+  const generate = useCallback(async () => {
+    if (!business) return;
+    setPhase("generating");
+    setError("");
+    try {
+      const services = Array.isArray(business.services)
+        ? business.services
+        : String(business.services || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const res = await fetchApi<any>("/api/phase5/generate-questions", {
+        method: "POST",
+        body: JSON.stringify({
+          url: business.url.startsWith("http") ? business.url : `https://${business.url}`,
+          business_id: business.id,
+          businessName: business.name,
+          category: business.category,
+          location: business.location,
+          description: business.description || business.aiDescription,
+          services,
+          questionGeneration: business.questionGeneration,
+          avoidQuestions: questions.map((q) => q.query),
+        }),
+      });
+      const rows = questionsFromGeneration(res);
+      if (rows.length === 0) throw new Error("No questions came back.");
+      setQuestions(rows);
+      setPhase("review");
+    } catch (err) {
+      setError(parseApiError(err, "We couldn't write your questions. Please try again."));
+      setPhase("error");
+    }
+  }, [business, questions]);
+
+  const startRun = useCallback(async () => {
+    if (!business || starting) return;
+    setStarting(true);
+    setError("");
+    try {
+      const res = await fetchApi<{ run_id: string }>(`/api/user/businesses/${business.id}/first-run`, {
+        method: "POST",
+        body: JSON.stringify({ questions: questions.map(({ id, type, label, query }) => ({ id, type, label, query })) }),
+      });
+      failuresRef.current = 0;
+      setStatus(null);
+      setRunId(res.run_id);
+      setStartedAt(Date.now());
+      setPhase("running");
+    } catch (err) {
+      setError(parseApiError(err, "We couldn't start your scan. Please try again."));
+      setPhase("error");
+    } finally {
+      setStarting(false);
+    }
+  }, [business, questions, starting]);
+
+  // Where to begin: pick up a scan already running (page reloaded), show a finished score, or write the questions.
+  useEffect(() => {
+    if (!hasLoadedOnce || !business || initRef.current) return;
+    initRef.current = true;
+    if (business.scanRunActive?.run_id) {
+      setRunId(business.scanRunActive.run_id);
+      setStartedAt(Date.parse(business.scanRunActive.started_at || "") || Date.now());
+      setPhase("running");
+    } else if (business.hasVisibilityScore) {
+      setPhase("done");
+    } else if (business.questionsLocked && (business.trackedQuestions || []).length > 0) {
+      setQuestions((business.trackedQuestions || []).map((q) => ({ id: Number(q.id), type: q.type as FirstRunQuestion["type"], label: q.label, query: q.query })));
+      setPhase("review");
+    } else {
+      generate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasLoadedOnce, business?.id]);
+
+  // Poll the run while it is going.
+  useEffect(() => {
+    if (phase !== "running" || !runId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetchApi<RunStatus>(`/api/scan-runs/${runId}`);
+        if (cancelled) return;
+        failuresRef.current = 0;
+        setStatus(res);
+        if (res.status === "complete") {
+          await refetchBusinesses();
+          if (!cancelled) setPhase("done");
+        }
+      } catch {
+        if (cancelled) return;
+        failuresRef.current += 1;
+        if (failuresRef.current >= MAX_POLL_FAILURES) {
+          setError("We lost touch with the scan. It may still be running - you can check your dashboard, or try again.");
+          setPhase("error");
+        }
+      }
+    };
+    tick();
+    const timer = setInterval(tick, POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [phase, runId, refetchBusinesses]);
+
+  useEffect(() => {
+    if (phase !== "running" || startedAt === null) return;
+    const timer = setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [phase, startedAt]);
+
+  const shell = (children: React.ReactNode) => (
+    <div className="min-h-screen flex items-center justify-center p-4 py-10 bg-[#faf8f3]">{children}</div>
+  );
+
+  if (!hasLoadedOnce || !business || phase === "starting") {
+    return shell(
+      <div className="flex items-center gap-2 text-[13.5px] text-[#6f6757]" role="status">
+        <Loader2 className="w-4 h-4 animate-spin" /> Getting things ready
+      </div>,
+    );
+  }
+
+  if (phase === "generating") {
+    return shell(
+      <ProgressScreen
+        title="Writing your 20 questions"
+        subtitle={`These are the questions real customers ask AI assistants about businesses like ${business.name}.`}
+        stages={[{ id: "gen", label: "Writing questions for your business", status: "running", detail: "This takes about a minute" }]}
+      />,
+    );
+  }
+
+  if (phase === "review") {
+    const groups = Array.from(new Set(questions.map((q) => q.label)));
+    return shell(
+      <div className="w-full max-w-[640px] bg-white border border-[#ece3d1] rounded-[24px] p-6 md:p-8">
+        <h1 className="font-spectral text-[24px] font-semibold text-[#15463b] leading-tight">Your {questions.length} questions</h1>
+        <p className="text-[13.5px] text-[#8a8273] mt-1.5 leading-relaxed">
+          We&apos;ll ask these to ChatGPT, Claude, Perplexity and Gemini and see how often {business.name} comes up. They become your
+          baseline - the same set every week. Check they sound like what your customers would really ask. You can edit them later in the Search Tracker.
+        </p>
+        <div className="mt-5 max-h-[340px] overflow-y-auto space-y-4 pr-1">
+          {groups.map((label) => (
+            <div key={label}>
+              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] mb-1.5">{label}</div>
+              <ol className="space-y-1.5 list-decimal list-inside text-[13px] text-[#23211b]">
+                {questions.filter((q) => q.label === label).map((q) => (
+                  <li key={q.id} className="leading-snug">{q.query}</li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={generate}
+            className="sm:flex-1 h-11 rounded-xl border border-[#ece3d1] text-[13.5px] font-semibold text-[#6f6757] hover:bg-[#f6f3ec] transition-colors cursor-pointer"
+          >
+            Write different questions
+          </button>
+          <button
+            type="button"
+            onClick={startRun}
+            disabled={starting}
+            className="sm:flex-[2] h-11 rounded-xl bg-[#15463b] text-white text-[13.5px] font-bold hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Looks good - start my first scan
+          </button>
+        </div>
+      </div>,
+    );
+  }
+
+  if (phase === "running") {
+    const stages = deriveStages(status, startRun);
+    const failed = stages.some((s) => s.status === "failed");
+    return shell(
+      <ProgressScreen
+        title={failed ? "The scan didn't finish" : "Measuring your business"}
+        subtitle={failed ? undefined : `One scan: your website and what the four AI models say about ${business.name}.`}
+        stages={stages}
+        elapsedSeconds={elapsed}
+        footer={
+          failed ? undefined : (
+            <p className="mt-1">
+              You can leave this page - the scan keeps going. Your score will be on your dashboard, and the bell will tell you when it&apos;s ready.{" "}
+              <button
+                type="button"
+                onClick={() => router.replace("/overview")}
+                className="underline underline-offset-2 text-[#15463b] font-semibold cursor-pointer bg-transparent border-none p-0"
+              >
+                Go to the dashboard
+              </button>
+            </p>
+          )
+        }
+      />,
+    );
+  }
+
+  if (phase === "done") {
+    const score = Math.round(business.completeness || 0);
+    return shell(
+      <div className="w-full max-w-[520px] bg-white border border-[#ece3d1] rounded-[24px] p-6 md:p-8 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-[#15463b] flex items-center justify-center mx-auto mb-4">
+          <WonderscoreLogo size={26} color="white" />
+        </div>
+        <h1 className="font-spectral text-[26px] font-semibold text-[#15463b] leading-tight">All set up</h1>
+        <p className="text-[13.5px] text-[#8a8273] mt-1.5">Here&apos;s where {business.name} stands today.</p>
+        <div className="mt-5 inline-flex items-baseline gap-1">
+          <span className="num font-spectral text-[64px] leading-none font-semibold text-[#15463b]">{score}</span>
+          <span className="text-[16px] text-[#8a8273]">/100</span>
+        </div>
+        <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] mt-1">Your Wonder Score</div>
+        <div className="mt-2 flex justify-center">
+          <ScoreBreakdownPopover inputs={business.latestWonderInputs} score={business.latestWonderScore} />
+        </div>
+        <div className="mt-7 flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={() => router.replace("/plan")}
+            className="sm:flex-1 h-11 rounded-xl border border-[#ece3d1] text-[13.5px] font-semibold text-[#15463b] hover:bg-[#f6f3ec] transition-colors cursor-pointer"
+          >
+            Improve your score
+          </button>
+          <button
+            type="button"
+            onClick={() => router.replace("/overview")}
+            className="sm:flex-1 h-11 rounded-xl bg-[#15463b] text-white text-[13.5px] font-bold hover:bg-[#1a5c44] transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
+          >
+            Go to dashboard <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>,
+    );
+  }
+
+  return shell(
+    <div className="w-full max-w-[460px]">
+      <FailedState message={error || "Something went wrong."} onRetry={questions.length > 0 ? startRun : generate} />
+      <button
+        type="button"
+        onClick={() => router.replace("/overview")}
+        className="mt-3 w-full text-center text-[13px] font-semibold text-[#15463b] underline underline-offset-2 cursor-pointer bg-transparent border-none"
+      >
+        Go to the dashboard instead
+      </button>
+    </div>,
+  );
+}

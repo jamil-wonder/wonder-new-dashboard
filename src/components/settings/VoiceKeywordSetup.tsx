@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Sparkles, Check } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
-import { fetchApi } from "../../lib/api";
+import { fetchApi, parseApiError } from "../../lib/api";
 
 function cleanText(value?: unknown): string {
   if (Array.isArray(value)) {
@@ -142,7 +142,7 @@ export default function VoiceKeywordSetup() {
       }
     } catch (err: any) {
       console.error("Save voice setup error:", err);
-      showToast(`Error saving voice profile: ${err.message || "Failed"}`, "error");
+      showToast(parseApiError(err, "Couldn't save your voice and keywords. Please try again."), "error");
     } finally {
       setIsSaving(false);
     }

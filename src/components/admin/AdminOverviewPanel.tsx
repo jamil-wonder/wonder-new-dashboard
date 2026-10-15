@@ -1,5 +1,6 @@
 "use client";
 
+import FailedState from "../ui/FailedState";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { fetchApi } from "../../lib/api";
@@ -65,11 +66,14 @@ export default function AdminOverviewPanel() {
   const [byFeature, setByFeature] = useState<Record<string, number>>({});
   const [byModel, setByModel] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setLoadFailed(false);
         const res = await fetchApi<{ stats: AdminStats }>("/api/admin/stats");
         if (res?.stats) setStats(res.stats);
 
@@ -82,15 +86,19 @@ export default function AdminOverviewPanel() {
         }
       } catch (err) {
         console.error("Failed to load admin stats:", err);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [attempt]);
 
   if (loading) {
     return <AdminSectionLoader label="Loading dashboard..." />;
+  }
+  if (loadFailed) {
+    return <FailedState message="We couldn't load the admin dashboard." onRetry={() => setAttempt((n) => n + 1)} />;
   }
 
   const featureRows = Object.entries(byFeature).sort((a, b) => b[1] - a[1]);

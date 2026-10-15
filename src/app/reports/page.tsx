@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Link2, Check, ExternalLink, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link2, Check, ExternalLink, Copy, Ban } from "lucide-react";
+import Dialog from "../../components/ui/Dialog";
 import { useBusiness } from "../../context/BusinessContext";
 import { useOverviewData } from "../../hooks/useOverviewData";
 import { useToast } from "../../context/ToastContext";
@@ -12,6 +13,44 @@ export default function ReportsPage() {
   const { showToast } = useToast();
   const data = useOverviewData(activeBusiness?.url || "", undefined, activeBusiness?.completeness, undefined, undefined, activeBusiness?.hasVisibilityScore, activeBusiness?.id, activeBusiness?.latestAnalysis);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  // E3: links last 30 days and can be turned off
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  // show the business's existing link (and when it stops working) when the page opens
+  useEffect(() => {
+    setShareUrl(null);
+    setExpiresAt(null);
+    if (!activeBusiness?.id) return;
+    let cancelled = false;
+    fetchApi<{ active: boolean; url?: string; expires_at?: string | null }>(`/api/reports/share-link/${activeBusiness.id}`)
+      .then((res) => {
+        if (cancelled || !res?.active || !res.url) return;
+        setShareUrl(res.url);
+        setExpiresAt(res.expires_at || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBusiness?.id]);
+
+  const handleRevoke = async () => {
+    if (!activeBusiness?.id) return;
+    setIsRevoking(true);
+    try {
+      await fetchApi("/api/reports/revoke-link", { method: "POST", body: JSON.stringify({ business_id: activeBusiness.id }) });
+      setShareUrl(null);
+      setExpiresAt(null);
+      setConfirmingRevoke(false);
+      showToast("Link turned off. Anyone who has it can no longer open the report.", "success");
+    } catch {
+      showToast("Couldn't turn the link off. Please try again.", "error");
+    } finally {
+      setIsRevoking(false);
+    }
+  };
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -19,12 +58,13 @@ export default function ReportsPage() {
     if (!activeBusiness?.id) return;
     setIsSharing(true);
     try {
-      const res = await fetchApi<{ token: string; url: string }>("/api/reports/share-link", {
+      const res = await fetchApi<{ token: string; url: string; expires_at?: string | null }>("/api/reports/share-link", {
         method: "POST",
         body: JSON.stringify({ business_id: activeBusiness.id }),
       });
       if (res?.url) {
         setShareUrl(res.url);
+        setExpiresAt(res.expires_at || null);
         try {
           await navigator.clipboard.writeText(res.url);
           setCopied(true);
@@ -135,7 +175,7 @@ export default function ReportsPage() {
             <div>
               <h4 className="text-[14px] font-bold text-[#15463b]">Share Link</h4>
               <p className="text-[12px] text-[#8a8273] mt-0.5">
-                Generates a single URL reflecting current stats.
+                Generates a single URL reflecting current stats. It works for 30 days and you can turn it off at any time.
               </p>
             </div>
             {!shareUrl && (
@@ -173,6 +213,54 @@ export default function ReportsPage() {
                 {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
+          )}
+
+          {shareUrl && (
+            <div className="flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#8a8273]">
+              <span>
+                {expiresAt ? `Works until ${new Date(expiresAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}.` : "Works for 30 days."}
+              </span>
+              <button
+                type="button"
+                onClick={() => setConfirmingRevoke(true)}
+                className="inline-flex items-center gap-1.5 font-semibold text-[#b1442a] hover:underline cursor-pointer bg-transparent border-none p-0"
+              >
+                <Ban className="w-3.5 h-3.5" /> Turn off this link
+              </button>
+            </div>
+          )}
+
+          {confirmingRevoke && (
+            <Dialog
+              onClose={() => setConfirmingRevoke(false)}
+              labelledBy="revoke-link-title"
+              overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
+              className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[420px] p-6"
+            >
+              <div className="contents">
+                <div id="revoke-link-title" className="font-spectral text-[18px] font-semibold text-[#15463b]">Turn off this link?</div>
+                <p className="text-[13.5px] text-[#4a4437] mt-2 leading-relaxed">
+                  Anyone who has it will see &ldquo;this report link isn&apos;t available&rdquo;. You can make a new link afterwards.
+                </p>
+                <div className="flex items-center gap-3 mt-5">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRevoke(false)}
+                    className="flex-1 h-10 rounded-xl border border-[#ece3d1] text-[13.5px] font-semibold text-[#6f6757] hover:bg-[#f6f3ec] transition-colors cursor-pointer"
+                  >
+                    Keep it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRevoke}
+                    disabled={isRevoking}
+                    className="flex-1 h-10 rounded-xl bg-[#b1442a] text-white text-[13.5px] font-semibold hover:bg-[#963a23] transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    {isRevoking ? "Turning off…" : "Turn off"}
+                  </button>
+                </div>
+              </div>
+            </Dialog>
           )}
         </div>
 

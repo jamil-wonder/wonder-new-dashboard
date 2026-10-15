@@ -100,7 +100,7 @@ export default function UserDropdownMenu() {
             </Link>
 
             <Link
-              href="/settings"
+              href="/settings?tab=business-profiles"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#3a352b] hover:bg-[#f5f0e6] hover:text-[#15463b] transition-colors"
             >

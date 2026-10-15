@@ -1,5 +1,6 @@
 "use client";
 
+import { blogScore, blogWordCount } from "../../lib/blogStats";
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Lock, ChevronLeft, ChevronRight, BookOpen, ArrowRight } from "lucide-react";
@@ -142,8 +143,8 @@ export default function SundayCalendar({
         drafts.length > 0 ? (
           <div className="space-y-1.5">
             {drafts.slice(0, 2).map((draft: any, index: number) => {
-              const score = draft.humanizedScore || draft.score || 94;
-              const wordCnt = draft.wordCount || (draft.sections ? draft.sections.reduce((acc: number, s: any) => acc + (s.content || "").split(/\s+/).length, 0) : 1200);
+              const score = blogScore(draft);
+              const wordCnt = blogWordCount(draft);
 
               return (
                 <motion.div
@@ -156,7 +157,7 @@ export default function SundayCalendar({
                     <span className="font-mono-spline text-[8px] font-medium text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.2 rounded-sm uppercase tracking-wider">
                       Blog {index + 1} · {index === 0 ? "Advisory" : "Strategic"}
                     </span>
-                    <MiniScoreRing score={score} />
+                    {score !== null && <MiniScoreRing score={score} />}
                   </div>
 
                   <h4 className="font-spectral text-[14px] font-bold text-[#15463b] leading-tight line-clamp-2 group-hover:underline">
@@ -168,7 +169,7 @@ export default function SundayCalendar({
                   </p>
 
                   <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-[#f0f7f2] text-[10.5px] text-[#6f6757]">
-                    <span className="font-normal">{wordCnt} words</span>
+                    <span className="font-normal">{wordCnt !== null ? `${wordCnt} words` : ""}</span>
                     <span className="text-[#1e7d4f] font-medium inline-flex items-center gap-1">
                       Read article <ArrowRight className="w-3 h-3" />
                     </span>

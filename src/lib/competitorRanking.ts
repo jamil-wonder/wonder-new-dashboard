@@ -17,6 +17,9 @@ export interface CompetitorRankRow {
   isUser: boolean;
   favicon: string;
   rank: number;
+  // A2: how many of the answered questions named or cited this business
+  appeared?: number;
+  answered?: number;
 }
 
 export interface RawCompetitorCandidate {
@@ -29,6 +32,10 @@ export interface RawCompetitorCandidate {
   confidence?: string;
   isUser?: boolean;
   is_user?: boolean;
+  // A2: "measured" = scored from the same questions and answers as the business; anything else is an old estimate
+  score_basis?: string;
+  appeared?: number;
+  answered?: number;
 }
 
 function normalizeDomain(value: string): string {
@@ -57,6 +64,8 @@ function toRow(raw: RawCompetitorCandidate, isUser: boolean): CompetitorRankRow 
     score: typeof raw.score === "number" ? raw.score : 0,
     position: typeof raw.position === "number" ? raw.position : null,
     evidence: raw.evidence,
+    appeared: typeof raw.appeared === "number" ? raw.appeared : undefined,
+    answered: typeof raw.answered === "number" ? raw.answered : undefined,
     isUser,
     favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
     rank: 0,
@@ -71,21 +80,30 @@ function toRow(raw: RawCompetitorCandidate, isUser: boolean): CompetitorRankRow 
  */
 export function buildRankedCompetitors(
   candidates: RawCompetitorCandidate[] | null | undefined,
-  targetRow?: RawCompetitorCandidate | null
+  targetRow?: RawCompetitorCandidate | null,
+  businessName?: string
 ): CompetitorRankRow[] {
   const list = Array.isArray(candidates) ? candidates : [];
 
   const embeddedTarget = list.find((c) => c.confidence === "target" || c.isUser || c.is_user) || null;
   const target = embeddedTarget || targetRow || null;
 
+  const targetNormalized = target ? toRow(target, true) : null;
+  // L8: the row marked YOU carries the business's own saved name, not a name guessed from the web
+  if (targetNormalized && businessName && businessName.trim()) targetNormalized.name = businessName.trim();
+
+  const seen = new Set<string>(targetNormalized ? [targetNormalized.domain] : []);
   const external = list
     .filter((c) => c.confidence !== "target" && !c.isUser && !c.is_user)
+    // A2: a competitor is only ranked on a measured score - old estimated ones are not shown
+    .filter((c) => c.score_basis === "measured")
     .map((c) => toRow(c, false))
     .filter((r): r is CompetitorRankRow => Boolean(r))
+    // the business itself (or the same site twice) is never also a "competitor"
+    .filter((r) => !seen.has(r.domain) && (seen.add(r.domain), true))
     .sort((a, b) => b.score - a.score)
     .slice(0, 4);
 
-  const targetNormalized = target ? toRow(target, true) : null;
   const combined = targetNormalized ? [...external, targetNormalized] : external;
 
   return combined

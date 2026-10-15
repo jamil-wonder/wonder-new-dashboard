@@ -79,9 +79,9 @@ export default function LocationStep({
     return (
       <div className="space-y-3">
         <Note tone="info">We couldn&apos;t find an address on your website to suggest from.</Note>
-        <LocationInput value={value} onChange={onChange} onEnter={onEnter} autoFocus placeholder="e.g. Manchester, UK" invalid={invalid} />
+        <LocationInput value={value} onChange={onChange} onEnter={onEnter} autoFocus placeholder="Your city or area" invalid={invalid} />
         <p className="text-[12px] text-[#9b927f] leading-relaxed">
-          A city or area is enough - for example &ldquo;Manchester, UK&rdquo; or &ldquo;Austin, TX&rdquo;. We use it to ask AI the
+          A city or area is enough - for example &ldquo;Manchester, UK&rdquo;, &ldquo;Austin, TX&rdquo; or &ldquo;Dhaka, Bangladesh&rdquo;. We use it to ask AI the
           same local questions your customers ask.
         </p>
       </div>
@@ -94,7 +94,7 @@ export default function LocationStep({
     if (editingSingle || !unchanged) {
       return (
         <div className="space-y-3">
-          <LocationInput value={value} onChange={onChange} onEnter={onEnter} autoFocus placeholder="e.g. Manchester, UK" invalid={invalid} />
+          <LocationInput value={value} onChange={onChange} onEnter={onEnter} autoFocus placeholder="Your city or area" invalid={invalid} />
           {!unchanged && (
             <button
               type="button"
@@ -184,7 +184,7 @@ export default function LocationStep({
         <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] block mb-1.5">
           Or enter a different location
         </label>
-        <LocationInput value={value} onChange={onChange} onEnter={onEnter} placeholder="e.g. Manchester, UK" invalid={invalid} />
+        <LocationInput value={value} onChange={onChange} onEnter={onEnter} placeholder="Your city or area" invalid={invalid} />
       </div>
     </div>
   );

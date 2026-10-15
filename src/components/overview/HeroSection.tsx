@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { OverviewData } from "../../hooks/useOverviewData";
+import { classifyChange, noiseLabel } from "../../lib/scoreChange";
 
 function ScoreRing({ score, delta }: { score: number; delta: number | null }) {
   const r = 33;
@@ -266,7 +267,12 @@ type ChangeItem = { icon: string; bg: string; color: string; title: string; sub:
 export default function HeroSection({ data }: { data: OverviewData }) {
   const { score, visibilityText, previousScore, scanPoints, latestPhase1At, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
 
-  const delta = previousScore !== null ? score - previousScore : null;
+  const rawDelta = previousScore !== null ? score - previousScore : null;
+  // A5: a move inside the AI-answer noise margin is not shown as a change
+  const change = classifyChange(rawDelta, data.scoreMargin);
+  const delta = change.kind === "up" || change.kind === "down" ? change.delta : change.kind === "noise" ? 0 : null;
+  // L8: "ranked 1st" only means something when there is at least one competitor to be ranked against
+  const rankKnown = competitors.some((c) => c.isUser) && competitors.some((c) => !c.isUser);
   const locText = data.location ? ` in ${data.location}` : "";
 
   // Every metric that has real data contributes one candidate insight,
@@ -277,7 +283,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   // "doing well" candidate to draw from once real data exists.
   const candidates: ChangeCandidate[] = [];
 
-  if (competitors.length > 0) {
+  if (rankKnown) {
     const userComp = competitors.find(c => c.isUser);
     const userScore = userComp ? userComp.score : score;
     if (userRank > 1) {
@@ -393,8 +399,10 @@ export default function HeroSection({ data }: { data: OverviewData }) {
   // safe claim; there's no separate technical-only branch to guard against.
   const headline = isLowSignal
     ? "We couldn't read everything on your site."
-    : score > 0
+    : score > 0 && rankKnown
     ? `You're ranked ${userRank === 1 ? "1st" : userRank === 2 ? "2nd" : `${userRank}th`}.`
+    : score > 0
+    ? `Your Wonder Score is ${Math.round(score)}/100.`
     : "Run your first scan.";
   const subtext = isLowSignal
     ? "Our crawler could only pull a thin signal from your site - this score may not reflect your real visibility yet. Try re-running the scan, or check that your site isn't blocking crawlers."
@@ -430,10 +438,17 @@ export default function HeroSection({ data }: { data: OverviewData }) {
             <ScoreRing score={ringFill} delta={delta} />
           </div>
 
-          {delta !== null && (
+          {change.kind === "noise" && (
+            <div className="mt-2">
+              <span className="num inline-flex items-center gap-1 text-[12px] font-semibold text-[#d9eee7] bg-white/10 px-3 py-1 rounded-full">
+                → {noiseLabel(change.margin)} vs last scan
+              </span>
+            </div>
+          )}
+          {(change.kind === "up" || change.kind === "down") && (
             <div className="mt-2">
               <span className="num inline-flex items-center gap-1 text-[12px] font-bold text-[#3a2e08] bg-[#f0d878] px-3 py-1 rounded-full">
-                {delta > 0 ? "▲" : delta < 0 ? "▼" : "→"} {Math.abs(delta).toFixed(1)} points vs last scan
+                {change.kind === "up" ? "▲" : "▼"} {Math.abs(change.delta).toFixed(1)} points vs last scan
               </span>
             </div>
           )}

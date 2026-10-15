@@ -1,7 +1,8 @@
 "use client";
 
+import SegmentedControl from "../ui/SegmentedControl";
 import { useState, useRef, useEffect } from "react";
-import { Copy, Plus, Play, ChevronDown, Check } from "lucide-react";
+import { Copy, Plus, Play, ChevronDown, Check, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface QueryFilterBarProps {
@@ -14,6 +15,10 @@ interface QueryFilterBarProps {
   onCopyAll: () => void;
   onOpenAddModal: () => void;
   onRunAudit?: () => void;
+  // C7: a run is starting or in progress - the Run button is disabled and says so
+  isRunning?: boolean;
+  // B8: the 20 questions are locked in - Regenerate says it unlocks them (a confirm follows)
+  isLocked?: boolean;
   onRegeneratePrompts?: () => void;
   showActions?: boolean;
 }
@@ -51,6 +56,8 @@ export default function QueryFilterBar({
   onCopyAll,
   onOpenAddModal,
   onRunAudit,
+  isRunning = false,
+  isLocked = false,
   onRegeneratePrompts,
   showActions = true,
 }: QueryFilterBarProps) {
@@ -79,6 +86,10 @@ export default function QueryFilterBar({
           {/* ── Category dropdown ── */}
           <div className="relative" ref={dropdownRef}>
             <button
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={dropdownOpen}
+              onKeyDown={(e) => { if (e.key === "Escape") setDropdownOpen(false); }}
               onClick={() => setDropdownOpen((v) => !v)}
               className="flex items-center gap-2 h-9 pl-3.5 pr-3 rounded-lg text-[13px] font-normal bg-[#fdfcf8] border border-[#e2d8c4] text-[#2c2821] hover:border-[#15463b] hover:bg-white transition-all cursor-pointer shadow-xs"
             >
@@ -97,12 +108,17 @@ export default function QueryFilterBar({
                 initial={{ opacity: 0, y: -4, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.12 }}
+                role="listbox"
                 className="absolute top-full mt-1.5 left-0 z-50 bg-white border border-[#e5ddd0] rounded-lg shadow-[0_8px_20px_rgba(21,70,59,0.12)] overflow-hidden w-[180px]"
               >
                 {CATEGORY_OPTIONS.map((opt) => {
                   const isActive = activeCategory === opt.id;
                   return (
                     <button
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onKeyDown={(e) => { if (e.key === "Escape") setDropdownOpen(false); }}
                       key={opt.id}
                       onClick={() => { onCategoryChange(opt.id); setDropdownOpen(false); }}
                       className={`w-full flex items-center justify-between px-3.5 py-2 text-[13px] font-medium cursor-pointer border-none transition-colors text-left ${
@@ -121,29 +137,20 @@ export default function QueryFilterBar({
           </div>
 
           {/* ── Status Glider Pills ── */}
-          <div className="flex bg-[#f5f0e6] p-0.5 border border-[#e0d8c8] rounded-lg relative gap-0.5 h-9 items-center">
-            {STATUS_FILTERS.map((f) => {
-              const isActive = activeStatus === f.id;
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => onStatusChange(f.id)}
-                  className="relative px-3 py-1 rounded-md text-[12.5px] font-medium border-none cursor-pointer bg-transparent z-10 transition-colors duration-100 h-full flex items-center"
-                  style={{ color: isActive ? "#fff" : "#6f6757" }}
-                >
-                  {isActive && (
-                    <motion.span
-                      layoutId="status-glider"
-                      className="absolute inset-0 rounded-md bg-[#15463b] shadow-xs"
-                      transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                      style={{ zIndex: -1 }}
-                    />
-                  )}
-                  <span className="relative z-10 whitespace-nowrap">{f.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            ariaLabel="Filter by result"
+            kind="choice"
+            options={STATUS_FILTERS.map((f) => ({ id: f.id, label: f.label }))}
+            value={activeStatus}
+            onChange={(id) => onStatusChange(id as typeof activeStatus)}
+            className="flex bg-[#f5f0e6] p-0.5 border border-[#e0d8c8] rounded-lg relative gap-0.5 h-9 items-center"
+            itemClassName={() =>
+              "relative px-3 py-1 rounded-md text-[12.5px] font-medium border-none cursor-pointer bg-transparent z-10 transition-colors duration-100 h-full flex items-center"
+            }
+            itemStyle={(isActive) => ({ color: isActive ? "#fff" : "#6f6757" })}
+            gliderId="status-glider"
+            renderOption={(opt) => <span className="relative z-10 whitespace-nowrap">{opt.label}</span>}
+          />
 
           {/* ── Copy Icon Button ── */}
           <button
@@ -164,7 +171,7 @@ export default function QueryFilterBar({
             className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium bg-[#fdfcf8] text-[#15463b] border border-[#e2d8c4] hover:bg-white hover:border-[#15463b] transition-all cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
           >
             <WonderscoreLogoIcon className="w-4 h-4 text-[#15463b]" />
-            <span>{isGenerating ? "Generating…" : showActions ? "Regenerate" : "Generate"}</span>
+            <span>{isGenerating ? "Generating…" : showActions ? (isLocked ? "Unlock & regenerate" : "Regenerate") : "Generate"}</span>
           </button>
 
           {showActions && (
@@ -178,11 +185,14 @@ export default function QueryFilterBar({
               </button>
 
               <button
+                type="button"
                 onClick={onRunAudit}
-                className="inline-flex items-center gap-1.5 h-9 px-4.5 rounded-lg text-[13px] font-medium bg-[#1e7d4f] text-white border-none cursor-pointer hover:bg-[#166039] transition-colors shrink-0 shadow-xs"
+                disabled={isRunning}
+                aria-busy={isRunning}
+                className="inline-flex items-center gap-1.5 h-9 px-4.5 rounded-lg text-[13px] font-medium bg-[#1e7d4f] text-white border-none cursor-pointer hover:bg-[#166039] transition-colors shrink-0 shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Play className="w-4 h-4" />
-                <span>Run</span>
+                {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                <span>{isRunning ? "Running…" : "Run"}</span>
               </button>
             </>
           )}

@@ -1,8 +1,11 @@
 "use client";
 
+import Dialog from "../../components/ui/Dialog";
+import { formatElapsed } from "../../components/ui/ProgressScreen";
+import FailedState from "../../components/ui/FailedState";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bot, Search, ArrowRight, RefreshCw, Mail } from "lucide-react";
+import { Bot, Search, ArrowRight, RefreshCw, Mail, AlertCircle } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import HeroSection from "../../components/overview/HeroSection";
@@ -48,6 +51,20 @@ export default function OverviewPage() {
   // after the initial toast has faded. Resets if the user navigates away
   // and back, which is an acceptable gap for a same-session status note.
   const [justStartedRun, setJustStartedRun] = useState(false);
+  // D6: Run now asks first (it uses today's one update), then shows a status line with the time so far
+  const [confirmingRun, setConfirmingRun] = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
+  const [runElapsed, setRunElapsed] = useState(0);
+  const serverRunStartedMs = activeBusiness?.scanRunActive?.started_at ? Date.parse(activeBusiness.scanRunActive.started_at) : NaN;
+  const isRunActive = justStartedRun || Boolean(activeBusiness?.scanRunActive);
+  const runClockStart = !Number.isNaN(serverRunStartedMs) ? serverRunStartedMs : runStartedAt;
+  useEffect(() => {
+    if (!isRunActive || runClockStart === null) return;
+    const tick = () => setRunElapsed(Math.max(0, Math.round((Date.now() - runClockStart) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [isRunActive, runClockStart]);
 
   const handleRunNow = async () => {
     if (!activeBusiness?.id || isRunningNow) return;
@@ -58,6 +75,7 @@ export default function OverviewPage() {
         { method: "POST" }
       );
       showToast("Update started. This runs in the background.", "success");
+      setRunStartedAt(Date.now());
       setJustStartedRun(true);
       setTimeout(() => setJustStartedRun(false), 20 * 60 * 1000);
     } catch (err: any) {
@@ -87,7 +105,7 @@ export default function OverviewPage() {
   // for the active business, this is correctly empty rather than showing
   // an old "last known" list - competitors only ever appear once actually
   // discovered.
-  const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
+  const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors, null, activeBusiness?.name), [liveDeepCompetitors, activeBusiness?.name]);
   const userRow = competitorRows.find((c) => c.isUser) || null;
   const nearestAbove = userRow && userRow.rank > 1 ? competitorRows[userRow.rank - 2] : null;
 
@@ -153,6 +171,7 @@ export default function OverviewPage() {
     competitors: competitorRows,
     userRank: userRow?.rank ?? 1,
     userRankOrdinal: ordinal(userRow?.rank ?? 1),
+    scoreMargin: activeBusiness?.latestWonderInputs?.score_margin ?? null,
     nearestAboveName,
     nearestAboveGap,
     quickWins,
@@ -172,6 +191,45 @@ export default function OverviewPage() {
   // concept until at least one Analyzer or Search Tracker run has actually
   // produced signal. Showing it anyway (mostly empty cards, a score of 0)
   // reads as broken rather than "not started."
+  // L1: the latest website scan never reached the site - no Wonder Score, and no trend, until a scan works
+  const crawlFailure = activeBusiness?.lastCrawl?.ok === false ? activeBusiness.lastCrawl : null;
+  if (crawlFailure) {
+    return (
+      <div className="bg-white border border-[#f0d4ce] rounded-[22px] p-10 text-center shadow-xs my-8 flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-[#fdeee7] border border-[#f0d4ce] flex items-center justify-center mb-4">
+          <AlertCircle className="w-6 h-6 text-[#b1442a]" />
+        </div>
+        <div className="font-spectral text-[21px] font-semibold text-[#23211b]">Score not available - website scan failed</div>
+        <p className="text-[13.5px] text-[#8a8273] mt-1.5 max-w-[460px]">
+          {crawlFailure.reason || "We couldn't reach your website."}{" "}
+          We don&apos;t show a Wonder Score from a scan that didn&apos;t work.
+          Check that {activeBusiness?.url || "your site"} is online and open to visitors, then try again.
+        </p>
+        <div className="flex items-center gap-3 mt-6">
+          <Link
+            href="/analyser?rescan=1"
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry scan
+          </Link>
+          <Link
+            href="/query"
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#15463b] border border-[#ece3d1] hover:bg-[#f6f3ec] px-4 py-2.5 rounded-lg transition-colors"
+          >
+            <Search className="w-3.5 h-3.5" /> Open Search Tracker
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  if (!hasAnyOverviewData && enrichedData.trackerLoadFailed) {
+    return (
+      <FailedState
+        message="We couldn't load your latest results. Your data is safe - please try again."
+        onRetry={enrichedData.retryTrackerLoad}
+      />
+    );
+  }
   if (!hasAnyOverviewData) {
     return (
       <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
@@ -202,16 +260,22 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-5 pb-10">
+      {enrichedData.trackerLoadFailed && (
+        <FailedState
+          message="We couldn't load your latest Search Tracker results, so parts of this page may be out of date."
+          onRetry={enrichedData.retryTrackerLoad}
+        />
+      )}
       {/* Part 5 of the flow spec: "No manual runs required (a 'run now'
           exists for the impatient)." Triggers the same full weekly pipeline
           the Sunday scheduler runs for this one business, on demand. */}
-      {!justStartedRun && (
+      {!isRunActive && (
         <div className="flex items-start justify-between gap-3">
           <p className="text-[12.5px] text-[#8a8273] flex-1">
             Your score updates automatically every Sunday night. Click run now if you don't want to wait (1 attempt per day allowed). A full update takes 10 to 20 minutes to run, and we'll email you the moment it's ready, so feel free to close this and check back later.
           </p>
           <button
-            onClick={handleRunNow}
+            onClick={() => setConfirmingRun(true)}
             disabled={isRunningNow || !activeBusiness?.id}
             className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-3.5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
             title="Re-run today's analysis now instead of waiting for Sunday night"
@@ -222,16 +286,50 @@ export default function OverviewPage() {
         </div>
       )}
 
-      {justStartedRun && (
-        <div className="flex items-start gap-2.5 rounded-[12px] border border-[#d0e4d6] bg-[#eef6f1] px-4 py-3">
+      {isRunActive && (
+        <div role="status" className="flex items-start gap-2.5 rounded-[12px] border border-[#d0e4d6] bg-[#eef6f1] px-4 py-3">
           <Mail className="w-4 h-4 text-[#1e7d4f] shrink-0 mt-0.5" />
           <p className="text-[12.5px] text-[#15463b] leading-relaxed">
-            <span className="font-semibold">Your update is running now.</span> This scans your site, re-checks all
-            your tracked questions, and refreshes your blog drafts. It typically takes 10 to 20 minutes. No need to
-            stay on this page. We'll email you as soon as it's done, and your dashboard will refresh automatically
-            next time you visit.
+            <span className="font-semibold">Your update is running now</span>
+            {runClockStart !== null && <span className="num font-semibold"> - {formatElapsed(runElapsed)} so far</span>}
+            . It scans your site and re-checks all your tracked questions on the four AI models, and typically takes 10 to
+            20 minutes. No need to stay on this page - the bell will tell you when it&apos;s done, and your dashboard
+            refreshes by itself.
           </p>
         </div>
+      )}
+
+      {confirmingRun && (
+        <Dialog
+          onClose={() => setConfirmingRun(false)}
+          labelledBy="run-now-title"
+          overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
+          className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[420px] p-6"
+        >
+          <div className="contents">
+            <div id="run-now-title" className="font-spectral text-[18px] font-semibold text-[#15463b]">Update your score now?</div>
+            <p className="text-[13.5px] text-[#4a4437] mt-2 leading-relaxed">
+              This uses today&apos;s one update. It scans your website and asks the four AI models all your questions again, which takes 10 to 20 minutes.
+              Otherwise it updates by itself on Sunday night.
+            </p>
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setConfirmingRun(false)}
+                className="flex-1 h-10 rounded-xl border border-[#ece3d1] text-[13.5px] font-semibold text-[#6f6757] hover:bg-[#f6f3ec] transition-colors cursor-pointer"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={() => { setConfirmingRun(false); handleRunNow(); }}
+                className="flex-1 h-10 rounded-xl bg-[#15463b] text-white text-[13.5px] font-semibold hover:bg-[#1a5c44] transition-colors cursor-pointer"
+              >
+                Update now
+              </button>
+            </div>
+          </div>
+        </Dialog>
       )}
 
       <HeroSection data={enrichedData} />

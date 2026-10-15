@@ -1,5 +1,7 @@
 "use client";
 
+import LoadingState from "../../components/ui/LoadingState";
+import FailedState from "../../components/ui/FailedState";
 import { areasToImprove } from "../../lib/areaBadge";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
@@ -110,6 +112,7 @@ export default function PlanPage() {
 
   const [weeklyData, setWeeklyData] = useState<any>(null);
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(true);
+  const [weeklyLoadFailed, setWeeklyLoadFailed] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [selectedBlog, setSelectedBlog] = useState<any | null>(null);
   const weeklyRequestIdRef = useRef(0);
@@ -166,6 +169,7 @@ export default function PlanPage() {
     if (!activeBusiness?.id) return;
     const requestId = ++weeklyRequestIdRef.current;
     setWeeklyData(null);
+    setWeeklyLoadFailed(false);
     try {
       setIsLoadingWeekly(true);
       const mongoId = await getValidMongoBusinessId(activeBusiness);
@@ -176,13 +180,12 @@ export default function PlanPage() {
       const res = await fetchApi<any>(`/api/blogs/weekly?business_id=${encodeURIComponent(mongoId)}`);
       if (weeklyRequestIdRef.current !== requestId) return;
       if (res && res.success) {
+        // L3: never writes articles on its own - only when the owner presses Generate
         setWeeklyData(res.weekly || null);
-        if (!res.weekly || !res.weekly.drafts || res.weekly.drafts.length === 0) {
-          ensureWeeklyBlogs(false, mongoId);
-        }
       }
     } catch (err) {
       console.error("Failed to load weekly content from DB:", err);
+      if (weeklyRequestIdRef.current === requestId) setWeeklyLoadFailed(true);
     } finally {
       if (weeklyRequestIdRef.current === requestId) setIsLoadingWeekly(false);
     }
@@ -315,8 +318,27 @@ export default function PlanPage() {
             actions were still in flight - indistinguishable from "this is
             really all there is" until a later reload happened to catch it
             after loading finished. */}
+        {!isLoadingWeekly && !weeklyLoadFailed && drafts.length === 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ece3d1] bg-[#fdfcf8] px-4 py-3.5">
+            <p className="text-[13px] text-[#6f6757] max-w-[520px] leading-relaxed">
+              <span className="font-semibold text-[#23211b]">No articles written yet this week.</span>{" "}
+              Articles are only written when you ask for them. Generating takes 1-5 minutes.
+            </p>
+            <button
+              type="button"
+              onClick={() => ensureWeeklyBlogs(false)}
+              disabled={isGeneratingWeekly}
+              className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold bg-[#15463b] text-white hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isGeneratingWeekly ? "Generating…" : "Generate this week's articles"}
+            </button>
+          </div>
+        )}
+
         {isLoadingWeekly ? (
-          <div className="py-10 text-center text-[13px] text-[#8a8273]">Loading this week's plan…</div>
+          <LoadingState label="Loading this week's plan…" />
+        ) : weeklyLoadFailed ? (
+          <FailedState message="We couldn't load this week's content." onRetry={loadWeeklyBlogs} />
         ) : thisWeek.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-[13px] text-[#8a8273] mb-3">

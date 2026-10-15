@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useDialogBehavior } from "../ui/Dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ExternalLink, ArrowLeft, Layers } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
@@ -22,6 +23,28 @@ interface SourcesSidebarProps {
   // e.g. "across 20 queries". Optional.
   allSourcesSubtitle?: string;
   onClose: () => void;
+}
+
+// Same behaviour as <Dialog> (Escape, focus kept inside, focus restored) on an animated drawer.
+function DrawerPanel({ onClose, labelledBy, children }: { onClose: () => void; labelledBy: string; children: React.ReactNode }) {
+  const { panelRef, onKeyDown } = useDialogBehavior({ onClose });
+  return (
+    <motion.div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+      initial={{ x: "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "100%" }}
+      transition={{ type: "spring", stiffness: 380, damping: 38 }}
+      className="fixed top-0 right-0 h-screen w-[92vw] max-w-[380px] bg-white border-l border-[#ece3d1] shadow-[-12px_0_32px_rgba(21,70,59,0.14)] z-[9999] flex flex-col outline-none"
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 function DomainFavicon({ domain }: { domain: string }) {
@@ -64,18 +87,15 @@ export default function SourcesSidebar({ isOpen, query, allSources, allSourcesSu
             className="fixed inset-0 bg-[#0f1c18]/10 z-[9998]"
             onClick={onClose}
           />
-          <motion.div
+          <DrawerPanel
             key="sources-sidebar-panel"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            className="fixed top-0 right-0 h-screen w-[92vw] max-w-[380px] bg-white border-l border-[#ece3d1] shadow-[-12px_0_32px_rgba(21,70,59,0.14)] z-[9999] flex flex-col"
+            onClose={onClose}
+            labelledBy="sources-title"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#efe7d6] bg-[#fdfcf8] shrink-0">
               <div className="min-w-0">
-                <h3 className="font-spectral text-[16px] font-semibold text-[#15463b]">
+                <h3 id="sources-title" className="font-spectral text-[16px] font-semibold text-[#15463b]">
                   {viewAll ? "All Sources" : "Sources"}
                 </h3>
                 <p className="text-[11.5px] text-[#8a8273] mt-0.5">
@@ -84,6 +104,8 @@ export default function SourcesSidebar({ isOpen, query, allSources, allSourcesSu
                 </p>
               </div>
               <button
+                type="button"
+                aria-label="Close"
                 onClick={onClose}
                 className="p-1.5 text-[#8a8273] hover:text-[#23211b] hover:bg-[#f5f0e6] rounded-md transition-colors cursor-pointer shrink-0"
               >
@@ -145,7 +167,7 @@ export default function SourcesSidebar({ isOpen, query, allSources, allSourcesSu
                 </div>
               )}
             </div>
-          </motion.div>
+          </DrawerPanel>
         </>
       )}
     </AnimatePresence>

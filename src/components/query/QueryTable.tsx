@@ -3,13 +3,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Globe } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
-import { getAllSourcesForQuery, normalizeDomain } from "../../lib/querySources";
+import { getSourcesForModel, normalizeDomain } from "../../lib/querySources";
 
 interface QueryTableProps {
   queries: SearchQueryItem[];
   selectedModel?: string;
   onSelectQuery: (query: SearchQueryItem) => void;
   onOpenSources?: (query: SearchQueryItem) => void;
+  // I6: the Rank column is only there once some answer has a rank
+  showRank?: boolean;
 }
 
 const VISIBLE_SOURCE_COUNT = 3;
@@ -32,6 +34,7 @@ export default function QueryTable({
   selectedModel = "ChatGPT",
   onSelectQuery,
   onOpenSources,
+  showRank = true,
 }: QueryTableProps) {
   if (queries.length === 0) {
     return (
@@ -84,13 +87,9 @@ export default function QueryTable({
           // STRICT RULE: Rank is ONLY displayed if the entity is Mentioned for THIS specific model
           const rankVal = isMentioned ? (modelRes?.rank ?? null) : null;
 
-          // Total truth: every source domain cited across ALL models for
-          // this query, not just whichever model tab happens to be
-          // selected - the same set the sidebar shows, so the two can
-          // never disagree the way the column vs. old modal used to.
-          const sourcesVal = getAllSourcesForQuery(q);
+          // B4: the sources THIS model cited (the tab selected above), not the union of all four
+          const sourcesVal = getSourcesForModel(q, selectedModel);
           const visibleSources = sourcesVal.slice(0, VISIBLE_SOURCE_COUNT);
-          const extraSourceCount = Math.max(0, sourcesVal.length - VISIBLE_SOURCE_COUNT);
 
           // Target Site Match Status Badge (Site matched, Partial match, Not matched)
           const targetSiteData = modelRes?.targetSite;
@@ -104,13 +103,22 @@ export default function QueryTable({
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
               key={q.id}
+              role={isAudited ? "button" : undefined}
+              tabIndex={isAudited ? 0 : undefined}
+              aria-label={isAudited ? `Open ${selectedModel}'s answer to: ${q.query}` : undefined}
+              onKeyDown={(e) => {
+                if (isAudited && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onSelectQuery(q);
+                }
+              }}
               onClick={() => {
                 // Cannot see response log modal until query has been run (not Pending)
                 if (isAudited) {
                   onSelectQuery(q);
                 }
               }}
-              className={`row-hover grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] min-w-[720px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
+              className={`row-hover grid ${showRank ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px]"} min-w-[720px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
                 isAudited ? "hover:border-[#d9cbaf] hover:shadow-xs cursor-pointer" : "cursor-default opacity-90"
               }`}
             >
@@ -136,9 +144,15 @@ export default function QueryTable({
               <div className="text-center">
                 {isAudited ? (
                   isMentioned ? (
-                    <span className="text-[11px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2 py-1 rounded-lg inline-flex items-center gap-1 shadow-2xs">
-                      <CheckCircle2 className="w-3 h-3 text-[#15803d]" />
-                      <span>Mentioned</span>
+                    <span className="inline-flex flex-col items-center gap-0.5">
+                      <span className="text-[11px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2 py-1 rounded-lg inline-flex items-center gap-1 shadow-2xs">
+                        <CheckCircle2 className="w-3 h-3 text-[#15803d]" />
+                        <span>Mentioned</span>
+                      </span>
+                      {/* I6: why it counts - named in the answer text, cited as a source, or both */}
+                      <span className="text-[10px] text-[#8a8273] leading-none">
+                        {modelRes?.namedInAnswer && modelRes?.citedAsSource ? "named + cited" : modelRes?.namedInAnswer ? "named in answer" : modelRes?.citedAsSource ? "cited as source" : ""}
+                      </span>
                     </span>
                   ) : (
                     <span className="text-[11px] font-bold text-[#b91c1c] bg-[#fee2e2] border border-[#fca5a5] px-2 py-1 rounded-lg inline-flex items-center gap-1 shadow-2xs">
@@ -160,16 +174,18 @@ export default function QueryTable({
                 )}
               </div>
 
-              {/* Rank Column: ONLY shown if Mentioned */}
-              <div className="text-center">
-                {isAudited && isMentioned && rankVal ? (
-                  <span className="text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-0.5 rounded-md">
-                    #{rankVal}
-                  </span>
-                ) : (
-                  <span className="text-[#c2b69c] font-bold text-[14px]">-</span>
-                )}
-              </div>
+              {/* Rank Column: only exists once some answer has a rank, and only filled if Mentioned */}
+              {showRank && (
+                <div className="text-center">
+                  {isAudited && isMentioned && rankVal ? (
+                    <span className="text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-0.5 rounded-md">
+                      #{rankVal}
+                    </span>
+                  ) : (
+                    <span className="text-[#c2b69c] font-bold text-[14px]">-</span>
+                  )}
+                </div>
+              )}
 
               {/* Cited Sources Column with Target Site Match Badge & Domain Favicons */}
               <div className="text-right flex gap-1.5 justify-end items-center flex-wrap">
@@ -177,42 +193,46 @@ export default function QueryTable({
                   <>
                     {/* Target Site Match Status Badge */}
                     {targetSiteStatus === "matched" && (
-                      <span
+                      <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
                         className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
                         title="Target website matched this query prompt"
                       >
                         <Globe className="w-3 h-3 text-[#15803d]" />
                         <span>Site matched</span>
-                      </span>
+                      </button>
                     )}
 
                     {targetSiteStatus === "partial" && (
-                      <span
+                      <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
                         className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
                         title="Target website partially matched this query"
                       >
                         <Globe className="w-3 h-3 text-[#92400e]" />
                         <span>Partial match</span>
-                      </span>
+                      </button>
                     )}
 
                     {targetSiteStatus === "no_match" && (
-                      <span
+                      <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
                         className="inline-flex items-center gap-1 text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] border border-[#e5e7eb] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
                         title="Target website did not rank directly in organic top results"
                       >
                         <span>Not matched</span>
-                      </span>
+                      </button>
                     )}
 
                     {/* Third-Party Domain Favicon Pills - top 3, then a +N
                         overflow badge, both opening the sidebar with the
                         FULL list so the count shown here is never a lie. */}
                     {visibleSources.map((sItem, idx) => (
-                      <span
+                      <button
+                        type="button"
                         key={idx}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -223,20 +243,21 @@ export default function QueryTable({
                       >
                         <Favicon domain={sItem} />
                         <span>{sItem}</span>
-                      </span>
+                      </button>
                     ))}
 
-                    {extraSourceCount > 0 && (
-                      <span
+                    {sourcesVal.length > 0 && (
+                      <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onOpenSources) onOpenSources(q);
                         }}
                         className="inline-flex items-center text-[11px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2 py-0.5 rounded cursor-pointer hover:underline"
-                        title="Click to view all extracted sources"
+                        title="Click to view the sources"
                       >
-                        +{extraSourceCount}
-                      </span>
+                        {sourcesVal.length} {sourcesVal.length === 1 ? "source" : "sources"}
+                      </button>
                     )}
                   </>
                 ) : (

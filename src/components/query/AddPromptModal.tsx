@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import Dialog from "../ui/Dialog";
 
 interface AddPromptModalProps {
   isOpen: boolean;
@@ -24,18 +25,18 @@ export default function AddPromptModal({ isOpen, onClose, onAddPrompt }: AddProm
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-5"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Dialog
+      onClose={onClose}
+      labelledBy="add-prompt-title"
+      overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-5"
+      className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_40px_rgba(21,70,59,0.2)] w-full max-w-[540px] flex flex-col overflow-hidden"
     >
-      <div className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_40px_rgba(21,70,59,0.2)] w-full max-w-[540px] flex flex-col overflow-hidden">
+      <div className="contents">
         <div className="flex items-center justify-between p-4 px-5 border-b border-[#ece3d1] bg-[#fdfcf8]">
-          <h3 className="font-spectral text-[18px] font-semibold text-[#15463b]">
+          <h3 id="add-prompt-title" className="font-spectral text-[18px] font-semibold text-[#15463b]">
             Add Custom Search Prompt
           </h3>
-          <button onClick={onClose} className="text-[#9b927f] hover:text-[#23211b]">
+          <button type="button" aria-label="Close" onClick={onClose} className="text-[#9b927f] hover:text-[#23211b]">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -87,6 +88,6 @@ export default function AddPromptModal({ isOpen, onClose, onAddPrompt }: AddProm
           </div>
         </form>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -1,5 +1,8 @@
 "use client";
 
+import FirstRunReviewDialog from "../../components/query/FirstRunReviewDialog";
+import FailedState from "../../components/ui/FailedState";
+import Dialog from "../../components/ui/Dialog";
 import { mapProviderResults } from "../../lib/trackerResults";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
@@ -248,9 +251,17 @@ export default function QueryPage() {
   const [selectedModel, setSelectedModel] = useState("ChatGPT");
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
+  // D4: "See the gaps" on the Overview opens this page already filtered to Not Mentioned
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("status");
+    if (wanted === "not-mentioned" || wanted === "mentioned" || wanted === "pending") setActiveStatus(wanted);
+  }, []);
   
   const [queriesList, setQueriesList] = useState<SearchQueryItem[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  // I4: the stored run could not be read - the rows below say so instead of sitting on "Pending"
+  const [latestRunFailed, setLatestRunFailed] = useState(false);
+  const [latestRunAttempt, setLatestRunAttempt] = useState(0);
   const [questionGenerationTargets, setQuestionGenerationTargets] = useState<QuestionMix>(DEFAULT_QUESTION_MIX);
   const [questionGenerationCounts, setQuestionGenerationCounts] = useState<QuestionMix>({
     branded: 0,
@@ -286,6 +297,8 @@ export default function QueryPage() {
   // warning first, proportionate to the blast radius (one question starts
   // fresh vs the whole set re-settling the score for a few weeks).
   const [pendingLockedAction, setPendingLockedAction] = useState<"add" | "regenerate" | null>(null);
+  // L2: before a business's FIRST run the questions are shown for review
+  const [showFirstRunReview, setShowFirstRunReview] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -312,7 +325,12 @@ export default function QueryPage() {
   // Deliberately never falls back to old persisted data here - Query only
   // shows competitors for a run you actually watched complete this
   // session; the last-known list belongs on Overview, not here.
-  const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors), [liveDeepCompetitors]);
+  // I6: no Rank column until at least one answer from the selected model has a rank
+  const showRankColumn = useMemo(
+    () => queriesList.some((q) => typeof q.resultsByModel?.[selectedModel]?.rank === "number"),
+    [queriesList, selectedModel],
+  );
+  const competitorRows = useMemo(() => buildRankedCompetitors(liveDeepCompetitors, null, activeBusiness?.name), [liveDeepCompetitors, activeBusiness?.name]);
 
   const allSourcesThisRun = useMemo(() => getAllSourcesForQueries(queriesList), [queriesList]);
 
@@ -688,7 +706,7 @@ export default function QueryPage() {
       await refetchBusinesses();
       showToast("Your 20 questions are locked in - this is now your stable weekly baseline.", "success");
     } catch (err: any) {
-      showToast(err?.message || "Couldn't lock your questions. Please try again.", "error");
+      showToast(parseApiError(err, "Couldn't lock your questions. Please try again."), "error");
     } finally {
       setIsLocking(false);
     }
@@ -799,6 +817,7 @@ export default function QueryPage() {
     if (activeJobPending) return;
 
     let cancelled = false;
+    setLatestRunFailed(false);
     fetchApi<any>(`/api/phase5/latest-job?business_id=${encodeURIComponent(activeBusiness.id)}`)
       .then((res) => {
         if (cancelled || !res?.found || !res.results) return;
@@ -811,12 +830,27 @@ export default function QueryPage() {
         }
         setIsScanComplete(true);
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setLatestRunFailed(true); });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBusiness?.id, domain, queriesList.length]);
+  }, [activeBusiness?.id, domain, queriesList.length, latestRunAttempt]);
+
+  // L6: a run that was started elsewhere (Run now, the Sunday run, another tab)
+  // finishes while this page is open - the business list notices (it polls while a
+  // run is active) and this re-reads the stored run, so the rows, the banners and
+  // the competitors update without a reload. Covers both a finished and a failed run.
+  const activeRunId = activeBusiness?.scanRunActive?.run_id || null;
+  const previousRunIdRef = useRef<{ businessId: string; runId: string | null }>({ businessId: "", runId: null });
+  useEffect(() => {
+    const prev = previousRunIdRef.current;
+    const businessId = activeBusiness?.id || "";
+    previousRunIdRef.current = { businessId, runId: activeRunId };
+    if (prev.businessId === businessId && prev.runId && !activeRunId) {
+      setLatestRunAttempt((n) => n + 1);
+    }
+  }, [activeRunId, activeBusiness?.id]);
 
   // Tear down any in-flight polling/SSE whenever the active business
   // changes - not just on true unmount. Switching business via the header
@@ -991,7 +1025,7 @@ export default function QueryPage() {
           clearActiveJob();
           setProcessedCount(statusRes.total || queriesList.length);
           setIsScanComplete(true);
-          if (statusRes.status === "completed") refetchBusinesses();
+          refetchBusinesses(); setLatestRunAttempt((n) => n + 1); // L6: every ending (done, failed, incomplete) re-reads the stored run
           if (statusRes.status === "incomplete") showToast(statusRes?.run_health?.incomplete_reason === "citations_missing" ? CITATIONS_MISSING_MESSAGE : INCOMPLETE_RUN_MESSAGE, "error");
         }
       } catch {}
@@ -1020,6 +1054,7 @@ export default function QueryPage() {
 
   // 4. Live Audit Execution when user clicks "Run"
   const handleStartScan = useCallback(async () => {
+    if (isScanning) return; // C7: a second click while a run is starting does nothing
     if (queriesList.length === 0) {
       showToast("No questions available to analyze. Please click Regenerate first.", "info");
       return;
@@ -1092,7 +1127,7 @@ export default function QueryPage() {
               // let the header (reading stale activeBusiness.completeness)
               // and this page's own fresh score end up showing two
               // different numbers for the same business at the same time.
-              if (statusData.status === "completed") refetchBusinesses();
+              refetchBusinesses(); setLatestRunAttempt((n) => n + 1); // L6: every ending (done, failed, incomplete) re-reads the stored run
           if (statusData.status === "incomplete") showToast(statusData?.run_health?.incomplete_reason === "citations_missing" ? CITATIONS_MISSING_MESSAGE : INCOMPLETE_RUN_MESSAGE, "error");
             }
           } catch {}
@@ -1124,7 +1159,7 @@ export default function QueryPage() {
               clearActiveJob();
               setProcessedCount(queriesList.length);
               setIsScanComplete(true);
-              if (statusRes.status === "completed") refetchBusinesses();
+              refetchBusinesses(); setLatestRunAttempt((n) => n + 1); // L6: every ending (done, failed, incomplete) re-reads the stored run
           if (statusRes.status === "incomplete") showToast(statusRes?.run_health?.incomplete_reason === "citations_missing" ? CITATIONS_MISSING_MESSAGE : INCOMPLETE_RUN_MESSAGE, "error");
             }
           } catch {}
@@ -1135,10 +1170,17 @@ export default function QueryPage() {
       }
     } catch (err: any) {
       console.error("Start job error:", err);
-      showToast(`Audit execution error: ${err.message || "Schema Error"}`, "error");
+      showToast(parseApiError(err, "Couldn't run the analysis. Please try again."), "error");
       setIsScanning(false);
     }
-  }, [queriesList, domain, businessName, showToast, applyJobResultsToQueries, refetchBusinesses]);
+  }, [isScanning, queriesList, domain, businessName, showToast, applyJobResultsToQueries, refetchBusinesses]);
+
+  // First run = nothing has ever been measured and the questions aren't locked in yet
+  const isFirstRun = !isLocked && !lastJobId && !answersCollectedAt && !isScanComplete;
+  const requestRunAudit = useCallback(() => {
+    if (isFirstRun && queriesList.length > 0) setShowFirstRunReview(true);
+    else handleStartScan();
+  }, [isFirstRun, queriesList.length, handleStartScan]);
 
   const handleScanComplete = useCallback(() => {
     setIsScanning(false);
@@ -1186,6 +1228,13 @@ export default function QueryPage() {
         onRetryFailed={lastJobId ? handleRetryFailed : undefined}
         isRetrying={isRetrying || isScanning}
       />
+
+      {latestRunFailed && !isLoadingQuestions && queriesList.length > 0 && (
+        <FailedState
+          message="We couldn't load your latest results, so the answers below may be out of date. Please try again."
+          onRetry={() => setLatestRunAttempt((n) => n + 1)}
+        />
+      )}
 
       {/* B2: citation capture failed for most answers - say so instead of silently scoring "not cited" */}
       {!isLoadingQuestions && queriesList.length > 0 && citationsMissingMajority && (
@@ -1299,7 +1348,9 @@ export default function QueryPage() {
           onStatusChange={setActiveStatus}
           onCopyAll={handleCopyAll}
           onOpenAddModal={requestOpenAddModal}
-          onRunAudit={handleStartScan}
+          onRunAudit={requestRunAudit}
+          isRunning={isScanning}
+          isLocked={isLocked}
           onRegeneratePrompts={requestRegenerate}
           showActions={queriesList.length > 0}
         />
@@ -1325,13 +1376,17 @@ export default function QueryPage() {
                 out of alignment. Desktop never triggers the scroll since
                 720px fits comfortably. */}
             <div className="overflow-x-auto">
+              {/* I6: which model's answers the table is showing */}
+              <div className="px-4 pb-2 text-[12px] text-[#8a8273]">
+                Showing <strong className="text-[#15463b] font-semibold">{selectedModel}</strong>&apos;s answers
+              </div>
               {/* Table Header */}
-              <div className="grid grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px] min-w-[720px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]">
+              <div className={`grid ${showRankColumn ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px]"} min-w-[720px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]`}>
                 <div>No.</div>
                 <div>Type</div>
                 <div>Generated Search Query</div>
                 <div className="text-center">Status</div>
-                <div className="text-center">Rank</div>
+                {showRankColumn && <div className="text-center">Rank</div>}
                 <button
                   type="button"
                   onClick={handleOpenAllSources}
@@ -1347,6 +1402,7 @@ export default function QueryPage() {
                 selectedModel={selectedModel}
                 onSelectQuery={setSelectedQuery}
                 onOpenSources={handleOpenQuerySources}
+                showRank={showRankColumn}
               />
             </div>
             <AiDisclaimer className="mt-4 px-4" />
@@ -1408,7 +1464,10 @@ export default function QueryPage() {
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-[#9b927f] truncate">{comp.domain}</div>
+                  <div className="text-[11px] text-[#9b927f] truncate">
+                    {comp.domain}
+                    {typeof comp.appeared === "number" && typeof comp.answered === "number" ? ` · named or cited in ${comp.appeared} of ${comp.answered} questions` : ""}
+                  </div>
                 </div>
 
                 <div className="w-[140px] h-[6px] bg-[#ece0c4] rounded-full overflow-hidden shrink-0 hidden sm:block">
@@ -1459,13 +1518,24 @@ export default function QueryPage() {
           adding one question only resets that question; regenerating
           touches the whole set, so the score needs a few weeks to settle.
           Never a silent change once locked. */}
+      {showFirstRunReview && (
+        <FirstRunReviewDialog
+          questions={queriesList.map((q, i) => ({ id: q.id ?? i, query: q.query, label: q.label }))}
+          businessName={businessName}
+          onKeepReviewing={() => setShowFirstRunReview(false)}
+          onRun={() => { setShowFirstRunReview(false); handleStartScan(); }}
+        />
+      )}
+
       {pendingLockedAction && (
-        <div
-          className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setPendingLockedAction(null); }}
+        <Dialog
+          onClose={() => setPendingLockedAction(null)}
+          labelledBy="locked-action-title"
+          overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
+          className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[420px] p-6"
         >
-          <div className="bg-white border border-[#ece3d1] rounded-[20px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[420px] p-6">
-            <div className="font-spectral text-[18px] font-semibold text-[#15463b]">
+          <div className="contents">
+            <div id="locked-action-title" className="font-spectral text-[18px] font-semibold text-[#15463b]">
               Your 20 questions are locked
             </div>
             <p className="text-[13.5px] text-[#4a4437] mt-2 leading-relaxed">
@@ -1486,11 +1556,11 @@ export default function QueryPage() {
                 onClick={confirmPendingLockedAction}
                 className="flex-1 h-10 rounded-xl bg-[#15463b] text-white text-[13.5px] font-semibold hover:bg-[#1a5c44] transition-colors cursor-pointer"
               >
-                {pendingLockedAction === "add" ? "Add anyway" : "Regenerate anyway"}
+                {pendingLockedAction === "add" ? "Add anyway" : "Unlock and regenerate"}
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

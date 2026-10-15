@@ -1,9 +1,11 @@
 "use client";
 
+import { blogReadability, blogScore, blogWordCount } from "../../lib/blogStats";
 import { useState } from "react";
 import { X, Copy, Check, FileText, Sparkles } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import { AiDisclaimer } from "../ui/AiDisclaimer";
+import Dialog from "../ui/Dialog";
 
 interface BlogReaderModalProps {
   blog: any | null;
@@ -20,8 +22,9 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
   const metaDescription = blog.metaDescription || blog.excerpt || "";
   const keywords = Array.isArray(blog.keywords) ? blog.keywords : [];
   const sections = Array.isArray(blog.sections) ? blog.sections : [];
-  const score = blog.humanizedScore || blog.score || 94;
-  const wordCount = blog.wordCount || 1200;
+  const score = blogScore(blog);
+  const readability = blogReadability(blog);
+  const wordCount = blogWordCount(blog);
   const languageLabel: string | null = blog.language ? ({ "en-GB": "British English", "en-US": "American English", "en-IE": "Irish English", "en-AU": "Australian English", "en-NZ": "New Zealand English", "en-CA": "Canadian English", "en-IN": "Indian English", "en-ZA": "South African English", "en-SG": "Singapore English" } as Record<string, string>)[blog.language] || blog.language : null;
   const checkList: string[] = Array.isArray(blog.checkBeforePublishing) ? blog.checkBeforePublishing.filter(Boolean) : [];
 
@@ -37,13 +40,13 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-xs z-[9999] flex items-center justify-center p-4 md:p-6"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Dialog
+      onClose={onClose}
+      labelledBy="blog-reader-title"
+      overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-xs z-[9999] flex items-center justify-center p-4 md:p-6"
+      className="bg-white border border-[#ece3d1] rounded-[22px] shadow-[0_20px_40px_rgba(21,70,59,0.2)] w-full max-w-[860px] max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
     >
-      <div className="bg-white border border-[#ece3d1] rounded-[22px] shadow-[0_20px_40px_rgba(21,70,59,0.2)] w-full max-w-[860px] max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="contents">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 px-6 border-b border-[#ece3d1] bg-[#fdfcf8]">
@@ -55,7 +58,7 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
               <span className="font-mono-spline text-[9.5px] font-bold text-[#15463b] uppercase tracking-wider">
                 Generated Weekly Blog Article
               </span>
-              <h3 className="font-spectral text-[18px] font-semibold text-[#15463b] leading-tight line-clamp-1">
+              <h3 id="blog-reader-title" className="font-spectral text-[18px] font-semibold text-[#15463b] leading-tight line-clamp-1">
                 {title}
               </h3>
             </div>
@@ -71,7 +74,7 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
             </button>
 
             <button
-              onClick={onClose}
+              type="button" aria-label="Close" onClick={onClose}
               className="text-[#9b927f] hover:text-[#23211b] hover:bg-[#f5f0e6] rounded-md transition-colors p-1.5 cursor-pointer"
             >
               <X className="w-4.5 h-4.5" />
@@ -92,12 +95,18 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
               business's AI-visibility score. */}
           <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-[#fcfaf5] border border-[#efe7d6] flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-[#f0ebe0] border border-[#e5ddd0] flex items-center justify-center">
-                <span className="font-mono-spline text-[13px] font-bold text-[#6f6757]">{score}</span>
-              </div>
+              {score !== null && (
+                <div className="shrink-0 w-9 h-9 rounded-lg bg-[#f0ebe0] border border-[#e5ddd0] flex items-center justify-center">
+                  <span className="font-mono-spline text-[13px] font-bold text-[#6f6757]">{score}</span>
+                </div>
+              )}
               <div>
-                <div className="text-[12px] font-semibold text-[#6f6757]">This article's readability score</div>
-                <div className="font-mono-spline text-[11px] text-[#8a8273] mt-0.5">{wordCount} Words · {sections.length} Sections{languageLabel ? ` · ${languageLabel}` : ""}</div>
+                {score !== null && (
+                  <div className="text-[12px] font-semibold text-[#6f6757]">
+                    Readability: {readability?.band || "score"} <span className="font-normal text-[#8a8273]">(Flesch reading ease, 100 = easiest)</span>
+                  </div>
+                )}
+                <div className="font-mono-spline text-[11px] text-[#8a8273] mt-0.5">{wordCount !== null ? `${wordCount} Words · ` : ""}{sections.length} Sections{languageLabel ? ` · ${languageLabel}` : ""}</div>
               </div>
             </div>
 
@@ -162,6 +171,6 @@ export default function BlogReaderModal({ blog, onClose }: BlogReaderModalProps)
         </div>
 
       </div>
-    </div>
+    </Dialog>
   );
 }

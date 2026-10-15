@@ -1,7 +1,9 @@
 "use client";
 
+import { CATEGORY_OPTIONS, matchCategory } from "../../lib/categories";
 import { continueBlockedReason, requiredFieldProblem } from "../../lib/onboardingValidation";
-import { initialScanState, runScan, scanReducer } from "../../lib/onboardingScan";
+import { initialScanState, runScan, scanReducer, websiteFailureMessage } from "../../lib/onboardingScan";
+import { humanizeError, statusOf } from "../../lib/errorMessages";
 import { Suspense, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -71,35 +73,6 @@ function QGSlider({ label, desc, value, onChange }: { label: string; desc: strin
       <input type="range" min={0} max={20} value={value} onChange={(e) => onChange(e.target.value)} className="w-full accent-[#15463b]" />
     </div>
   );
-}
-
-const CATEGORY_OPTIONS = [
-  "Restaurant & Food",
-  "Hotel & Hospitality",
-  "Retail & Shopping",
-  "Healthcare & Medical",
-  "Legal Services",
-  "Real Estate",
-  "Home Services",
-  "Automotive",
-  "Beauty & Personal Care",
-  "Fitness & Wellness",
-  "Professional Services",
-  "Education & Training",
-  "Technology & Software",
-  "Financial Services",
-  "Construction & Contracting",
-  "Entertainment & Events",
-  "Travel & Tourism",
-  "Nonprofit & Community",
-  "Other",
-];
-
-// Maps whatever the crawler returned onto the picker's exact options; anything
-// unrecognised is dropped rather than shown as a label that isn't selectable.
-function matchCategory(raw: unknown): string {
-  const text = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  return CATEGORY_OPTIONS.find((option) => option.toLowerCase() === text) || "";
 }
 
 // Tap-to-select chip list, backed by a plain comma-separated string value
@@ -245,6 +218,7 @@ function AcceptOrEditText({
   rows = 3,
   placeholder,
   suggested,
+  suggestedLabel = "AI-suggested from your site",
   onEnter,
 }: {
   value: string;
@@ -252,6 +226,7 @@ function AcceptOrEditText({
   rows?: number;
   placeholder: string;
   suggested: boolean;
+  suggestedLabel?: string;
   onEnter?: () => void;
 }) {
   const [editing, setEditing] = useState(!suggested);
@@ -261,7 +236,7 @@ function AcceptOrEditText({
       <div className="border border-[#d0e4d6] bg-[#eef3f0] rounded-xl p-4">
         <div className="flex items-center justify-between gap-3 mb-2">
           <span className="font-mono-spline text-[10px] uppercase tracking-wider text-[#1e7d4f] font-semibold">
-            AI-suggested from your site
+            {suggestedLabel}
           </span>
           <button
             type="button"
@@ -436,6 +411,11 @@ function OnboardingContent() {
   const { showToast } = useToast();
 
   const [stepIndex, setStepIndex] = useState(-1); // -1 = url step, 0..n = STEP_ORDER
+  // J5: a brand-new account sees a short welcome before the first step
+  const [welcomed, setWelcomed] = useState(false);
+  // set while the first business is being saved, so the "already set up" redirect
+  // does not send them to the dashboard before the first-run screen
+  const handingToFirstRunRef = useRef(false);
   const [url, setUrl] = useState("");
   // G2: the website scan is an explicit state machine (idle -> scanning -> suggested | failed)
   const [scan, dispatchScan] = useReducer(scanReducer, initialScanState);
@@ -533,7 +513,7 @@ function OnboardingContent() {
   // of onboarding again every time they log in.
   const alreadySetUp = !isAddingAnother && businesses.length > 0;
   useEffect(() => {
-    if (hasLoadedOnce && alreadySetUp) {
+    if (hasLoadedOnce && alreadySetUp && !handingToFirstRunRef.current) {
       router.replace("/overview");
     }
   }, [hasLoadedOnce, alreadySetUp, router]);
@@ -640,7 +620,20 @@ function OnboardingContent() {
       // "try again" or "fill it in myself" (see the failed notice below).
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = "";
-      dispatchScan({ type: outcome.kind === "timeout" ? "TIMEOUT" : "FAILURE" });
+      // our own server not answering is not the website's fault - say which it was
+      const serverProblem = outcome.kind === "error" && statusOf(outcome.error) === null;
+      dispatchScan(
+        outcome.kind === "timeout"
+          ? { type: "TIMEOUT" }
+          : { type: "FAILURE", message: serverProblem ? humanizeError(outcome.error, "We couldn't reach our server. Please try again.") : undefined },
+      );
+      return;
+    }
+    // L7: the scraper reached the address but got an error page / a security check / nothing
+    if (outcome.value?.fetch?.ok === false) {
+      setUrl(cleanUrl);
+      lastScrapedUrlRef.current = "";
+      dispatchScan({ type: "FAILURE", message: websiteFailureMessage(String(outcome.value.fetch.reason || "We couldn't read that website.")) });
       return;
     }
     try {
@@ -727,11 +720,19 @@ function OnboardingContent() {
           questionGeneration: normalizeQG(qg),
         }),
       });
-      // When adding a 2nd/3rd business, land on the one just added, not on
-      // whichever was active before.
-      if (isAddingAnother && created?.id) setActiveBusinessId(String(created.id));
+      // G6/L4: the business just created becomes the active one - always, not
+      // only when adding a 2nd/3rd - so the next screen is about THIS business.
+      if (created?.id) setActiveBusinessId(String(created.id));
+      // J5: the account's FIRST business goes on to the first-run screen (questions, one scan, first score)
+      const isFirstBusiness = !isAddingAnother && businesses.length === 0 && Boolean(created?.id);
+      if (isFirstBusiness) handingToFirstRunRef.current = true;
       await refetchBusinesses();
-      showToast("Your business is set up - let's take a look.", "success");
+      if (isFirstBusiness) {
+        router.replace("/first-run");
+        return;
+      }
+      const addedName = name.replace(/\s+/g, " ").trim();
+      showToast(`${addedName} added - now showing ${addedName}.`, "success");
       router.replace("/overview");
     } catch (err) {
       setErrorMsg(parseApiError(err, "Couldn't save your business. Please try again."));
@@ -807,6 +808,47 @@ function OnboardingContent() {
     );
   }
 
+  if (!isAddingAnother && businesses.length === 0 && !welcomed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 py-10">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-[520px] bg-white border border-[#ece3d1] rounded-[24px] p-6 md:p-8"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-[#15463b] flex items-center justify-center mb-4">
+            <WonderscoreLogo size={26} color="white" />
+          </div>
+          <h1 className="font-spectral text-[26px] font-semibold text-[#15463b] leading-tight">Welcome to Wonderscore</h1>
+          <p className="text-[13.5px] text-[#8a8273] mt-2 leading-relaxed">
+            We measure how often AI assistants - ChatGPT, Claude, Perplexity and Gemini - mention your business when customers ask, and give you one score to improve.
+          </p>
+          <ol className="mt-5 space-y-3 text-[13.5px] text-[#23211b]">
+            {[
+              ["Tell us about your business", "Give us your website and we fill in most of it. About 2 minutes."],
+              ["We write 20 questions", "The kind your customers ask. You look them over before anything runs."],
+              ["We run one scan", "Your website plus all four AI models - usually 5 to 15 minutes, and you can leave while it runs."],
+              ["You get your first score", "And a short list of what to do to raise it."],
+            ].map(([title, text], i) => (
+              <li key={title} className="flex gap-3">
+                <span className="num mt-0.5 w-6 h-6 shrink-0 rounded-full bg-[#eef3f0] text-[#15463b] text-[12px] font-bold flex items-center justify-center">{i + 1}</span>
+                <span><span className="font-semibold">{title}.</span> <span className="text-[#6f6757]">{text}</span></span>
+              </li>
+            ))}
+          </ol>
+          <button
+            type="button"
+            onClick={() => setWelcomed(true)}
+            className="mt-7 w-full py-3.5 bg-[#15463b] text-white text-[14px] font-bold rounded-xl hover:bg-[#1a5c44] transition-colors cursor-pointer"
+          >
+            Let&apos;s set up your business
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   const stepTitles: Record<StepId, { title: string; sub: string }> = {
     url: { title: "Add your business", sub: "Enter your website and we'll pull in what we can find automatically." },
     name: { title: "What's your business called?", sub: "We found this on your site - keep it or fix it." },
@@ -824,7 +866,7 @@ function OnboardingContent() {
           : "Tell us the city or area you mainly serve.",
     },
     description: { title: "How would you describe the business?", sub: "A short, plain-English summary." },
-    aiDescription: { title: "Anything AI models should know?", sub: "Extra context to help AI describe you accurately (optional)." },
+    aiDescription: { title: "Anything AI models should know?", sub: "A short summary for AI models, written from the description you just confirmed. Edit it, or clear it - it's optional." },
     services: { title: "What services do you offer?", sub: "Tap to select, or add your own." },
     audience: { title: "Who's your target audience?", sub: "Tap to select, or add your own." },
     ratios: { title: "Question mix", sub: "How should your 20 tracked questions be split?" },
@@ -1026,8 +1068,9 @@ function OnboardingContent() {
                       value={aiDescription}
                       onChange={setAiDescription}
                       rows={4}
-                      placeholder="e.g. We specialize in same-day emergency repairs and family-owned service since 1998…"
+                      placeholder="e.g. What makes the business different, who it serves, and what it is best known for"
                       suggested={aiDescriptionWasSuggested}
+                      suggestedLabel="AI-written from your description"
                     />
                     <RegenerateLink isSuggesting={isSuggesting} onClick={() => fetchSuggestions(url, name, description)} />
                   </>

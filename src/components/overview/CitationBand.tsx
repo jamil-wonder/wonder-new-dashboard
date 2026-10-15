@@ -5,6 +5,7 @@ import { ArrowRight, Building, CheckCircle2, Compass, MapPin, Star } from "lucid
 import { OverviewData } from "../../hooks/useOverviewData";
 import SourcesSidebar from "../query/SourcesSidebar";
 import EmptyState from "../ui/EmptyState";
+import { bucketFor } from "../../lib/sourceBuckets";
 
 function cleanDomain(domain: string) {
   return String(domain || "")
@@ -21,31 +22,13 @@ export default function CitationBand({ data }: { data: OverviewData }) {
   const usedSources = new Set<string>();
 
   const bands = [
-    {
-      icon: Star,
-      label: "Review sites",
-      keywords: ["trustpilot", "tripadvisor", "reviews", "review", "yelp", "opentable", "squaremeal", "thefork"],
-    },
-    {
-      icon: Compass,
-      label: "Best-of guides",
-      keywords: ["timeout", "infatuation", "eater", "cntraveller", "condenast", "telegraph", "standard", "secretldn", "squaremeal"],
-    },
-    {
-      icon: MapPin,
-      label: "Local directories",
-      keywords: ["google", "bing", "yell", "yellowpages", "visit", "local", "near", "maps", "directory"],
-    },
-    {
-      icon: Building,
-      label: "Industry sources",
-      keywords: ["association", "federation", "council", "guild", "michelin", "aa", "guide"],
-    },
+    { icon: Star, label: "Review sites", bucket: "reviews" as const },
+    { icon: Compass, label: "Best-of guides", bucket: "guides" as const },
+    { icon: MapPin, label: "Local directories", bucket: "directories" as const },
+    { icon: Building, label: "Industry sources", bucket: "industry" as const },
   ].map((band) => {
-    const matched = sources.filter((source) => {
-      const lower = source.toLowerCase();
-      return band.keywords.some((keyword) => lower.includes(keyword));
-    });
+    // L8: a source belongs to a bucket only if its site is on that bucket's list
+    const matched = sources.filter((source) => bucketFor(source) === band.bucket);
     matched.forEach((source) => usedSources.add(source));
     return { ...band, sources: matched.slice(0, 3) };
   });

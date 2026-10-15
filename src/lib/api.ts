@@ -1,5 +1,7 @@
 "use client";
 
+import { humanizeError, type ErrorContext } from "./errorMessages";
+
 const getApiUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 };
@@ -146,13 +148,10 @@ export async function fetchApi<T>(
 // ("API Error (422): {"detail":"..."}") so a failed request can show the
 // real reason instead of a generic fallback. Falls back gracefully for any
 // non-JSON or unexpected error shape (a network failure, for instance).
-export function parseApiError(err: unknown, fallback = "Something went wrong. Please try again."): string {
-  const raw = err instanceof Error ? err.message : String(err || "");
-  const match = raw.match(/API Error \(\d+\):\s*(.*)/);
-  const body = match ? match[1] : raw;
-  try {
-    const parsed = JSON.parse(body);
-    if (typeof parsed?.detail === "string") return parsed.detail;
-  } catch {}
-  return body || fallback;
+export function parseApiError(
+  err: unknown,
+  fallback = "Something went wrong. Please try again.",
+  context: ErrorContext = "generic",
+): string {
+  return humanizeError(err, fallback, context);
 }

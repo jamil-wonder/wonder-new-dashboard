@@ -1,5 +1,6 @@
 "use client";
 
+import Dialog from "../../components/ui/Dialog";
 import { areaBadge } from "../../lib/areaBadge";
 import { assessInsight, CONFIDENCE_STYLE, type InsightProfile } from "../../lib/aiConfidence";
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -16,7 +17,7 @@ import { AiDisclaimer } from "../../components/ui/AiDisclaimer";
 import { useBusiness, isDomainString, isGenericName } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi, recordScanHistory } from "../../lib/api";
-import { buildAnalysis, userEmailFallback } from "../../lib/analyserModel";
+import { buildAnalysis } from "../../lib/analyserModel";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 Hours TTL cache limit
 const ACTIVE_ANALYSER_MAX_AGE_MS = 15 * 60 * 1000;
@@ -318,7 +319,8 @@ export default function AnalyserPage() {
       let finalInsights: any[] = [];
 
       // ── 1. Process Scrape Results ──────────────────────────────────────────
-      if (scrapeRes && scrapeRes.scores) {
+      // L1: the scraper says whether it really reached the website; an error / blocked / empty page is a failed scan, not a score
+      if (scrapeRes && scrapeRes.scores && scrapeRes.fetch?.ok !== false) {
         const detectedName = scrapeRes.businessName || scrapeRes.businessProfile?.name;
 
         // Preserve current activeBusiness.name if it's already a clean brand name or user-edited
@@ -357,7 +359,11 @@ export default function AnalyserPage() {
         // that were never actually crawled.
         finalScan = null;
         finalAreas = [];
-        setScanError("We couldn't complete the website scan. The site may be unreachable, or something went wrong on our end.");
+        setScanError(
+          scrapeRes?.fetch?.reason
+            ? `${scrapeRes.fetch.reason} Check that the site is online and open to visitors, then try again.`
+            : "We couldn't complete the website scan. The site may be unreachable, or something went wrong on our end."
+        );
       }
 
       // ── 2. Process AI Insights ─────────────────────────────────────────────
@@ -520,8 +526,17 @@ export default function AnalyserPage() {
   }, [domain]);
 
   const handleStartScan = () => {
+    if (isScanning) return; // C7: no second scan while one is starting
     runLiveAnalysis(true);
   };
+
+  // "Retry" from the dashboard after a failed website scan lands here with ?rescan=1
+  useEffect(() => {
+    if (!domain || typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("rescan") !== "1") return;
+    window.history.replaceState(null, "", "/analyser");
+    runLiveAnalysisRef.current(true);
+  }, [domain]);
 
   if (!domain) {
     return (
@@ -633,14 +648,7 @@ export default function AnalyserPage() {
     <div className="space-y-5 pb-12 relative">
 
       {selectedAiInsight && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label="Close AI insight details"
-            className="absolute inset-0 bg-[#23211b]/45 backdrop-blur-[3px] border-0 cursor-default"
-            onClick={() => setSelectedAiInsight(null)}
-          />
-          <div className="relative w-full max-w-2xl max-h-[86vh] overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_18px_54px_rgba(35,33,27,0.18)]">
+        <Dialog onClose={() => setSelectedAiInsight(null)} labelledBy="ai-insight-title" overlayClassName="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#23211b]/45 backdrop-blur-[3px]" className="relative w-full max-w-2xl max-h-[86vh] overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_18px_54px_rgba(35,33,27,0.18)]">
             <div className="flex items-start justify-between gap-4 border-b border-[#ece3d1] bg-[#fdfcf8] px-5 py-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl border border-[#e8dcc8] bg-white flex items-center justify-center shrink-0">
@@ -648,7 +656,7 @@ export default function AnalyserPage() {
                   <img src={selectedAiInsight.icon} alt={selectedAiInsight.model} className="w-6 h-6 object-contain" />
                 </div>
                 <div className="min-w-0">
-                  <div className="font-spectral text-[22px] font-semibold text-[#23211b] leading-tight">
+                  <div id="ai-insight-title" className="font-spectral text-[22px] font-semibold text-[#23211b] leading-tight">
                     {selectedAiInsight.model} insight
                   </div>
                   <div className="mt-1 flex items-center gap-2">
@@ -723,8 +731,8 @@ export default function AnalyserPage() {
               )}
               <AiDisclaimer className="mt-4" />
             </div>
-          </div>
-        </div>
+          
+        </Dialog>
       )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -867,21 +875,25 @@ export default function AnalyserPage() {
 
               <div className="mt-6 space-y-2.5">
                 {[
-                  { label: "Core Identity",  val: s.scores?.coreIdentity?.total || 100 },
-                  { label: "Contact Info",   val: s.scores?.contact?.total || 90 },
-                  { label: "Schema",         val: s.scores?.schema?.total || 66 },
-                  { label: "Technical",      val: s.scores?.technical?.total || 100 },
-                ].map(({ label, val }) => (
+                  { label: "Core Identity",  val: s.scores?.coreIdentity?.total },
+                  { label: "Contact Info",   val: s.scores?.contact?.total },
+                  { label: "Schema",         val: s.scores?.schema?.total },
+                  { label: "Technical",      val: s.scores?.technical?.total },
+                ].map(({ label, val: raw }) => {
+                  // I4: a part that wasn't measured says so - it never shows a made-up percentage.
+                  const val = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+                  return (
                   <div key={label}>
                     <div className="flex justify-between text-[11.5px] mb-1">
                       <span className="text-[#86b89f]">{label}</span>
-                      <span className="font-bold text-white">{val}%</span>
+                      <span className="font-bold text-white">{val === null ? "Not measured" : `${val}%`}</span>
                     </div>
                     <div className="h-[4px] bg-white/15 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#a8d860] rounded-full" style={{ width: `${val}%` }} />
+                      {val !== null && <div className="h-full bg-[#a8d860] rounded-full" style={{ width: `${val}%` }} />}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -1007,14 +1019,26 @@ export default function AnalyserPage() {
           </div>
           <div className="space-y-3">
             {[
-              { icon: Building2,  label: "Business name",    value: s.businessName || businessName, ok: true },
-              { icon: MessageSquare, label: "Description",   value: (s.description || `${businessName} in ${location}`).slice(0, 60) + "…", ok: true },
+              { icon: Building2,  label: "Business name",    value: s.businessName || "Not found on site", ok: !!s.businessName, warn: !s.businessName },
+              { icon: MessageSquare, label: "Description",   value: s.description ? s.description.slice(0, 60) + (s.description.length > 60 ? "…" : "") : "Not found on site", ok: !!s.description, warn: !s.description },
               { icon: ImageIcon,  label: "Logo detected",    value: s.logoFound ? "Logo found in markup" : "No logo tag", ok: !!s.logoFound },
               { icon: Phone,      label: "Phone",            value: s.phones?.[0] || "Not found on site", ok: !!s.phones?.[0], warn: !s.phones?.[0] },
-              { icon: Mail,       label: "Email",            value: s.emails?.[0] || userEmailFallback(domain), ok: true },
+              { icon: Mail,       label: "Email",            value: s.emails?.[0] || "Not found on site", ok: !!s.emails?.[0], warn: !s.emails?.[0] },
               { icon: MapPin,     label: "Address",          value: s.addresses?.[0] || "Not found on site", ok: !!s.addresses?.[0], warn: !s.addresses?.[0] },
               { icon: Clock,      label: "Opening hours",    value: s.openingHours?.[0] || "Not found on site", ok: !!s.openingHours?.[0], warn: !s.openingHours?.[0] },
-              { icon: Link2,      label: "Social links",     value: Object.keys(s.socialLinks || {}).join(", ") || "Not found on site", ok: Object.keys(s.socialLinks || {}).length > 0, warn: Object.keys(s.socialLinks || {}).length === 0 },
+              // C5: each social link is shown as the real link that was found
+              {
+                icon: Link2, label: "Social links",
+                value: Object.keys(s.socialLinks || {}).length > 0
+                  ? Object.entries(s.socialLinks as Record<string, string>).map(([name, link], i) => (
+                      <span key={name}>
+                        {i > 0 ? ", " : ""}
+                        <a href={String(link)} target="_blank" rel="noreferrer" className="text-[#15463b] underline underline-offset-2">{name}</a>
+                      </span>
+                    ))
+                  : "Not found on site",
+                ok: Object.keys(s.socialLinks || {}).length > 0, warn: Object.keys(s.socialLinks || {}).length === 0,
+              },
               { icon: Contact,    label: "Contact path",     value: s.hasContactPath ? "Found" : "Not detected", ok: s.hasContactPath, warn: !s.hasContactPath },
             ].map(({ icon: Icon, label, value, ok, warn }) => (
               <div key={label} className="flex items-start gap-3 py-2 border-b border-[#f0ebe0] last:border-0">
@@ -1043,11 +1067,11 @@ export default function AnalyserPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {[
-                { icon: ShieldCheck, label: "HTTPS / SSL",        ok: s.hasSSL ?? true, desc: "Encrypts visitor traffic. AI crawlers prioritize HTTPS domains for entity verification." },
-                { icon: Smartphone,  label: "Mobile Viewport",     ok: s.hasMobileMeta ?? true, desc: "Ensures mobile layout rendering so AI bots can read page content correctly." },
+                { icon: ShieldCheck, label: "HTTPS / SSL",        ok: Boolean(s.hasSSL), desc: "Encrypts visitor traffic. AI crawlers prioritize HTTPS domains for entity verification." },
+                { icon: Smartphone,  label: "Mobile Viewport",     ok: Boolean(s.hasMobileMeta), desc: "Ensures mobile layout rendering so AI bots can read page content correctly." },
                 { icon: Globe,       label: "Canonical URL",       ok: !!s.canonicalUrl, desc: "Defines the main site URL to prevent search engine duplicate content penalties." },
-                { icon: FileSearch,  label: "Sitemap.xml",         ok: s.sitemapFound ?? true, desc: "Directs search engines to index all published pages and service URLs." },
-                { icon: Bot,         label: "Robots.txt",          ok: s.robotsTxtFound ?? true, desc: "Master server configuration file that controls crawler access to site paths." },
+                { icon: FileSearch,  label: "Sitemap.xml",         ok: Boolean(s.sitemapFound), desc: "Directs search engines to index all published pages and service URLs." },
+                { icon: Bot,         label: "Robots.txt",          ok: Boolean(s.robotsTxtFound), desc: "Master server configuration file that controls crawler access to site paths." },
                 // Real robots.txt parsing (scraping/scraper.py's
                 // fetch_ai_bot_access) - this used to hardcode `ok: true`
                 // for all three regardless of what a site's robots.txt

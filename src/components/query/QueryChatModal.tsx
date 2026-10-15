@@ -1,5 +1,6 @@
 "use client";
 
+import Dialog from "../ui/Dialog";
 import Image from "next/image";
 import { X, CheckCircle2, XCircle } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
@@ -125,7 +126,7 @@ function formatModelReplyText(
   const sections = [
     `${shorten(baseAnswer)}`,
     `Mention Check\n${mentionLine}\n${namedLine}\n${citedLine}\n${whyLine}`,
-    `Where It Was Seen\n${evidenceLines.join("\n")}`,
+    `Sources Cited In This Answer\n${evidenceLines.join("\n")}`,
   ];
 
   const siteObj = result?.targetSite || parsedTarget;
@@ -178,11 +179,13 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
   const formattedText = formatModelReplyText(rawAnswer, modelRes);
 
   return (
-    <div
-      className="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4 md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    <Dialog
+      onClose={onClose}
+      labelledBy="query-chat-title"
+      overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4 md:p-6"
+      className="bg-white border border-[#ece3d1] rounded-[22px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[760px] max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
     >
-      <div className="bg-white border border-[#ece3d1] rounded-[22px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[760px] max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="contents">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#efe7d6] bg-[#fdfcf8]">
@@ -191,14 +194,14 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
               <Image src={cfg.icon} width={20} height={20} alt={cfg.name} className="object-contain" />
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="font-spectral text-[17px] font-semibold text-[#15463b]">
+              <span id="query-chat-title" className="font-spectral text-[17px] font-semibold text-[#15463b]">
                 {cfg.name} Response
               </span>
               <span className="text-[11px] font-mono-spline text-[#9b927f]">Generative AI Search Engine Log</span>
             </div>
           </div>
           <button
-            onClick={onClose}
+            type="button" aria-label="Close" onClick={onClose}
             className="p-1.5 text-[#9b927f] hover:text-[#23211b] transition-colors rounded-lg hover:bg-[#f5f0e6] cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -313,6 +316,6 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
 
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

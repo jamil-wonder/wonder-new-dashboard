@@ -1,5 +1,6 @@
 "use client";
 
+import FailedState from "../ui/FailedState";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -43,11 +44,14 @@ export default function AdminAiUsagePanel() {
   const [summary, setSummary] = useState<AiUsageSummary | null>(null);
   const [events, setEvents] = useState<AiUsageEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setLoadFailed(false);
         const res = await fetchApi<{ summary: AiUsageSummary; recent: AiUsageEvent[] }>("/api/admin/ai-usage?limit=200");
         if (res) {
           setSummary(res.summary);
@@ -55,15 +59,19 @@ export default function AdminAiUsagePanel() {
         }
       } catch (err) {
         console.error("Failed to load AI usage data:", err);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [attempt]);
 
   if (loading) {
     return <AdminSectionLoader label="Loading AI usage..." />;
+  }
+  if (loadFailed) {
+    return <FailedState message="We couldn't load AI usage." onRetry={() => setAttempt((n) => n + 1)} />;
   }
 
   const totalPages = Math.max(1, Math.ceil((summary?.total_events || 0) / PAGE_SIZE));

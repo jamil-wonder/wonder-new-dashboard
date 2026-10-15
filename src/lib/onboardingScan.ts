@@ -20,7 +20,7 @@ export type ScanState =
 export type ScanEvent =
   | { type: "START" }
   | { type: "SUCCESS" }
-  | { type: "FAILURE" }
+  | { type: "FAILURE"; message?: string }
   | { type: "TIMEOUT" }
   | { type: "RESET" };
 
@@ -28,6 +28,13 @@ export const TIMEOUT_MESSAGE =
   "That took longer than 30 seconds, so we stopped. You can try again, or fill in the details yourself.";
 export const UNREACHABLE_MESSAGE =
   "We couldn't read that website automatically. Check the address and try again, or fill in the details yourself.";
+
+// L7: say what actually happened. `reason` is the scraper's own sentence ("The website answered
+// with an error (HTTP 404).") when it reached the site but could not use it.
+export function websiteFailureMessage(reason: string): string {
+  const sentence = reason.trim().replace(/\s+$/, "");
+  return `${sentence}${/[.!?]$/.test(sentence) ? "" : "."} Check the address and try again, or fill in the details yourself.`;
+}
 
 export const initialScanState: ScanState = { status: "idle" };
 
@@ -40,7 +47,7 @@ export function scanReducer(state: ScanState, event: ScanEvent): ScanState {
     case "SUCCESS":
       return state.status === "scanning" ? { status: "suggested" } : state;
     case "FAILURE":
-      return state.status === "scanning" ? { status: "failed", reason: "unreachable", message: UNREACHABLE_MESSAGE } : state;
+      return state.status === "scanning" ? { status: "failed", reason: "unreachable", message: event.message || UNREACHABLE_MESSAGE } : state;
     case "TIMEOUT":
       return state.status === "scanning" ? { status: "failed", reason: "timeout", message: TIMEOUT_MESSAGE } : state;
     default:

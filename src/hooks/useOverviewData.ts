@@ -258,6 +258,11 @@ export interface OverviewData {
 
   hasAnalyserData: boolean;
   hasQueryData: boolean;
+  // A5: +/- points the score moves between runs just from the AI models answering differently
+  scoreMargin?: number | null;
+  // I4: the stored Search Tracker run could not be read (network / server) - not the same as "no run yet"
+  trackerLoadFailed: boolean;
+  retryTrackerLoad: () => void;
 }
 
 function ordinal(n: number) {
@@ -317,16 +322,20 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
   // Query page reads (GET /api/phase5/latest-job), not a 2-hour browser cache
   // that goes blank after logout, on another device, or after two hours.
   const [serverJob, setServerJob] = useState<any | null>(null);
+  const [trackerLoadFailed, setTrackerLoadFailed] = useState(false);
+  const [trackerAttempt, setTrackerAttempt] = useState(0);
   useEffect(() => {
     setServerJob(null);
+    setTrackerLoadFailed(false);
     if (!businessId) return;
     let cancelled = false;
     fetchApi<any>(`/api/phase5/latest-job?business_id=${encodeURIComponent(businessId)}`)
       .then((res) => { if (!cancelled && res?.found) setServerJob(res); })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setTrackerLoadFailed(true); });
     return () => { cancelled = true; };
     // refreshSignal changes the moment a Query run finishes: read the new run
-  }, [businessId, refreshSignal]);
+  }, [businessId, refreshSignal, trackerAttempt]);
+  const retryTrackerLoad = () => setTrackerAttempt((n) => n + 1);
 
   return useMemo(() => {
     // Analyzer half: the saved analysis from the server (durable) or the local
@@ -574,6 +583,8 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       quickWins,
       hasAnalyserData: Boolean(scanData) || score > 0,
       hasQueryData: Boolean(queryQueries && queryQueries.length > 0),
+      trackerLoadFailed,
+      retryTrackerLoad,
     };
     // refreshSignal isn't read above - it's a proxy for "a Query run just
     // completed for this business" (BusinessContext.liveDeepCompetitors
@@ -582,5 +593,5 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     // never see that the underlying cache changed and every figure here
     // (missingCount, citedSources, modelMentions, ...) would stay frozen at
     // whatever it was the first time this hook ran for this url.
-  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, hasVisibilityScoreProp, dbTrend, dbWonderTrend, serverJob, serverAnalysis]);
+  }, [url, refreshSignal, fallbackScore, latestPhase1At, latestPhase1Score, hasVisibilityScoreProp, dbTrend, dbWonderTrend, serverJob, serverAnalysis, trackerLoadFailed]);
 }

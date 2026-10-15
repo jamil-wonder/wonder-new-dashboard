@@ -21,7 +21,7 @@ const MODEL_ICONS: Record<string, string> = {
 };
 
 export default function PlatformVisSection({ data }: { data: OverviewData }) {
-  const { modelMentions, missingCount, hasQueryData, unavailableModels } = data;
+  const { modelMentions, missingCount, hasQueryData, unavailableModels, totalQueries } = data;
   // D2: strongest / weakest only over models that answered, never a zero "strength"
   const { strongest, weakest, noneMention } = data.modelInsights;
 
@@ -95,11 +95,11 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
       <div className="flex items-center justify-between gap-2 mt-4 pt-3.5 border-t border-[#ece3d1]">
         <span className="text-[12px] text-[#8a8273] leading-snug">
           {hasQueryData
-            ? <>Missing from <strong className="text-[#23211b] font-semibold">{missingCount} questions</strong></>
+            ? <>Missing from <strong className="text-[#23211b] font-semibold">{missingCount} of {totalQueries} questions</strong> on {modelMentions.length} {modelMentions.length === 1 ? "model" : "models"}</>
             : "No query data yet"}
         </span>
-        <Link href="/query" className="ul inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1e7d4f] whitespace-nowrap">
-          Open Queries <ArrowRight className="w-3.5 h-3.5" />
+        <Link href={hasQueryData && missingCount > 0 ? "/query?status=not-mentioned" : "/query"} className="ul inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1e7d4f] whitespace-nowrap">
+          {hasQueryData && missingCount > 0 ? "See the gaps" : "Open Queries"} <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Dialog from "../ui/Dialog";
 import { areasToImprove } from "../../lib/areaBadge";
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -244,17 +245,11 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
       )}
 
       {selectedCard?.kind === "query" && (
-        <div
-          className="fixed inset-0 z-[999] flex items-center justify-center bg-[#0f1c18]/55 p-4 backdrop-blur-sm"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setSelectedCard(null);
-          }}
-        >
-          <div className="w-full max-w-[980px] max-h-[86vh] overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_24px_60px_rgba(21,70,59,0.24)]">
+<Dialog onClose={() => setSelectedCard(null)} labelledBy="sprint-detail-title" overlayClassName="fixed inset-0 z-[999] flex items-center justify-center bg-[#0f1c18]/55 p-4 backdrop-blur-sm" className="w-full max-w-[980px] max-h-[86vh] overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_24px_60px_rgba(21,70,59,0.24)]">
             <div className="flex items-start justify-between gap-4 border-b border-[#efe7d6] bg-[#fdfcf8] px-6 py-4">
               <div>
                 <div className="font-mono-spline text-[10px] uppercase tracking-[0.16em] text-[#8a8273]">{selectedCard.tag}</div>
-                <h3 className="mt-1 font-spectral text-[23px] font-semibold leading-tight text-[#15463b]">{selectedCard.title}</h3>
+                <h3 id="sprint-detail-title" className="mt-1 font-spectral text-[23px] font-semibold leading-tight text-[#15463b]">{selectedCard.title}</h3>
               </div>
               <button
                 type="button"
@@ -337,8 +332,8 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          
+        </Dialog>
       )}
     </motion.div>
   );

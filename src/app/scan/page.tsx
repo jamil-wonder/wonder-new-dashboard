@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Loader2, ArrowRight, Lock } from "lucide-react";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
-import { fetchApi, getNewScanId } from "../../lib/api";
+import { fetchApi, getNewScanId, parseApiError } from "../../lib/api";
 import { getGrade, getVisibilityText } from "../../lib/scoreGrading";
 import { parseDetectedLocations, type DetectedLocation } from "../../lib/onboardingLocation";
 
@@ -308,7 +308,7 @@ function ScanContent() {
         })(),
       ]);
     } catch (err: any) {
-      setErrorMsg(err?.message || "Couldn't unlock your results. Please try again.");
+      setErrorMsg(parseApiError(err, "Couldn't unlock your results. Please try again."));
     } finally {
       setIsUnlocking(false);
     }

@@ -1,11 +1,13 @@
 "use client";
 
+import BusinessSwitcher from "./BusinessSwitcher";
+import NotificationBell from "./NotificationBell";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import NavTabs from "./NavTabs";
 import UserDropdownMenu from "./UserDropdownMenu";
-import { Bell, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { WonderscoreLogo } from "../ui/WonderscoreSpinner";
 import { fetchApi } from "../../lib/api";
@@ -101,13 +103,18 @@ export default function DashboardHeader() {
               </div>
             )}
 
-            {/* Active Business Info & Dynamic Score Trend - Expanded Layout */}
+            {/* G7: below lg the business name is a compact switcher on its own */}
+            {hasBusiness && (
+              <div className="lg:hidden min-w-0 flex-1 sm:flex-none">
+                <BusinessSwitcher compact />
+              </div>
+            )}
+
+                        {/* Active Business Info & Dynamic Score Trend - Expanded Layout */}
             <div className="hidden lg:block flex-1 min-w-0 pl-3.5 border-l border-[#efe7d6]">
               {hasBusiness ? (
                 <>
-                  <div className="text-[15.5px] font-semibold text-[#23211b] leading-snug truncate">
-                    {activeBusiness.name}
-                  </div>
+                  <BusinessSwitcher />
                   <div className="text-[12px] text-[#9b927f] leading-tight mb-1 truncate">
                     <span>{activeBusiness.category}</span>
                     <span className="mx-1 text-[#d8cfbd]">·</span>
@@ -197,12 +204,30 @@ export default function DashboardHeader() {
                     </div>
                     <ScoreBreakdownPopover inputs={activeBusiness?.latestWonderInputs} score={activeBusiness?.latestWonderScore} />
                   </>
+                ) : activeBusiness?.lastCrawl?.ok === false ? (
+                  <>
+                    <div className="text-[12.5px] font-medium mt-0.5 text-[#b1442a]">Score not available</div>
+                    <Link href="/analyser?rescan=1" className="text-[11px] text-[#b1442a] hover:underline">
+                      Website scan failed - Retry
+                    </Link>
+                  </>
                 ) : (
                   <>
-                    <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet scanned</div>
-                    <Link href="/query" className="text-[11px] text-[#b3a98f] hover:text-[#15463b] hover:underline">
-                      Run Search Tracker to get your score
-                    </Link>
+                    {activeBusiness?.latestPhase1At ? (
+                      <>
+                        <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">No score yet</div>
+                        <Link href="/query" className="text-[11px] text-[#b3a98f] hover:text-[#15463b] hover:underline">
+                          Website scanned - run Search Tracker to get your score
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <div className="num text-[13px] font-medium mt-0.5 text-[#b3a98f]">Not yet scanned</div>
+                        <Link href="/analyser" className="text-[11px] text-[#b3a98f] hover:text-[#15463b] hover:underline">
+                          Scan your website to get started
+                        </Link>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -247,12 +272,7 @@ export default function DashboardHeader() {
                 compact (bell + avatar) on mobile and identical to before at
                 sm and up. */}
             <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-auto pl-3 sm:pl-4 border-l border-[#efe7d6]">
-              <div className="relative cursor-pointer text-[#9b927f] hover:text-[#15463b] transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="num absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#15463b] text-white text-[9.5px] font-medium flex items-center justify-center">
-                  2
-                </span>
-              </div>
+              <NotificationBell />
 
               <UserDropdownMenu />
             </div>

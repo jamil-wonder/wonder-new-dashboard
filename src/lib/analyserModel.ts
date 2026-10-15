@@ -75,14 +75,15 @@ export function buildAnalysis(scrapeRes: any, ctx: AnalysisContext): { scan: any
     url: ctx.domain,
     category: scrapeRes.category || ctx.category,
     location: scrapeRes.location || ctx.location,
-    description: scrapeRes.description || ctx.fallbackDescription || `${detectedName} in ${ctx.location}.`,
-    canonicalUrl: scrapeRes.canonicalUrl || ctx.cleanUrl,
+    // C5: only what the website itself said - no made-up description or canonical address
+    description: scrapeRes.description || "",
+    canonicalUrl: scrapeRes.canonicalUrl || "",
     language: (scrapeRes.language || "EN-GB").toUpperCase(),
     hasSSL,
     hasMobileMeta: hasMobile,
     sitemapFound: hasSitemap,
     robotsTxtFound: hasRobots,
-    emails: scrapeRes.emails?.length ? scrapeRes.emails : [userEmailFallback(ctx.domain)],
+    emails: Array.isArray(scrapeRes.emails) ? scrapeRes.emails : [],
     phones: scrapeRes.phones || [],
     // No location-stuffing - an address genuinely not found on the
     // site must read as not found downstream, not silently become
