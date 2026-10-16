@@ -280,7 +280,8 @@ export default function PlanPage() {
     });
   }
 
-  const thisWeek = actions.slice(0, 5);
+  // I2: order by impact (highest first, otherwise as assembled) instead of labelling every card with an impact badge
+  const thisWeek = [...actions].sort((a, b) => (a.impact === "High" ? 0 : 1) - (b.impact === "High" ? 0 : 1)).slice(0, 5);
   const doneCount = thisWeek.filter((a) => done.has(a.id)).length;
   const doneItems = thisWeek.filter((a) => done.has(a.id));
   const comingUp = [
@@ -296,7 +297,7 @@ export default function PlanPage() {
       <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
           <div>
-            <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">This week's plan</div>
+            <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">This week's plan</div>
             <h1 className="font-spectral text-[22px] font-semibold text-[#15463b] mt-0.5">
               {thisWeek.length > 0 ? `${thisWeek.length} prepared actions, in priority order` : "Getting your plan ready"}
             </h1>
@@ -378,12 +379,7 @@ export default function PlanPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8273]">{action.categoryLabel}</span>
-                      <span className={`text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
-                        action.impact === "High" ? "bg-[#f6dcd5] text-[#b1442a]" : "bg-[#f7e7c4] text-[#9a6a12]"
-                      }`}>
-                        {action.impact} impact
-                      </span>
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-[#6f6757]">{action.categoryLabel}</span>
                     </div>
                     <div className={`text-[14.5px] font-semibold mt-1 ${isDone ? "text-[#8a8273] line-through" : "text-[#23211b]"}`}>
                       {action.title}
@@ -430,7 +426,7 @@ export default function PlanPage() {
       {/* Done, with impact */}
       {doneItems.length > 0 && (
         <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-3">Done, with impact</div>
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-3">Done, with impact</div>
           <div className="space-y-2">
             {doneItems.map((a) => (
               <div key={a.id} className="flex items-center gap-3 py-2 border-b border-[#f1eadf] last:border-0">
@@ -446,7 +442,7 @@ export default function PlanPage() {
       {/* Coming up */}
       {comingUp.length > 0 && (
         <div className="bg-[#f6f3ec] border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px]">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-3">Coming up</div>
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-3">Coming up</div>
           <div className="space-y-1.5">
             {comingUp.map((text, i) => (
               <div key={i} className="text-[13px] text-[#6f6757] py-1">{text}</div>
@@ -470,7 +466,7 @@ export default function PlanPage() {
         </Link>
       </div>
 
-      <BlogReaderModal blog={selectedBlog} onClose={() => setSelectedBlog(null)} />
+      <BlogReaderModal blog={selectedBlog} onClose={() => setSelectedBlog(null)} onChanged={loadWeeklyBlogs} />
     </div>
   );
 }

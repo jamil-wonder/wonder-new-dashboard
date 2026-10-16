@@ -5,7 +5,7 @@ import { formatElapsed } from "../../components/ui/ProgressScreen";
 import FailedState from "../../components/ui/FailedState";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bot, Search, ArrowRight, RefreshCw, Mail, AlertCircle } from "lucide-react";
+import { Bot, Search, ArrowRight, RefreshCw, Mail, AlertCircle, ChevronDown } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import HeroSection from "../../components/overview/HeroSection";
@@ -53,6 +53,23 @@ export default function OverviewPage() {
   const [justStartedRun, setJustStartedRun] = useState(false);
   // D6: Run now asks first (it uses today's one update), then shows a status line with the time so far
   const [confirmingRun, setConfirmingRun] = useState(false);
+  // D5: "the full picture" is open on wide screens by default, closed on phones; the choice is remembered
+  const [fullPictureOpen, setFullPictureOpen] = useState(true);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("wonder_overview_full_picture");
+      setFullPictureOpen(saved === null ? window.innerWidth >= 1024 : saved === "1");
+    } catch {
+      setFullPictureOpen(window.innerWidth >= 1024);
+    }
+  }, []);
+  const toggleFullPicture = () =>
+    setFullPictureOpen((open) => {
+      try {
+        localStorage.setItem("wonder_overview_full_picture", open ? "0" : "1");
+      } catch {}
+      return !open;
+    });
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [runElapsed, setRunElapsed] = useState(0);
   const serverRunStartedMs = activeBusiness?.scanRunActive?.started_at ? Date.parse(activeBusiness.scanRunActive.started_at) : NaN;
@@ -161,6 +178,7 @@ export default function OverviewPage() {
     quickWins.push({
       text: `You're only ${nearestAboveGap} points behind ${nearestAboveName}. One good week can close the gap.`,
       type: "info",
+      href: "/query",
     });
   }
 
@@ -272,7 +290,7 @@ export default function OverviewPage() {
       {!isRunActive && (
         <div className="flex items-start justify-between gap-3">
           <p className="text-[12.5px] text-[#8a8273] flex-1">
-            Your score updates automatically every Sunday night. Click run now if you don't want to wait (1 attempt per day allowed). A full update takes 10 to 20 minutes to run, and we'll email you the moment it's ready, so feel free to close this and check back later.
+            <span className="font-semibold text-[#4d4636]">Next automatic update: Sunday night.</span>{" "}Run it now if you don&apos;t want to wait - once a day, takes 10 to 20 minutes, and you can close this page.
           </p>
           <button
             onClick={() => setConfirmingRun(true)}
@@ -336,16 +354,33 @@ export default function OverviewPage() {
 
       <SprintSection data={enrichedData} businessName={activeBusiness?.name} />
 
-      {/* Three Column Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-        <MarketRankSection rows={competitorRows} />
-        <PlatformVisSection data={enrichedData} />
-        <SourcesSection data={enrichedData} />
-      </div>
-
-      <CitationBand data={enrichedData} />
-      <AuditBreakdown data={enrichedData} />
-      <TrainProfileSection business={activeBusiness} />
+      {/* D5: tier 3 - the whole picture, one tap away instead of a long scroll */}
+      <section aria-label="Full picture" className="rounded-2xl">
+        <button
+          type="button"
+          onClick={toggleFullPicture}
+          aria-expanded={fullPictureOpen}
+          className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-[#ece3d1] bg-white px-5 py-4 text-left transition-colors hover:bg-[#fdfcf8]"
+        >
+          <span>
+            <span className="block font-spectral text-[19px] font-semibold text-[#15463b]">The full picture</span>
+            <span className="block text-[12.5px] text-[#8a8273]">Rank, models, sources, audit and profile</span>
+          </span>
+          <ChevronDown className={`h-5 w-5 text-[#8a8273] transition-transform ${fullPictureOpen ? "rotate-180" : ""}`} />
+        </button>
+        {fullPictureOpen && (
+          <div className="mt-4 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+              <MarketRankSection rows={competitorRows} />
+              <PlatformVisSection data={enrichedData} />
+              <SourcesSection data={enrichedData} />
+            </div>
+            <CitationBand data={enrichedData} />
+            <AuditBreakdown data={enrichedData} />
+            <TrainProfileSection business={activeBusiness} />
+          </div>
+        )}
+      </section>
     </div>
   );
 }

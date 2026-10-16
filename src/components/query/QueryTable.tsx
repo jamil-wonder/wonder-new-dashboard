@@ -1,14 +1,21 @@
 "use client";
 
+import SiteIcon from "../ui/SiteIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Globe } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
+import QueryAnswerPanel from "./QueryAnswerPanel";
 import { getSourcesForModel, normalizeDomain } from "../../lib/querySources";
 
 interface QueryTableProps {
   queries: SearchQueryItem[];
   selectedModel?: string;
   onSelectQuery: (query: SearchQueryItem) => void;
+  // B10: the question whose answer is open right under its row
+  expandedId?: string | number | null;
+  onCloseAnswer?: () => void;
+  // G4: every place the business is tracked in (main + extra); with 2+, local questions show which place they are about
+  locations?: string[];
   onOpenSources?: (query: SearchQueryItem) => void;
   // I6: the Rank column is only there once some answer has a rank
   showRank?: boolean;
@@ -19,20 +26,16 @@ const VISIBLE_SOURCE_COUNT = 3;
 function Favicon({ domain }: { domain: string }) {
   const clean = normalizeDomain(domain);
   if (!clean) return null;
-  return (
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${clean}&sz=64`}
-      alt={clean}
-      className="w-3.5 h-3.5 rounded-sm object-contain shrink-0 border border-[#ece3d1] bg-white"
-      onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
-    />
-  );
+  return <SiteIcon domain={clean} size={14} className="border border-[#ece3d1] bg-white" />;
 }
 
 export default function QueryTable({
   queries,
   selectedModel = "ChatGPT",
   onSelectQuery,
+  expandedId = null,
+  onCloseAnswer,
+  locations = [],
   onOpenSources,
   showRank = true,
 }: QueryTableProps) {
@@ -103,9 +106,13 @@ export default function QueryTable({
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
               key={q.id}
+              className="flex flex-col gap-2"
+            >
+            <div
               role={isAudited ? "button" : undefined}
               tabIndex={isAudited ? 0 : undefined}
-              aria-label={isAudited ? `Open ${selectedModel}'s answer to: ${q.query}` : undefined}
+              aria-expanded={isAudited ? expandedId === q.id : undefined}
+              aria-label={isAudited ? `${expandedId === q.id ? "Hide" : "Show"} ${selectedModel}'s answer to: ${q.query}` : undefined}
               onKeyDown={(e) => {
                 if (isAudited && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
                   e.preventDefault();
@@ -126,12 +133,18 @@ export default function QueryTable({
                 #{q.id}
               </div>
               
-              <span
-                className="justify-self-start text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded shrink-0 max-w-[86px] truncate"
-                style={{ color: typeColor, backgroundColor: typeBg }}
-                title={q.label}
-              >
-                {q.label}
+              <span className="flex flex-col items-start gap-0.5 justify-self-start">
+                <span
+                  className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded shrink-0 max-w-[86px] truncate"
+                  style={{ color: typeColor, backgroundColor: typeBg }}
+                  title={q.label}
+                >
+                  {q.label}
+                </span>
+                {q.type === "local-seo" && locations.length > 1 && (() => {
+                  const place = locations.find((l) => q.query.toLowerCase().includes(l.split(",")[0].trim().toLowerCase()));
+                  return place ? <span className="max-w-[86px] truncate text-[10px] text-[#6f6757]" title={place}>{place.split(",")[0]}</span> : null;
+                })()}
               </span>
 
               <div className="min-w-0 pr-2">
@@ -264,6 +277,10 @@ export default function QueryTable({
                   <span className="text-[13px] font-medium text-[#c2b69c]">-</span>
                 )}
               </div>
+            </div>
+            {expandedId === q.id && isAudited && (
+              <QueryAnswerPanel query={q} selectedModel={selectedModel} onClose={() => onCloseAnswer?.()} />
+            )}
             </motion.div>
           );
         })}

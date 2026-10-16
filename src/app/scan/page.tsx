@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Loader2, ArrowRight, Lock } from "lucide-react";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { fetchApi, getNewScanId, parseApiError } from "../../lib/api";
+import { buildAnalysis } from "../../lib/analyserModel";
+import { areasToImprove } from "../../lib/areaBadge";
 import { getGrade, getVisibilityText } from "../../lib/scoreGrading";
 import { parseDetectedLocations, type DetectedLocation } from "../../lib/onboardingLocation";
 
@@ -132,9 +134,17 @@ function ScanContent() {
   const [detectedLocations, setDetectedLocations] = useState<DetectedLocation[]>([]);
   const [detectedCategory, setDetectedCategory] = useState("");
   const [description, setDescription] = useState("");
+  // J2: how many of the six areas have something to fix (the list itself is behind sign-up)
+  const [fixCount, setFixCount] = useState<number | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [findingsLoading, setFindingsLoading] = useState(false);
   const [findingsLimited, setFindingsLimited] = useState(false);
+
+  // J3: the owner's own answers to four plain questions, all optional - they sharpen the check and carry into setup
+  const [ownName, setOwnName] = useState("");
+  const [ownKind, setOwnKind] = useState("");
+  const [ownPlace, setOwnPlace] = useState("");
+  const [ownQuestion, setOwnQuestion] = useState("");
 
   const [email, setEmail] = useState("");
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -200,7 +210,7 @@ function ScanContent() {
         body: JSON.stringify({ url: cleanUrl, record_scan: false }),
       });
       const totalScore = scrapeRes?.scores?.total ?? 0;
-      const detectedName = scrapeRes?.businessName || cleanUrl.replace(/^https?:\/\//, "").split("/")[0];
+      const detectedName = ownName.trim() || scrapeRes?.businessName || cleanUrl.replace(/^https?:\/\//, "").split("/")[0];
       // The scrape already found real location/description signal - losing
       // it here means the competitor lookup below has nothing to anchor on
       // but a bare name, which is exactly what let it return same-name-ish
@@ -208,12 +218,18 @@ function ScanContent() {
       // sure is THE location: with several candidates a guess would pin the
       // lookup to the wrong city, so leave it open (onboarding asks later).
       const locations = parseDetectedLocations(scrapeRes?.locations);
-      const detectedLocation = locations.length === 1 ? locations[0].label : "";
+      const detectedLocation = ownPlace.trim() || (locations.length === 1 ? locations[0].label : "");
       const detectedDescription = scrapeRes?.description || "";
+      try {
+        const built = buildAnalysis(scrapeRes, { domain: cleanUrl.replace(/^https?:\/\//, "").split("/")[0], cleanUrl, category: "", location: "" });
+        setFixCount(built ? areasToImprove(built.areas).length : null);
+      } catch {
+        setFixCount(null);
+      }
       setScore(totalScore);
       setBusinessName(detectedName);
       setDetectedLocations(locations);
-      setDetectedCategory(typeof scrapeRes?.category === "string" ? scrapeRes.category : "");
+      setDetectedCategory(ownKind.trim() || (typeof scrapeRes?.category === "string" ? scrapeRes.category : ""));
       setLocation(detectedLocation);
       setDescription(detectedDescription);
       setUrl(cleanUrl);
@@ -295,7 +311,7 @@ function ScanContent() {
           try {
             const qRes = await fetchApi<any>("/api/public/full-results", {
               method: "POST",
-              body: JSON.stringify({ url, businessName, category: "", location, description }),
+              body: JSON.stringify({ url, businessName, category: detectedCategory, location, description }),
             });
             setFullResultQuestions(qRes?.questions || []);
           } catch {
@@ -321,7 +337,7 @@ function ScanContent() {
     try {
       localStorage.setItem(
         "wonder_scan_prefill",
-        JSON.stringify({ url, businessName, description, locations: detectedLocations, category: detectedCategory })
+        JSON.stringify({ url, businessName, description, locations: detectedLocations, category: detectedCategory, ownLocation: ownPlace.trim(), customerQuestion: ownQuestion.trim() })
       );
     } catch {}
     router.push("/auth?signup=true");
@@ -386,6 +402,28 @@ function ScanContent() {
                 </button>
               </form>
 
+              <details className="mt-4 rounded-xl border border-[#ece3d1] bg-white px-4 py-3 text-[13px] text-[#4a4437]">
+                <summary className="cursor-pointer font-semibold text-[#15463b]">Tell us a bit more for a sharper check (optional)</summary>
+                <div className="mt-3 space-y-2.5">
+                  {[
+                    { v: ownName, set: setOwnName, label: "What's the business called?", ph: "e.g. Cafe Rio" },
+                    { v: ownKind, set: setOwnKind, label: "What kind of business is it?", ph: "e.g. restaurant, dentist, hotel" },
+                    { v: ownPlace, set: setOwnPlace, label: "Where are you based?", ph: "e.g. Leeds, UK" },
+                    { v: ownQuestion, set: setOwnQuestion, label: "One question a customer might ask an AI about you", ph: "e.g. Where can I get a good vegan brunch in Leeds?" },
+                  ].map((f) => (
+                    <label key={f.label} className="block">
+                      <span className="mb-1 block text-[12px] font-medium text-[#6f6757]">{f.label}</span>
+                      <input
+                        value={f.v}
+                        onChange={(e) => f.set(e.target.value)}
+                        placeholder={f.ph}
+                        className="w-full rounded-lg border border-[#ece3d1] bg-[#fdfcf8] px-3 py-2 text-[13px] outline-none focus:border-[#15463b]"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </details>
+
               {errorMsg && (
                 <div className="mt-4 p-3 bg-[#fdf2f0] border border-[#f6dcd5] rounded-xl text-[12.5px] font-medium text-[#b1442a]">
                   {errorMsg}
@@ -442,21 +480,24 @@ function ScanContent() {
                     </div>
                   </div>
                   <div>
-                    <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">Wonder Score for</div>
+                    <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">Website health for</div>
                     <div className="font-spectral text-[19px] font-semibold text-[#23211b]">{businessName}</div>
                     <div className="text-[12.5px] font-semibold text-[#1e7d4f] mt-1">Grade {grade} · {visibilityText}</div>
+                    {fixCount !== null && fixCount > 0 && (
+                      <div className="text-[12.5px] text-[#6f6757] mt-0.5">{fixCount} of 6 areas have something to fix - sign up to see exactly what.</div>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-[#efe7d6]">
-                  <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">What we found</div>
+                  <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">What we found</div>
                   {findingsLoading ? (
                     <div className="flex items-center gap-2 text-[13px] text-[#8a8273]">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking AI recognition…
                     </div>
                   ) : findingsLimited ? (
                     <div className="text-[13px] text-[#8a8273] leading-relaxed">
-                      You've used today's free AI-recognition check. Your Wonder Score above is still real - sign up to see per-model findings and track them weekly.
+                      You've used today's free AI-recognition check. Your website health score above is still real - sign up to see per-model findings and track them weekly.
                     </div>
                   ) : (
                     <div className="space-y-2.5">
@@ -486,7 +527,7 @@ function ScanContent() {
               <div className="relative mt-4">
                 <div className={stage === "unlocked" ? "" : "pointer-events-none select-none blur-[6px]"}>
                   <div className="bg-white border border-[#ece3d1] rounded-[20px] p-6 md:p-8 shadow-sm">
-                    <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">Every question, who wins it</div>
+                    <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">Every question, who wins it</div>
                     {stage === "unlocked" && questionsLoading ? (
                       <div className="flex items-center gap-2 text-[13px] text-[#8a8273] py-2 mb-4">
                         <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
@@ -538,7 +579,7 @@ function ScanContent() {
                       </div>
                     ) : null}
 
-                    <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">Competitors</div>
+                    <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">Competitors</div>
                     {stage === "unlocked" && competitors.length > 0 ? (
                       <div className="space-y-1">
                         {competitors.map((c, i) => (

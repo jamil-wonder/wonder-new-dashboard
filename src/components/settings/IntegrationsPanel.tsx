@@ -90,7 +90,7 @@ export default function IntegrationsPanel() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-[14px] text-[#23211b] truncate">{item.title}</h4>
-                  <p className="font-mono-spline text-[9px] uppercase tracking-wider text-[#9b927f] mt-0.5">{item.type}</p>
+                  <p className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mt-0.5">{item.type}</p>
                 </div>
                 <span className="text-[10px] font-bold text-[#8a8273] bg-[#f5f0e6] px-2.5 py-0.5 rounded-full uppercase whitespace-nowrap">
                   Coming soon

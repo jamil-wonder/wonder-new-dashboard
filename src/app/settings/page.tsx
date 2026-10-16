@@ -8,9 +8,9 @@ import SubscriptionCard from "../../components/plan/SubscriptionCard";
 import { PaymentMethod, BillingHistory } from "../../components/plan/BillingComponents";
 import BusinessProfilesPanel from "../../components/settings/BusinessProfilesPanel";
 import VoiceKeywordSetup from "../../components/settings/VoiceKeywordSetup";
+import ExtraLocationsCard from "../../components/settings/ExtraLocationsCard";
 import SavedSearchTrackerPanel from "../../components/settings/SavedSearchTrackerPanel";
-import IntegrationsPanel from "../../components/settings/IntegrationsPanel";
-import RadiusCrawlersPanel from "../../components/settings/RadiusCrawlersPanel";
+import RoadmapPanel from "../../components/settings/RoadmapPanel";
 import { useBusiness } from "../../context/BusinessContext";
 
 const TAB_ALIASES: Record<string, string> = {
@@ -18,6 +18,8 @@ const TAB_ALIASES: Record<string, string> = {
   "business-profiles": "entity",
   keywords: "voice",
   "blog-generation": "saved-queries",
+  integrations: "roadmap",
+  crawlers: "roadmap",
 };
 const VALID_TABS = new Set([
   "account",
@@ -25,8 +27,7 @@ const VALID_TABS = new Set([
   "entity",
   "voice",
   "saved-queries",
-  "integrations",
-  "crawlers",
+  "roadmap",
 ]);
 
 function normalizeTab(tab: string | null) {
@@ -73,11 +74,15 @@ function SettingsContent() {
             </div>
           </div>
         )}
-        {activeSub === "entity" && <BusinessProfilesPanel />}
+        {activeSub === "entity" && (
+          <>
+            <BusinessProfilesPanel />
+            <ExtraLocationsCard />
+          </>
+        )}
         {activeSub === "voice" && <VoiceKeywordSetup />}
         {activeSub === "saved-queries" && <SavedSearchTrackerPanel />}
-        {activeSub === "integrations" && <IntegrationsPanel />}
-        {activeSub === "crawlers" && <RadiusCrawlersPanel />}
+        {activeSub === "roadmap" && <RoadmapPanel />}
       </div>
     </div>
   );

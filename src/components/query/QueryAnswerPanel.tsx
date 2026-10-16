@@ -1,14 +1,14 @@
 "use client";
 
-import Dialog from "../ui/Dialog";
+import SiteIcon from "../ui/SiteIcon";
 import Image from "next/image";
 import { X, CheckCircle2, XCircle } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
 import { normalizeDomain, isValidSourceDomain } from "../../lib/querySources";
 import { AiDisclaimer } from "../ui/AiDisclaimer";
 
-interface QueryChatModalProps {
-  query: SearchQueryItem | null;
+interface QueryAnswerPanelProps {
+  query: SearchQueryItem;
   selectedModel: string;
   onClose: () => void;
 }
@@ -152,19 +152,11 @@ function formatModelReplyText(
 function Favicon({ domain }: { domain: string }) {
   const clean = normalizeDomain(domain);
   if (!clean) return null;
-  return (
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${clean}&sz=64`}
-      alt={clean}
-      className="w-4 h-4 rounded-sm object-contain shrink-0 border border-[#ece3d1] bg-white"
-      onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
-    />
-  );
+  return <SiteIcon domain={clean} size={16} className="border border-[#ece3d1] bg-white" />;
 }
 
-export default function QueryChatModal({ query, selectedModel, onClose }: QueryChatModalProps) {
-  if (!query) return null;
-
+// B10: the answer is shown inline, right under the question's row, instead of in a pop-up.
+export default function QueryAnswerPanel({ query, selectedModel, onClose }: QueryAnswerPanelProps) {
   const cfg = MODEL_CONFIG[selectedModel] || MODEL_CONFIG.ChatGPT;
   const modelRes = query.resultsByModel?.[selectedModel] || {
     status: query.status,
@@ -179,48 +171,21 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
   const formattedText = formatModelReplyText(rawAnswer, modelRes);
 
   return (
-    <Dialog
-      onClose={onClose}
-      labelledBy="query-chat-title"
-      overlayClassName="fixed inset-0 bg-[#0f1c18]/55 backdrop-blur-sm z-[999] flex items-center justify-center p-4 md:p-6"
-      className="bg-white border border-[#ece3d1] rounded-[22px] shadow-[0_20px_48px_rgba(21,70,59,0.2)] w-full max-w-[760px] max-h-[88vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-    >
-      <div className="contents">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#efe7d6] bg-[#fdfcf8]">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl border border-[#ece3d1] bg-white flex items-center justify-center shadow-xs">
-              <Image src={cfg.icon} width={20} height={20} alt={cfg.name} className="object-contain" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span id="query-chat-title" className="font-spectral text-[17px] font-semibold text-[#15463b]">
-                {cfg.name} Response
-              </span>
-              <span className="text-[11px] font-mono-spline text-[#9b927f]">Generative AI Search Engine Log</span>
-            </div>
-          </div>
-          <button
-            type="button" aria-label="Close" onClick={onClose}
-            className="p-1.5 text-[#9b927f] hover:text-[#23211b] transition-colors rounded-lg hover:bg-[#f5f0e6] cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <div className="-mt-1 rounded-xl border border-[#ece3d1] bg-[#faf8f3] min-w-[720px]">
+      <div className="flex items-center justify-between border-b border-[#efe7d6] px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <Image src={cfg.icon} width={18} height={18} alt={cfg.name} className="object-contain" />
+          <span className="font-spectral text-[15px] font-semibold text-[#15463b]">{cfg.name}&apos;s answer</span>
         </div>
-        <div className="px-6 py-2 border-b border-[#efe7d6] bg-[#fdfcf8]">
-          <AiDisclaimer />
-        </div>
-
-        {/* Content Body */}
-        <div className="p-6 overflow-y-auto flex flex-col gap-5 bg-[#faf8f3] flex-1">
-
-          {/* User Query Bubble */}
-          <div className="flex justify-end">
-            <div className="bg-[#15463b] text-white px-5 py-3.5 rounded-[18px_18px_4px_18px] max-w-[85%] text-[14.5px] font-semibold leading-relaxed shadow-xs">
-              &ldquo;{query.query}&rdquo;
-            </div>
-          </div>
-
+        <button
+          type="button" aria-label="Close answer" onClick={onClose}
+          className="cursor-pointer rounded-lg p-1 text-[#6f6757] transition-colors hover:bg-[#f5f0e6] hover:text-[#23211b]"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex flex-col gap-4 p-4">
+        <AiDisclaimer />
           {/* AI Response Card - Formatted matching Old Dashboard */}
           <div className="flex items-start gap-3.5">
             <div className="w-9 h-9 rounded-full bg-white border border-[#e5ddd0] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
@@ -237,7 +202,7 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
                 return (
                   <div key={`sec-${sectionIndex}`} className="space-y-2">
                     {title && (
-                      <p className="font-mono-spline text-[10.5px] font-bold uppercase tracking-wider text-[#8a8273] border-b border-[#efe7d6] pb-1.5 mb-2">
+                      <p className="font-mono-spline text-[11px] font-bold uppercase tracking-wider text-[#6f6757] border-b border-[#efe7d6] pb-1.5 mb-2">
                         {title}
                       </p>
                     )}
@@ -313,9 +278,7 @@ export default function QueryChatModal({ query, selectedModel, onClose }: QueryC
               })}
             </div>
           </div>
-
-        </div>
       </div>
-    </Dialog>
+    </div>
   );
 }

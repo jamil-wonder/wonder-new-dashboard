@@ -135,7 +135,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
           </h2>
         </div>
         <div className="w-[230px] pt-0.5 shrink-0">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#5b4f86]">
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#5b4f86]">
             Visibility sprint
           </div>
           <div className="text-[13px] text-[#4a4368] font-semibold mt-1.5">{readyCount} of 4 ready</div>
@@ -169,7 +169,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
             }`}
           >
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 font-mono-spline text-[9px] tracking-wider uppercase text-[#1b1733]">
+              <span className="inline-flex items-center gap-1.5 font-mono-spline text-[11px] tracking-wider uppercase text-[#1b1733]">
                 {card.kind === "query" ? <SearchCheck className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                 {card.tag}
               </span>
@@ -248,7 +248,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
 <Dialog onClose={() => setSelectedCard(null)} labelledBy="sprint-detail-title" overlayClassName="fixed inset-0 z-[999] flex items-center justify-center bg-[#0f1c18]/55 p-4 backdrop-blur-sm" className="w-full max-w-[980px] max-h-[86vh] overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_24px_60px_rgba(21,70,59,0.24)]">
             <div className="flex items-start justify-between gap-4 border-b border-[#efe7d6] bg-[#fdfcf8] px-6 py-4">
               <div>
-                <div className="font-mono-spline text-[10px] uppercase tracking-[0.16em] text-[#8a8273]">{selectedCard.tag}</div>
+                <div className="font-mono-spline text-[11px] uppercase tracking-[0.16em] text-[#6f6757]">{selectedCard.tag}</div>
                 <h3 id="sprint-detail-title" className="mt-1 font-spectral text-[23px] font-semibold leading-tight text-[#15463b]">{selectedCard.title}</h3>
               </div>
               <button

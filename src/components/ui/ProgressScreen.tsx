@@ -22,27 +22,19 @@ export function formatElapsed(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-// J1 (first-run use): stages with their state, a result line each, time elapsed and a retry
-// on the stage that failed. Pure display - the owner of the work passes in what is happening.
-export default function ProgressScreen({
-  title,
-  subtitle,
+// The stage list, elapsed time and footer on their own - used by the full-page screen and by the progress pop-up.
+export function ProgressBody({
   stages,
   elapsedSeconds,
   footer,
 }: {
-  title: string;
-  subtitle?: string;
   stages: ProgressStage[];
   elapsedSeconds?: number;
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="w-full max-w-[520px] bg-white border border-[#ece3d1] rounded-[24px] p-6 md:p-8">
-      <h1 className="font-spectral text-[24px] font-semibold text-[#15463b] leading-tight">{title}</h1>
-      {subtitle && <p className="text-[13.5px] text-[#8a8273] mt-1.5 leading-relaxed">{subtitle}</p>}
-
-      <ol className="mt-6 space-y-4" aria-live="polite">
+    <div className="mt-6">
+      <ol className="space-y-4" aria-live="polite">
         {stages.map((stage) => (
           <li key={stage.id} className="flex gap-3">
             <span className="mt-0.5 shrink-0" aria-hidden="true">
@@ -90,11 +82,36 @@ export default function ProgressScreen({
       </ol>
 
       {(typeof elapsedSeconds === "number" || footer) && (
-        <div className="mt-6 pt-4 border-t border-[#efe7d6] text-[12px] text-[#8a8273] leading-relaxed">
+        <div className="mt-5 pt-4 border-t border-[#efe7d6] text-[12px] text-[#8a8273] leading-relaxed">
           {typeof elapsedSeconds === "number" && <div className="num font-semibold text-[#6f6757]">Time so far: {formatElapsed(elapsedSeconds)}</div>}
           {footer}
         </div>
       )}
+    </div>
+  );
+}
+
+// J1 (first-run use): stages with their state, a result line each, time elapsed and a retry
+// on the stage that failed. Pure display - the owner of the work passes in what is happening.
+export default function ProgressScreen({
+  title,
+  subtitle,
+  stages,
+  elapsedSeconds,
+  footer,
+}: {
+  title: string;
+  subtitle?: string;
+  stages: ProgressStage[];
+  elapsedSeconds?: number;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div className="w-full max-w-[520px] bg-white border border-[#ece3d1] rounded-[24px] p-6 md:p-8">
+      <h1 className="font-spectral text-[24px] font-semibold text-[#15463b] leading-tight">{title}</h1>
+      {subtitle && <p className="text-[13.5px] text-[#8a8273] mt-1.5 leading-relaxed">{subtitle}</p>}
+
+      <ProgressBody stages={stages} elapsedSeconds={elapsedSeconds} footer={footer} />
     </div>
   );
 }

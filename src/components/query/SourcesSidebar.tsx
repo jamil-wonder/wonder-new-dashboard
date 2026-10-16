@@ -1,5 +1,6 @@
 "use client";
 
+import SiteIcon from "../ui/SiteIcon";
 import React, { useEffect, useState } from "react";
 import { useDialogBehavior } from "../ui/Dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,14 +50,7 @@ function DrawerPanel({ onClose, labelledBy, children }: { onClose: () => void; l
 
 function DomainFavicon({ domain }: { domain: string }) {
   if (!domain) return null;
-  return (
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-      alt={domain}
-      className="w-4 h-4 rounded-sm object-contain shrink-0 border border-[#ece3d1] bg-white"
-      onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
-    />
-  );
+  return <SiteIcon domain={domain} size={16} className="border border-[#ece3d1] bg-white" />;
 }
 
 // A single, reusable right-to-left slide-over - not a blocking modal.

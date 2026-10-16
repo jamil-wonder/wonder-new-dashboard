@@ -29,7 +29,7 @@ const spline = Spline_Sans_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wonderscore AI - Interactive Dashboard",
+  title: "Wonderscore - Dashboard",
   description: "Generate premium, humanized weekly content & track AI visibility",
 };
 

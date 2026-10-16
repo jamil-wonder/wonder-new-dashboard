@@ -15,7 +15,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export default function AreaScoreBars() {
   return (
     <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-2xl p-5 md:p-[22px_26px] mb-6">
-      <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-4.5">
+      <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-4.5">
         Score Breakdown · 6 Weighted Audit Areas
       </div>
       <div className="flex flex-col gap-3.5">

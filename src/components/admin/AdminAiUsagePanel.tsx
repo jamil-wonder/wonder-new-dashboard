@@ -20,7 +20,7 @@ function SummaryCard({ iconPath, label, value }: { iconPath: string; label: stri
         <Image src={iconPath} alt={label} width={20} height={20} className="w-5 h-5" style={{ opacity: 0.82 }} />
       </div>
       <div>
-        <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">{label}</div>
+        <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">{label}</div>
         <div className="num font-spectral text-[24px] font-semibold text-[#23211b] leading-none mt-0.5">{value}</div>
       </div>
     </div>
@@ -93,7 +93,7 @@ export default function AdminAiUsagePanel() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         {/* Recent events table */}
         <div className="bg-white border border-[#ece3d1] rounded-2xl p-6 shadow-xs">
-          <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-4 font-semibold">Recent events</div>
+          <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-4 font-semibold">Recent events</div>
           {pageRows.length === 0 ? (
             <div className="text-[12.5px] text-[#8a8273] py-10 text-center">No AI usage recorded yet.</div>
           ) : (
@@ -102,11 +102,11 @@ export default function AdminAiUsagePanel() {
                 <table className="w-full text-[13px] min-w-[700px]">
                   <thead>
                     <tr className="text-left border-b border-[#efe7d6]">
-                      <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">When</th>
-                      <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Feature</th>
-                      <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Model</th>
-                      <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">User</th>
-                      <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold text-right">Calls</th>
+                      <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">When</th>
+                      <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Feature</th>
+                      <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Model</th>
+                      <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">User</th>
+                      <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold text-right">Calls</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -149,7 +149,7 @@ export default function AdminAiUsagePanel() {
         <div className="bg-white border border-[#ece3d1] rounded-2xl p-5 shadow-xs h-fit">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-[14px]">🏆</span>
-            <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Top users</div>
+            <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Top users</div>
           </div>
           <div className="space-y-2">
             {topUsers.length === 0 && (

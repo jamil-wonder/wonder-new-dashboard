@@ -173,13 +173,13 @@ export default function AdminUsersPanel() {
         <table className="w-full text-[13px] min-w-[860px]">
           <thead>
             <tr className="text-left border-b border-[#efe7d6]">
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">User</th>
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Email</th>
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Role</th>
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Status</th>
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Verified</th>
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Businesses</th>
-              <th className="px-2 py-2.5 font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] font-semibold">Joined</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">User</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Email</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Role</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Status</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Verified</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Businesses</th>
+              <th className="px-2 py-2.5 font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] font-semibold">Joined</th>
               <th className="px-2 py-2.5" />
             </tr>
           </thead>

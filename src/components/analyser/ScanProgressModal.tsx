@@ -5,6 +5,7 @@ import { Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WonderscoreLogo } from "../ui/WonderscoreSpinner";
 import { useDialogBehavior } from "../ui/Dialog";
+import { ProgressBody, type ProgressStage } from "../ui/ProgressScreen";
 
 interface ScanProgressModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ interface ScanProgressModalProps {
   loadingTextOverride?: string;
   processed?: number;
   total?: number;
+  /** J1: the steps to show. Without it, one step is shown from the progress figures. */
+  stages?: ProgressStage[];
 }
 
 // Same behaviour as <Dialog> (Escape minimises, focus kept inside, focus restored) on the animated card.
@@ -48,7 +51,9 @@ export default function ScanProgressModal({
   loadingTextOverride,
   processed,
   total,
+  stages,
 }: ScanProgressModalProps) {
+  const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -61,6 +66,17 @@ export default function ScanProgressModal({
     } else {
       setProgress(0);
     }
+  }, [isOpen]);
+
+  // J1: time so far, counted from when the pop-up opens
+  useEffect(() => {
+    if (!isOpen) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const t = setInterval(() => setElapsed((Date.now() - started) / 1000), 1000);
+    return () => clearInterval(t);
   }, [isOpen]);
 
   // Smoothly increment progress or sync with processed / total ratio (capped at 95% until isComplete)
@@ -117,6 +133,18 @@ export default function ScanProgressModal({
   };
 
   const loadingText = getLoadingText();
+  const shownStages: ProgressStage[] = stages || [
+    {
+      id: "work",
+      label: title,
+      status: isComplete ? "done" : "running",
+      detail: isComplete
+        ? "Finished"
+        : typeof processed === "number" && typeof total === "number" && total > 0
+          ? `${processed} of ${total} answers in`
+          : loadingText,
+    },
+  ];
 
   // Minimized pill layout in bottom right
   if (isDismissed) {
@@ -216,7 +244,9 @@ export default function ScanProgressModal({
             />
           </div>
 
-          <div className="flex justify-between w-full mt-2.5 text-[9px] font-bold text-[#9b927f] uppercase tracking-wider font-mono-spline">
+          <ProgressBody stages={shownStages} elapsedSeconds={elapsed} />
+
+          <div className="flex justify-between w-full mt-2.5 text-[11px] font-bold text-[#6f6757] uppercase tracking-wider font-mono-spline">
             <span>Usually 1-5 min</span>
             <span className="text-[#15463b]">
               {isComplete ? "Complete" : "Keep this open or browse other pages"}

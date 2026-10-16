@@ -9,7 +9,7 @@ export default function TechnicalChecklist() {
       
       {/* Competitor Score Comparison */}
       <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[14px] p-5 md:p-[20px_24px]">
-        <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e] mb-3.5">
+        <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#9a8a5e] mb-3.5">
           Competitor Score Comparison
         </div>
         <div className="flex flex-col gap-2.5">
@@ -23,8 +23,9 @@ export default function TechnicalChecklist() {
               <span className={`text-[11px] font-semibold w-3 ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#9b927f]"}`}>
                 {comp.rank}
               </span>
-              <span className={`flex-1 text-[13px] ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b]"}`}>
-                {comp.name} {comp.isUser && <span className="font-normal text-[#9b927f] text-[10px]">You</span>}
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span className={`truncate text-[13px] ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b]"}`}>{comp.name}</span>
+                {comp.isUser && <span className="shrink-0 rounded bg-[#dcefe2] px-1.5 py-0.5 font-mono-spline text-[11px] font-bold uppercase tracking-wider text-[#1e7d4f]">You</span>}
               </span>
               <div className="w-[88px] h-[6px] bg-[#ece0c4] rounded-full overflow-hidden shrink-0">
                 <div
@@ -42,7 +43,7 @@ export default function TechnicalChecklist() {
 
       {/* Technical Readiness Checklist */}
       <div className="bg-white border border-[#ece3d1] rounded-[14px] p-5 md:p-[20px_24px]">
-        <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-3.5">
+        <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-3.5">
           Technical Readiness Checklist
         </div>
         <div className="flex flex-col gap-3">

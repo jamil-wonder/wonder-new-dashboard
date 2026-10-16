@@ -28,7 +28,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
   return (
     <div className="bg-white border border-[#ece3d1] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col">
       <div className="flex flex-col flex-1">
-        <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">
+        <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">
           Where AI sees you
         </div>
         <div className="font-spectral text-[21px] font-semibold text-[#23211b] mt-1">
@@ -71,19 +71,19 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
             )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[#ece3d1] border border-[#ece3d1] rounded-lg overflow-hidden mt-auto pt-0">
               <div className="bg-[#fbf7ee] p-3">
-                <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Strongest</div>
+                <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#6f6757]">Strongest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{strongest?.model || "-"}</div>
                 <div className="num text-[12px] font-bold text-[#2e9e5b]">
                   {strongest ? `${strongest.mentioned}/${strongest.total}` : noneMention ? "no mentions yet" : "-"}
                 </div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
-                <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#b1442a]">Weakest</div>
+                <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#b1442a]">Weakest</div>
                 <div className="text-[13px] font-semibold text-[#23211b] mt-1">{weakest?.model || "-"}</div>
                 <div className="num text-[12px] font-bold text-[#9a6a12]">{weakest ? `${weakest.mentioned}/${weakest.total}` : "-"}</div>
               </div>
               <div className="bg-[#fbf7ee] p-3">
-                <div className="font-mono-spline text-[8.5px] tracking-wider uppercase text-[#9b927f]">Potential</div>
+                <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#6f6757]">Potential</div>
                 <div className="num text-[18px] font-bold text-[#1e7d4f] leading-tight">+{missingCount}</div>
                 <div className="text-[11px] text-[#8a8273]">queries missing</div>
               </div>

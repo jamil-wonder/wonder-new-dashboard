@@ -235,7 +235,7 @@ function AcceptOrEditText({
     return (
       <div className="border border-[#d0e4d6] bg-[#eef3f0] rounded-xl p-4">
         <div className="flex items-center justify-between gap-3 mb-2">
-          <span className="font-mono-spline text-[10px] uppercase tracking-wider text-[#1e7d4f] font-semibold">
+          <span className="font-mono-spline text-[11px] uppercase tracking-wider text-[#1e7d4f] font-semibold">
             {suggestedLabel}
           </span>
           <button
@@ -542,6 +542,10 @@ function OnboardingContent() {
     } catch {}
     if (!prefill?.url) return;
     localStorage.removeItem("wonder_scan_prefill");
+    // J3: the customer question typed before signing up becomes one of the 20 on the first-run review
+    try {
+      if (prefill.customerQuestion) localStorage.setItem("wonder_first_question", String(prefill.customerQuestion));
+    } catch {}
 
     setUrl(prefill.url);
     lastScrapedUrlRef.current = prefill.url;
@@ -555,7 +559,8 @@ function OnboardingContent() {
     // "locations" in the first place.
     const detected = parseDetectedLocations(prefill.locations);
     setDetectedLocations(detected);
-    const prefilledLocation = detected.length === 1 ? detected[0].label : "";
+    // J3: a place the owner typed themselves beats a detected one
+    const prefilledLocation = String(prefill.ownLocation || "").trim() || (detected.length === 1 ? detected[0].label : "");
     setLocation(prefilledLocation);
     const prefilledCategory = matchCategory(prefill.category);
     setCategory(prefilledCategory);
@@ -887,7 +892,7 @@ function OnboardingContent() {
         {stepIndex >= 0 && (
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273]">
+              <span className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">
                 Step {stepIndex + 1} of {totalSteps}
               </span>
             </div>

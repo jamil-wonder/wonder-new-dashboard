@@ -3,7 +3,7 @@
 import SegmentedControl from "../../components/ui/SegmentedControl";
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { authModeFromParam, authUrl, type AuthMode } from "../../lib/authRoutes";
+import { authModeFromParam, authUrl, safeNext, type AuthMode } from "../../lib/authRoutes";
 import { Loader2, Lock, Mail, User as UserIcon, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -110,7 +110,9 @@ function AuthPageContent() {
       if (mode === "login") {
         const { email: confirmedEmail } = await login(email, password);
         showToast("We sent a sign-in code to your email.", "success");
-        window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}`);
+        // H9: carry the page they were heading to through the code step
+        const next = safeNext(searchParams.get("next"));
+        window.location.assign(`/verify-email?email=${encodeURIComponent(confirmedEmail)}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
       } else {
         const { email: confirmedEmail } = await signup(email, password, name);
         showToast("Account created - check your email for a verification code.", "success");
@@ -142,10 +144,10 @@ function AuthPageContent() {
             <WonderscoreLogo size={32} color="white" />
           </div>
           <h1 className="font-spectral text-[30px] font-semibold text-[#15463b] tracking-tight leading-tight">
-            Wonderscore AI
+            Wonderscore
           </h1>
           <p className="text-[13.5px] text-[#8a8273] mt-1 max-w-[320px] leading-relaxed">
-            AI Search Engine Optimization &amp; Visibility Intelligence Dashboard
+            Your AI CMO for ChatGPT, Claude &amp; Perplexity. Free during early access.
           </p>
         </div>
 
@@ -177,7 +179,7 @@ function AuthPageContent() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
             <div>
-              <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] block mb-1.5">
+              <label className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] block mb-1.5">
                 Full Name
               </label>
               <div className="relative">
@@ -195,7 +197,7 @@ function AuthPageContent() {
           )}
 
           <div>
-            <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] block mb-1.5">
+            <label className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] block mb-1.5">
               Email Address
             </label>
             <div className="relative">
@@ -212,7 +214,7 @@ function AuthPageContent() {
           </div>
 
           <div>
-            <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] block mb-1.5">
+            <label className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] block mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -301,7 +303,7 @@ function AuthPageContent() {
 
       {/* Footer copyright */}
       <div className="mt-8 text-center text-[12px] text-[#9b927f]">
-        &copy; {new Date().getFullYear()} Wonderscore AI. All rights reserved.
+        &copy; {new Date().getFullYear()} Wonderscore. All rights reserved.
       </div>
     </div>
   );

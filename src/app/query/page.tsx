@@ -1,16 +1,16 @@
 "use client";
 
+import SiteIcon from "../../components/ui/SiteIcon";
 import FirstRunReviewDialog from "../../components/query/FirstRunReviewDialog";
 import FailedState from "../../components/ui/FailedState";
 import Dialog from "../../components/ui/Dialog";
 import { mapProviderResults } from "../../lib/trackerResults";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { ArrowRight, Building2, Loader2 } from "lucide-react";
 import ModelSwitcher from "../../components/query/ModelSwitcher";
 import QueryFilterBar from "../../components/query/QueryFilterBar";
 import QueryTable from "../../components/query/QueryTable";
-import QueryChatModal from "../../components/query/QueryChatModal";
 import AddPromptModal from "../../components/query/AddPromptModal";
 import SourcesSidebar from "../../components/query/SourcesSidebar";
 import ScanProgressModal from "../../components/analyser/ScanProgressModal";
@@ -852,6 +852,28 @@ export default function QueryPage() {
     }
   }, [activeRunId, activeBusiness?.id]);
 
+  // B6: a run started elsewhere (Run now, Sunday, another tab) shows its progress here every 3 s
+  const [externalRun, setExternalRun] = useState<{ processed: number; total: number } | null>(null);
+  useEffect(() => {
+    setExternalRun(null);
+    if (!activeRunId || isScanning) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetchApi<{ tracker_progress?: { processed: number; total: number } | null }>(`/api/scan-runs/${activeRunId}`);
+        if (!cancelled) setExternalRun(res.tracker_progress ? { processed: res.tracker_progress.processed, total: res.tracker_progress.total } : { processed: 0, total: 0 });
+      } catch {
+        /* the banner just stays where it was */
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [activeRunId, isScanning]);
+
   // Tear down any in-flight polling/SSE whenever the active business
   // changes - not just on true unmount. Switching business via the header
   // switcher does NOT unmount this page, so without `domain` in the deps
@@ -1175,6 +1197,8 @@ export default function QueryPage() {
     }
   }, [isScanning, queriesList, domain, businessName, showToast, applyJobResultsToQueries, refetchBusinesses]);
 
+  // J9: has this business's set been asked to the AI models before?
+  const hasRunBefore = Boolean(lastJobId || answersCollectedAt || isScanComplete);
   // First run = nothing has ever been measured and the questions aren't locked in yet
   const isFirstRun = !isLocked && !lastJobId && !answersCollectedAt && !isScanComplete;
   const requestRunAudit = useCallback(() => {
@@ -1228,6 +1252,16 @@ export default function QueryPage() {
         onRetryFailed={lastJobId ? handleRetryFailed : undefined}
         isRetrying={isRetrying || isScanning}
       />
+
+      {activeRunId && !isScanning && (
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-[#d0e4d6] bg-[#eef6f1] px-4 py-3 text-[13px] text-[#15463b]">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+          <span>
+            An update is running
+            {externalRun && externalRun.total > 0 ? `: ${externalRun.processed} of ${externalRun.total} answers in` : ""}. The results below will refresh by themselves when it finishes.
+          </span>
+        </div>
+      )}
 
       {latestRunFailed && !isLoadingQuestions && queriesList.length > 0 && (
         <FailedState
@@ -1337,6 +1371,24 @@ export default function QueryPage() {
         )
       )}
 
+      {/* J9: before anything has been asked, the one thing to do is the biggest thing on the page */}
+      {!isLoadingQuestions && queriesList.length > 0 && !hasRunBefore && (
+        <button
+          type="button"
+          onClick={requestRunAudit}
+          disabled={isScanning}
+          className="group flex w-full cursor-pointer items-center justify-between gap-4 rounded-2xl bg-[#15463b] px-6 py-5 text-left text-white shadow-[0_18px_40px_-20px_rgba(21,70,59,0.7)] transition-colors hover:bg-[#0f332b] disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <span>
+            <span className="block font-spectral text-[21px] leading-tight">Ask the AI models these {queriesList.length} questions</span>
+            <span className="mt-1 block text-[13px] text-[#a9c9bb]">ChatGPT, Claude, Perplexity and Gemini answer each one - then you see where {businessName || "your business"} appears. Takes about 5 to 15 minutes.</span>
+          </span>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#a8d860] text-[#0c2b24] transition-transform group-hover:translate-x-0.5">
+            {isScanning ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+          </span>
+        </button>
+      )}
+
       {/* Main Table Card */}
       <div className="bg-white border border-[#ece3d1] rounded-xl p-5 md:p-6 shadow-xs transition-all duration-300">
         <QueryFilterBar
@@ -1350,6 +1402,7 @@ export default function QueryPage() {
           onOpenAddModal={requestOpenAddModal}
           onRunAudit={requestRunAudit}
           isRunning={isScanning}
+          hasRun={hasRunBefore}
           isLocked={isLocked}
           onRegeneratePrompts={requestRegenerate}
           showActions={queriesList.length > 0}
@@ -1381,7 +1434,7 @@ export default function QueryPage() {
                 Showing <strong className="text-[#15463b] font-semibold">{selectedModel}</strong>&apos;s answers
               </div>
               {/* Table Header */}
-              <div className={`grid ${showRankColumn ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px]"} min-w-[720px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] border-b border-[#efe7d6]`}>
+              <div className={`grid ${showRankColumn ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px]"} min-w-[720px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[11px] font-medium uppercase text-[#6f6757] border-b border-[#efe7d6]`}>
                 <div>No.</div>
                 <div>Type</div>
                 <div>Generated Search Query</div>
@@ -1390,7 +1443,7 @@ export default function QueryPage() {
                 <button
                   type="button"
                   onClick={handleOpenAllSources}
-                  className="bg-transparent border-none p-0 m-0 font-mono-spline text-[10px] font-medium uppercase text-[#9b927f] text-right hover:text-[#15463b] hover:underline cursor-pointer transition-colors"
+                  className="bg-transparent border-none p-0 m-0 font-mono-spline text-[11px] font-medium uppercase text-[#6f6757] text-right hover:text-[#15463b] hover:underline cursor-pointer transition-colors"
                   title="View every source cited across all queries in this run"
                 >
                   Sources
@@ -1400,7 +1453,10 @@ export default function QueryPage() {
               <QueryTable
                 queries={filteredQueries}
                 selectedModel={selectedModel}
-                onSelectQuery={setSelectedQuery}
+                onSelectQuery={(q) => setSelectedQuery((cur) => (cur?.id === q.id ? null : q))}
+                expandedId={selectedQuery?.id ?? null}
+                onCloseAnswer={() => setSelectedQuery(null)}
+                locations={[activeBusiness?.location || "", ...(activeBusiness?.extraLocations || [])].filter(Boolean)}
                 onOpenSources={handleOpenQuerySources}
                 showRank={showRankColumn}
               />
@@ -1416,7 +1472,7 @@ export default function QueryPage() {
       {!isLoadingQuestions && competitorRows.length > 0 && (
         <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <span className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
+            <span className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#9a8a5e]">
               Market score comparison
             </span>
             <span className="text-[12.5px] text-[#8a8273]">
@@ -1444,15 +1500,7 @@ export default function QueryPage() {
                 </span>
 
                 <div className="w-7 h-7 rounded-lg bg-white border border-[#efe7d6] flex items-center justify-center shrink-0 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={comp.favicon}
-                    alt={comp.name}
-                    className="w-4 h-4 object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                  />
+                  <SiteIcon domain={comp.domain} size={16} />
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -1493,12 +1541,6 @@ export default function QueryPage() {
           </span>
         </div>
       )}
-
-      <QueryChatModal
-        query={selectedQuery}
-        selectedModel={selectedModel}
-        onClose={() => setSelectedQuery(null)}
-      />
 
       <SourcesSidebar
         isOpen={isSourcesSidebarOpen}

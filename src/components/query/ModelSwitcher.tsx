@@ -78,7 +78,7 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
         {modelUnavailable ? (
           <div className="flex items-center gap-3.5 bg-[#fffbeb] border border-[#fde68a] px-4 py-2 rounded-lg min-w-[140px]">
             <div>
-              <div className="font-mono-spline text-[9px] tracking-wider text-[#92400e] uppercase font-medium">Live Model Score</div>
+              <div className="font-mono-spline text-[11px] tracking-wider text-[#92400e] uppercase font-medium">Live Model Score</div>
               <div className="text-[15px] font-semibold text-[#92400e] mt-0.5">Unavailable</div>
               <div className="text-[11px] text-[#92400e]/80">
                 {failedCount > 0 ? `${selectedModel} could not be reached` : `${selectedModel} was not run`}
@@ -97,7 +97,7 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
         ) : (
         <div className="flex items-center gap-3.5 bg-[#fdfcf8] border border-[#efe7d6] px-4 py-2 rounded-lg min-w-[140px]">
           <div>
-            <div className="font-mono-spline text-[9px] tracking-wider text-[#9b927f] uppercase font-medium">Live Model Score</div>
+            <div className="font-mono-spline text-[11px] tracking-wider text-[#6f6757] uppercase font-medium">Live Model Score</div>
             <div className="flex items-baseline gap-1 mt-0.5">
               <AnimatePresence mode="wait">
                 <motion.span

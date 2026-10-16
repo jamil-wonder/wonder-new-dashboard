@@ -113,7 +113,7 @@ export default function ScoreBreakdownPopover({ inputs, score }: { inputs: Wonde
           aria-label="How your Wonder Score is calculated"
           className="absolute left-0 top-full mt-2 z-[60] w-[300px] bg-white border border-[#ece3d1] rounded-xl shadow-[0_8px_28px_rgba(60,48,28,0.14)] p-4"
         >
-          <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f] mb-2">
+          <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-2">
             60% AI mentions · 30% website health · 10% market position
           </div>
           <ScoreBreakdownTable inputs={inputs} score={score} />

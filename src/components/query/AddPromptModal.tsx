@@ -43,7 +43,7 @@ export default function AddPromptModal({ isOpen, onClose, onAddPrompt }: AddProm
 
         <form onSubmit={handleSubmit} className="p-5.5 flex flex-col gap-4 bg-white">
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] mb-1.5 block">
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] mb-1.5 block">
               Query Text
             </label>
             <input
@@ -56,7 +56,7 @@ export default function AddPromptModal({ isOpen, onClose, onAddPrompt }: AddProm
           </div>
 
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] mb-1.5 block">
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] mb-1.5 block">
               Query Category
             </label>
             <select

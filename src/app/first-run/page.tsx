@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Pencil, X } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { fetchApi, parseApiError } from "../../lib/api";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -29,6 +29,9 @@ export default function FirstRunPage() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [starting, setStarting] = useState(false);
+  // J8: which question is being edited, and the text in the box
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draftText, setDraftText] = useState("");
   const initRef = useRef(false);
   const failuresRef = useRef(0);
 
@@ -58,6 +61,15 @@ export default function FirstRunPage() {
       });
       const rows = questionsFromGeneration(res);
       if (rows.length === 0) throw new Error("No questions came back.");
+      // J3: the question the owner typed before signing up replaces the last generated Non-Branded one
+      try {
+        const own = (localStorage.getItem("wonder_first_question") || "").trim();
+        if (own) {
+          localStorage.removeItem("wonder_first_question");
+          const idx = rows.map((r) => r.type).lastIndexOf("non-branded");
+          if (idx >= 0) rows[idx] = { ...rows[idx], query: own };
+        }
+      } catch {}
       setQuestions(rows);
       setPhase("review");
     } catch (err) {
@@ -66,6 +78,23 @@ export default function FirstRunPage() {
     }
   }, [business, questions]);
 
+  const saveEdit = () => {
+    const text = draftText.trim();
+    setQuestions((qs) =>
+      text
+        ? qs.map((q) => (q.id === editingId ? { ...q, query: text } : q))
+        : qs.filter((q) => !(q.id === editingId && !q.query.trim())), // an empty new question is dropped
+    );
+    setEditingId(null);
+  };
+  // a question written by the owner joins the Non-Branded group (a customer's own wording)
+  const addOwn = () => {
+    const id = Math.max(0, ...questions.map((q) => q.id)) + 1;
+    setQuestions((qs) => [...qs, { id, type: "non-branded", label: "Non-Branded", query: "" }]);
+    setEditingId(id);
+    setDraftText("");
+  };
+
   const startRun = useCallback(async () => {
     if (!business || starting) return;
     setStarting(true);
@@ -73,7 +102,7 @@ export default function FirstRunPage() {
     try {
       const res = await fetchApi<{ run_id: string }>(`/api/user/businesses/${business.id}/first-run`, {
         method: "POST",
-        body: JSON.stringify({ questions: questions.map(({ id, type, label, query }) => ({ id, type, label, query })) }),
+        body: JSON.stringify({ questions: questions.map(({ type, label, query }, i) => ({ id: i + 1, type, label, query: query.trim() })) }),
       });
       failuresRef.current = 0;
       setStatus(null);
@@ -178,16 +207,46 @@ export default function FirstRunPage() {
         <div className="mt-5 max-h-[340px] overflow-y-auto space-y-4 pr-1">
           {groups.map((label) => (
             <div key={label}>
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] mb-1.5">{label}</div>
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-1.5">{label}</div>
               <ol className="space-y-1.5 list-decimal list-inside text-[13px] text-[#23211b]">
                 {questions.filter((q) => q.label === label).map((q) => (
-                  <li key={q.id} className="leading-snug">{q.query}</li>
+                  <li key={q.id} className="leading-snug marker:text-[#9b927f]">
+                    {editingId === q.id ? (
+                      <span className="inline-flex w-[calc(100%-2rem)] items-center gap-2 align-middle">
+                        <input
+                          autoFocus
+                          value={draftText}
+                          onChange={(e) => setDraftText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditingId(null); }}
+                          className="min-w-0 flex-1 rounded-lg border border-[#15463b] bg-white px-2.5 py-1.5 text-[13px] focus:outline-none"
+                          aria-label="Edit question"
+                        />
+                        <button type="button" onClick={saveEdit} className="cursor-pointer text-[12px] font-semibold text-[#15463b]">Save</button>
+                      </span>
+                    ) : (
+                      <span className="group inline-flex w-[calc(100%-2rem)] items-start justify-between gap-2 align-top">
+                        <span>{q.query}</span>
+                        <span className="flex shrink-0 gap-2">
+                          <button type="button" aria-label="Edit this question" onClick={() => { setEditingId(q.id); setDraftText(q.query); }} className="cursor-pointer text-[#6f6757] hover:text-[#15463b]"><Pencil className="h-3.5 w-3.5" /></button>
+                          <button type="button" aria-label="Remove this question" onClick={() => setQuestions((qs) => qs.filter((x) => x.id !== q.id))} className="cursor-pointer text-[#6f6757] hover:text-[#b1442a]"><X className="h-3.5 w-3.5" /></button>
+                        </span>
+                      </span>
+                    )}
+                  </li>
                 ))}
               </ol>
             </div>
           ))}
         </div>
-        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
+          <span className={questions.length === 20 ? "font-semibold text-[#1e7d4f]" : "font-semibold text-[#9a6a12]"}>
+            {questions.length === 20 ? "20 of 20 questions" : questions.length < 20 ? `${questions.length} of 20 - add ${20 - questions.length} more to continue` : `${questions.length} of 20 - remove ${questions.length - 20} to continue`}
+          </span>
+          <button type="button" onClick={addOwn} disabled={questions.length >= 20} className="cursor-pointer font-semibold text-[#15463b] underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40">
+            + Add your own question
+          </button>
+        </div>
+        <div className="mt-5 flex flex-col sm:flex-row gap-3">
           <button
             type="button"
             onClick={generate}
@@ -198,7 +257,7 @@ export default function FirstRunPage() {
           <button
             type="button"
             onClick={startRun}
-            disabled={starting}
+            disabled={starting || questions.length !== 20 || questions.some((q) => !q.query.trim())}
             className="sm:flex-[2] h-11 rounded-xl bg-[#15463b] text-white text-[13.5px] font-bold hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -249,7 +308,7 @@ export default function FirstRunPage() {
           <span className="num font-spectral text-[64px] leading-none font-semibold text-[#15463b]">{score}</span>
           <span className="text-[16px] text-[#8a8273]">/100</span>
         </div>
-        <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] mt-1">Your Wonder Score</div>
+        <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mt-1">Your Wonder Score</div>
         <div className="mt-2 flex justify-center">
           <ScoreBreakdownPopover inputs={business.latestWonderInputs} score={business.latestWonderScore} />
         </div>

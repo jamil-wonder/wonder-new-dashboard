@@ -61,6 +61,8 @@ export interface Business {
   completedActions?: { action_id: string; title: string; category?: string; completed_at: string; week_id: string; baseline_mentions?: number | null; reported_win?: boolean }[];
   blogVoice?: string;
   blogLanguage?: string;
+  // G4: other places this business is tracked in
+  extraLocations?: string[];
   blogLanguageDetected?: { code: string; label: string; source: string };
   blogKeywords?: string[];
   // When each score type last updated - separate from `completeness`
@@ -336,6 +338,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             latestPhase1Score: typeof b.latest_phase1_score === "number" ? b.latest_phase1_score : null,
             blogVoice: b.blogVoice || b.blog_voice || "",
             blogLanguage: b.blogLanguage || "",
+            extraLocations: Array.isArray(b.extraLocations) ? b.extraLocations : [],
             blogLanguageDetected: b.blogLanguageDetected || undefined,
             blogKeywords: Array.isArray(b.blogKeywords) ? b.blogKeywords : [],
           };

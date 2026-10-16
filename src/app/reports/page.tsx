@@ -110,7 +110,7 @@ export default function ReportsPage() {
         {/* Preview Segment */}
         <div className="p-6 md:p-8 space-y-6">
           <div className="flex items-center justify-between border-b border-[#efe7d6] pb-4">
-            <span className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">Real-time Preview</span>
+            <span className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">What the report shows</span>
           </div>
 
           {!data.hasVisibilityScore && (
@@ -142,13 +142,29 @@ export default function ReportsPage() {
             </div>
 
             <div>
-              <div className="font-mono-spline text-[9px] uppercase tracking-wider text-[#9b927f]">Target Website</div>
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">Target Website</div>
               <div className="font-spectral text-[20px] font-semibold text-[#23211b] mt-0.5">
                 {activeBusiness?.name || "Your business"}
               </div>
               <div className="text-[12px] text-[#8a8273] mt-0.5 truncate max-w-[320px]">{activeBusiness?.url}</div>
             </div>
           </div>
+
+          {/* E4: three headline numbers first, then the six areas */}
+          {data.hasVisibilityScore && (
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Wonder Score", value: `${data.score}/100` },
+                { label: "Market position", value: data.userRankOrdinal || "-" },
+                { label: "Named by AI", value: data.totalQueries > 0 ? `${Math.max(0, data.totalQueries - data.missingCount)} of ${data.totalQueries}` : "-" },
+              ].map((n) => (
+                <div key={n.label} className="rounded-xl border border-[#ece3d1] bg-white p-3 text-center">
+                  <div className="font-spectral text-[22px] font-semibold leading-none text-[#15463b]">{n.value}</div>
+                  <div className="mt-1.5 text-[11px] text-[#6f6757]">{n.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Audit Metrics Breakdown */}
           {data.auditAreas.length > 0 && (

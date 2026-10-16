@@ -1,5 +1,6 @@
 "use client";
 
+import SiteIcon from "../ui/SiteIcon";
 import EmptyState from "../ui/EmptyState";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -21,7 +22,7 @@ export default function MarketRankSection({ rows }: Props) {
   return (
     <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col">
       <div className="flex flex-col flex-1">
-        <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
+        <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#9a8a5e]">
           Your position in the market
         </div>
         <div className="font-spectral text-[21px] font-semibold text-[#23211b] mt-1">
@@ -45,17 +46,11 @@ export default function MarketRankSection({ rows }: Props) {
                   {comp.rank}
                 </span>
                 <div className="w-6 h-6 rounded-md bg-white border border-[#efe7d6] flex items-center justify-center shrink-0 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={comp.favicon}
-                    alt={comp.name}
-                    className="w-3.5 h-3.5 object-contain"
-                    onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
-                  />
+                  <SiteIcon domain={comp.domain} size={14} />
                 </div>
-                <span className={`flex-1 text-[13px] truncate ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b]"}`}>
-                  {comp.name}
-                  {comp.isUser && <span className="font-normal text-[#9b927f] text-[10.5px] ml-1.5">You</span>}
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className={`truncate text-[13px] ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b]"}`}>{comp.name}</span>
+                  {comp.isUser && <span className="shrink-0 rounded bg-[#dcefe2] px-1.5 py-0.5 font-mono-spline text-[11px] font-bold uppercase tracking-wider text-[#1e7d4f]">You</span>}
                 </span>
                 <div className="w-[40px] h-[5px] bg-[#ece0c4] rounded-full overflow-hidden shrink-0">
                   <div

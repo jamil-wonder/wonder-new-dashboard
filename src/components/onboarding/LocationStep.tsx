@@ -114,7 +114,7 @@ export default function LocationStep({
       <div className="space-y-3">
         <div className="border border-[#d0e4d6] bg-[#eef3f0] rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <span className="font-mono-spline text-[10px] uppercase tracking-wider text-[#1e7d4f] font-semibold">
+            <span className="font-mono-spline text-[11px] uppercase tracking-wider text-[#1e7d4f] font-semibold">
               Found on your site
             </span>
             <button
@@ -143,7 +143,7 @@ export default function LocationStep({
   return (
     <div className="space-y-3">
       <Note tone="info">
-        <strong className="font-semibold">We found {detected.length} locations on your site.</strong> WonderScore tracks one
+        <strong className="font-semibold">We found {detected.length} locations on your site.</strong> Wonderscore tracks one
         location per business, so choose the one that matters most - you can change it any time in Settings.
       </Note>
       <div role="radiogroup" aria-label="Choose your main location" className="space-y-2 max-h-[260px] overflow-y-auto pr-0.5">
@@ -181,7 +181,7 @@ export default function LocationStep({
         })}
       </div>
       <div>
-        <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] block mb-1.5">
+        <label className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] block mb-1.5">
           Or enter a different location
         </label>
         <LocationInput value={value} onChange={onChange} onEnter={onEnter} placeholder="Your city or area" invalid={invalid} />

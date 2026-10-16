@@ -39,7 +39,7 @@ export default function CitationBand({ data }: { data: OverviewData }) {
     <div className="mt-4 bg-[#15463b] rounded-[16px] p-6 md:p-[26px_28px] text-[#eaf3ee]">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <div className="font-mono-spline text-[10.5px] tracking-wider uppercase text-[#86b89f] leading-relaxed">
+          <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#a9cdb9] leading-relaxed">
             Trusted sources AI uses
           </div>
           <div className="font-spectral text-[22px] font-semibold text-white mt-1">
@@ -102,7 +102,7 @@ export default function CitationBand({ data }: { data: OverviewData }) {
 
       {unmatched.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
-          <span className="font-mono-spline text-[9.5px] uppercase tracking-[0.14em] text-[#86b89f]">
+          <span className="font-mono-spline text-[11px] uppercase tracking-[0.14em] text-[#a9cdb9]">
             Other cited domains
           </span>
           {unmatched.map((source) => (

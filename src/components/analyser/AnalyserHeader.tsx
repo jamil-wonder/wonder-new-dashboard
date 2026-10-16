@@ -20,7 +20,7 @@ export default function AnalyserHeader() {
       {/* Config Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="bg-[#fdfcf8] border border-[#ece3d1] p-4 rounded-xl">
-          <div className="font-mono-spline text-[9.5px] tracking-wider uppercase text-[#8a8273]">
+          <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#6f6757]">
             Domain name
           </div>
           <div className="text-[15px] font-bold text-[#23211b] mt-1.5">
@@ -28,7 +28,7 @@ export default function AnalyserHeader() {
           </div>
         </div>
         <div className="bg-[#fdfcf8] border border-[#ece3d1] p-4 rounded-xl">
-          <div className="font-mono-spline text-[9.5px] tracking-wider uppercase text-[#8a8273]">
+          <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#6f6757]">
             Business category
           </div>
           <div className="text-[15px] font-bold text-[#23211b] mt-1.5">
@@ -36,7 +36,7 @@ export default function AnalyserHeader() {
           </div>
         </div>
         <div className="bg-[#fdfcf8] border border-[#ece3d1] p-4 rounded-xl">
-          <div className="font-mono-spline text-[9.5px] tracking-wider uppercase text-[#8a8273]">
+          <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#6f6757]">
             Primary location
           </div>
           <div className="text-[15px] font-bold text-[#23211b] mt-1.5">

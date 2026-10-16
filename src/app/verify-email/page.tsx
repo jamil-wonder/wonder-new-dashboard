@@ -1,5 +1,6 @@
 "use client";
 
+import { safeNext } from "../../lib/authRoutes";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -150,7 +151,9 @@ function VerifyEmailContent() {
       // routine login, not a first-time signup) and redirects straight
       // through to /overview on its own; only a genuinely new account
       // with zero businesses sees the onboarding step.
-      window.location.href = "/onboarding";
+      // H9: someone who signed in on the way to a page goes back to it; everyone else goes through /onboarding
+      const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+      window.location.href = next || "/onboarding";
     } catch (err) {
       setErrorMsg(verifyErrorMessage(err));
       setIsVerifying(false);

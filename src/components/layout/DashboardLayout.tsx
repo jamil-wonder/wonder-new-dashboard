@@ -1,5 +1,7 @@
 "use client";
 
+import MobileTabBar from "./MobileTabBar";
+import { authUrlWithNext } from "../../lib/authRoutes";
 import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import DashboardHeader from "./DashboardHeader";
@@ -32,7 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // it stays a plain redirect to /overview or /auth, matching the rest of
   // the app. It handles its own redirect for already-signed-in visitors
   // internally (straight to /overview).
-  const isScanPage = pathname === "/scan";
+  const isScanPage = pathname === "/scan" || pathname === "/free-report";
   // /report/[token] is the recipient's side of Dashboard's "Share report" -
   // a manager, owner, or client opening a forwarded link has no account at
   // all, so this has to render with zero auth, same reasoning as /scan.
@@ -58,7 +60,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (isUserLoading) return;
     if (!isAuthenticated && !isPublicPage) {
-      router.push("/auth");
+      // H9: remember where they were going, so signing in brings them back to it
+      router.push(authUrlWithNext(pathname === "/" ? "" : `${pathname}${window.location.search}`));
       return;
     }
     if (needsVerification && !isVerifyPage) {
@@ -122,9 +125,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[#fdfcf8] text-[#23211b] pb-12">
       <DashboardHeader />
-      <main className="max-w-[1180px] mx-auto pt-4 px-4 md:px-9">
+      <main className="max-w-[1180px] mx-auto pt-4 px-4 pb-24 md:px-9 md:pb-0">
         {children}
       </main>
+      <MobileTabBar />
     </div>
   );
 }

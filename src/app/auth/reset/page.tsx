@@ -119,7 +119,7 @@ function ResetForm() {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] block mb-1.5">
+              <label className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] block mb-1.5">
                 New password
               </label>
               <div className="relative">
@@ -136,7 +136,7 @@ function ResetForm() {
               </div>
             </div>
             <div>
-              <label className="font-mono-spline text-[10px] uppercase tracking-wider text-[#8a8273] block mb-1.5">
+              <label className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] block mb-1.5">
                 Confirm new password
               </label>
               <div className="relative">

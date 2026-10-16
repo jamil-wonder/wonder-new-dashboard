@@ -1,5 +1,6 @@
 "use client";
 
+import { classifyChange } from "../../lib/scoreChange";
 import BusinessSwitcher from "./BusinessSwitcher";
 import NotificationBell from "./NotificationBell";
 import { useState, useEffect } from "react";
@@ -56,7 +57,8 @@ export default function DashboardHeader() {
     ? Math.round(scoreDisplay - historyPrevScore)
     : null;
 
-  const direction = delta === null ? "none" : delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  // D8: the badge says what the trend says (and a move inside the noise margin is "steady")
+  const trend = classifyChange(delta, activeBusiness?.latestWonderInputs?.score_margin);
 
   // Score ring fill: only fill if we have a real score
   const r = 28;
@@ -126,17 +128,21 @@ export default function DashboardHeader() {
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#8a8273] px-2.5 py-0.5 rounded-full">
                       - Not Scanned
                     </span>
-                  ) : scoreDisplay >= 80 ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#1e7d4f] px-2.5 py-0.5 rounded-full">
-                      ▲ High Score
+                  ) : trend.kind === "up" ? (
+                    <span className="num inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#1e7d4f] px-2.5 py-0.5 rounded-full">
+                      ▲ Up {Math.abs(trend.delta)} since last run
                     </span>
-                  ) : scoreDisplay >= 50 ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#9a6a12] px-2.5 py-0.5 rounded-full">
-                      - Score Steady
+                  ) : trend.kind === "down" ? (
+                    <span className="num inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#b1442a] px-2.5 py-0.5 rounded-full">
+                      ▼ Down {Math.abs(trend.delta)} since last run
+                    </span>
+                  ) : trend.kind === "noise" ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#4d4636] bg-[#efe7d6] px-2.5 py-0.5 rounded-full">
+                      Steady since last run
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-[#b1442a] px-2.5 py-0.5 rounded-full">
-                      ▼ Low Score
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#4d4636] bg-[#efe7d6] px-2.5 py-0.5 rounded-full">
+                      First scored run
                     </span>
                   )}
                 </>
@@ -187,7 +193,7 @@ export default function DashboardHeader() {
               </div>
 
               <div>
-                <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f]">
+                <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">
                   Wonder Score
                 </div>
                 {calculating ? (
@@ -251,7 +257,7 @@ export default function DashboardHeader() {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-mono-spline text-[9px] uppercase tracking-wider text-[#8a8273]">
+                <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">
                   Your plan
                 </div>
                 <div className="flex items-baseline gap-1 mt-0.5">

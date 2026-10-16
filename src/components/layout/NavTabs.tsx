@@ -98,7 +98,7 @@ export default function NavTabs() {
   const items = user?.role === "admin" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
-    <div className="flex items-center justify-between gap-5 px-3 sm:px-6 border-t border-[#efe7d6]">
+    <div className="hidden md:flex items-center justify-between gap-5 px-3 sm:px-6 border-t border-[#efe7d6]">
       {/* Below sm, this is narrower than the full tab set (6-7 items with
           icon + label) - instead of wrapping/squishing, it scrolls
           horizontally so every tab stays reachable and legible. Desktop

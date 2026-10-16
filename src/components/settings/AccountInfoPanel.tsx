@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi, parseApiError } from "../../lib/api";
@@ -178,7 +177,7 @@ export default function AccountInfoPanel() {
         {/* Basic Profile Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">
               Display Name
             </label>
             <input
@@ -190,7 +189,7 @@ export default function AccountInfoPanel() {
             />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">
               Email Address
             </label>
             <input
@@ -214,36 +213,12 @@ export default function AccountInfoPanel() {
         </div>
       </form>
 
-      {/* Geo Radius Settings - this used to be a fully non-functional mock:
-          a hardcoded "Bristol" label on every option regardless of any
-          business's real location, a radius value that was never fetched
-          or persisted, and a "Save radius" button that just fired a fake
-          success toast with no backend call at all. It didn't actually
-          feed Local SEO question generation (that already correctly reads
-          each business's own saved location), but it did directly lie to
-          the user about both the city and whether anything was saved.
-          Same class of issue as the old mocked Billing tab - replaced with
-          an honest not-built-yet state rather than shipping fake geo data. */}
-      <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Geo Radius Settings</h3>
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#9a6a12] bg-[#faf1da] px-3 py-1 rounded-full">
-            <Clock className="w-3.5 h-3.5" />
-            Coming soon
-          </span>
-        </div>
-        <p className="text-[12px] text-[#8a8273] leading-relaxed">
-          Per-business local-search radius tuning isn&apos;t live yet. Your Local SEO tracked questions already use
-          each business&apos;s own saved location, not a separate radius setting.
-        </p>
-      </div>
-
       {/* Security & Password */}
       <form onSubmit={handleChangePassword} className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 shadow-sm space-y-5">
         <h3 className="font-spectral text-[20px] font-semibold text-[#15463b]">Security &amp; Password</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1">Current Password</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1">Current Password</label>
             <input
               type="password"
               value={currentPassword}
@@ -253,7 +228,7 @@ export default function AccountInfoPanel() {
             />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1">New Password</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1">New Password</label>
             <input
               type="password"
               value={newPassword}
@@ -263,7 +238,7 @@ export default function AccountInfoPanel() {
             />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1">Confirm New Password</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1">Confirm New Password</label>
             <input
               type="password"
               value={confirmPassword}

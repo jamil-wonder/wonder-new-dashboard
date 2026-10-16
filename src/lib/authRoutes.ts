@@ -17,6 +17,21 @@ export function authUrl(mode: AuthMode): string {
   return mode === "signup" ? `${AUTH_PATH}?signup=true` : AUTH_PATH;
 }
 
+// H9: a page you were sent to before signing in is remembered as ?next=/path and opened after login.
+// Only a path on this site is accepted (never another host, never a protocol-relative "//..."),
+// and never an auth page, so the parameter cannot be used to bounce someone elsewhere or loop.
+export function safeNext(value: string | null | undefined): string {
+  const v = String(value || "").trim();
+  if (!v.startsWith("/") || v.startsWith("//") || v.includes("\\") || /[\u0000-\u001f]/.test(v)) return "";
+  if (/^\/(auth|login|signup|register|verify-email)(\/|\?|$)/i.test(v)) return "";
+  return v.length <= 500 ? v : "";
+}
+
+export function authUrlWithNext(next: string | null | undefined): string {
+  const safe = safeNext(next);
+  return safe ? `${AUTH_PATH}?next=${encodeURIComponent(safe)}` : AUTH_PATH;
+}
+
 // source -> destination, used by next.config.ts
 export const AUTH_REDIRECTS: { source: string; destination: string }[] = [
   { source: "/login", destination: authUrl("login") },

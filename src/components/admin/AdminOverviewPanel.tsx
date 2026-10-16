@@ -28,7 +28,7 @@ function StatCard({
         <Image src={iconPath} alt={label} width={20} height={20} className="w-5 h-5" style={{ filter: `brightness(0) saturate(100%)`, opacity: 0.82 }} />
       </div>
       <div className="min-w-0">
-        <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">{label}</div>
+        <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">{label}</div>
         <div className="num font-spectral text-[26px] font-semibold text-[#23211b] mt-0.5 leading-none" style={{ color: accentColor }}>
           {value}
         </div>
@@ -121,7 +121,7 @@ export default function AdminOverviewPanel() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="bg-white border border-[#ece3d1] rounded-2xl p-5">
-          <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-4 font-semibold">Usage by feature</div>
+          <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-4 font-semibold">Usage by feature</div>
           <div className="space-y-3.5">
             {featureRows.length === 0 && <div className="text-[12.5px] text-[#8a8273] py-4 text-center">No AI usage recorded yet.</div>}
             {featureRows.map(([key, value]) => (
@@ -131,7 +131,7 @@ export default function AdminOverviewPanel() {
         </div>
 
         <div className="bg-white border border-[#ece3d1] rounded-2xl p-5">
-          <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-4 font-semibold">Usage by model</div>
+          <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-4 font-semibold">Usage by model</div>
           <div className="space-y-3.5">
             {modelRows.length === 0 && <div className="text-[12.5px] text-[#8a8273] py-4 text-center">No AI usage recorded yet.</div>}
             {modelRows.map(([key, value]) => (

@@ -265,8 +265,14 @@ type ChangeCandidate = {
 type ChangeItem = { icon: string; bg: string; color: string; title: string; sub: string; metric: "rank" | "mentions" | "audit" };
 
 export default function HeroSection({ data }: { data: OverviewData }) {
-  const { score, visibilityText, previousScore, scanPoints, latestPhase1At, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
+  const { score, visibilityText, previousScore, scanPoints: rawScanPoints, latestPhase1At, competitors, userRank, nearestAboveName, nearestAboveGap, modelMentions, totalQueries, auditAreas } = data;
 
+  // A7: one point per calendar day (the last run of the day wins); the chart needs 3 different days
+  const scanPoints = (() => {
+    const byDay = new Map<string, (typeof rawScanPoints)[number]>();
+    for (const p of rawScanPoints) byDay.set(String(p.timestamp || p.week_id || "").slice(0, 10), p);
+    return Array.from(byDay.values());
+  })();
   const rawDelta = previousScore !== null ? score - previousScore : null;
   // A5: a move inside the AI-answer noise margin is not shown as a change
   const change = classifyChange(rawDelta, data.scoreMargin);
@@ -409,7 +415,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
     : nearestAboveName && nearestAboveGap !== null
     ? `You're just ${nearestAboveGap} points behind ${nearestAboveName}. A focused week could close the gap.`
     : score > 0
-    ? `Your Wonderscore is ${score}/100 - ${visibilityText.toLowerCase()}.`
+    ? `Your Wonder Score is ${score}/100 - ${visibilityText.toLowerCase()}.`
     : "Run Search Tracker to see how AI models actually describe you.";
 
   const ringFill = score;
@@ -424,7 +430,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         className="bg-[#15463b] rounded-[16px] p-[24px_24px_22px] text-[#eaf3ee] flex flex-col justify-between"
       >
         <div>
-          <div className="font-mono-spline text-[10px] tracking-[0.16em] uppercase text-[#86b89f]">
+          <div className="font-mono-spline text-[11px] tracking-[0.16em] uppercase text-[#a9cdb9]">
             Your Wonder Score
           </div>
 
@@ -503,7 +509,7 @@ export default function HeroSection({ data }: { data: OverviewData }) {
         className="bg-white border border-[#ece3d1] rounded-[14px] p-[20px_22px_16px] flex flex-col"
       >
         <div className="flex items-start justify-between mb-1">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">
             Visibility trend
           </div>
           {score > 0 && (
@@ -511,7 +517,15 @@ export default function HeroSection({ data }: { data: OverviewData }) {
           )}
         </div>
         <div style={{ height: 180 }}>
-          <TrendChart points={scanPoints} />
+          {scanPoints.length >= 3 ? (
+            <TrendChart points={scanPoints} />
+          ) : (
+            <div className="flex h-full items-center justify-center px-4 text-center text-[12px] leading-relaxed text-[#a8b8a0]">
+              {scanPoints.length === 0
+                ? "Run the Search Tracker to start your visibility trend."
+                : `Your trend appears once there are scored runs on 3 different days (${scanPoints.length} so far).`}
+            </div>
+          )}
         </div>
         {scanPoints.length > 0 && (
           <div className="text-[11px] text-[#b3a98f] mt-4">

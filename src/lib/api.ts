@@ -98,7 +98,24 @@ export function getScanHistory(url: string): ScanPoint[] {
   }
 }
 
-export async function fetchApi<T>(
+// A8: the same GET asked for at the same moment by several components (e.g. the business list, six
+// times) is one request. Only reads without a cancel signal are shared, and only while one is in
+// flight - a later call asks again, so nothing is ever served stale. Everyone gets their own copy.
+const inFlightReads = new Map<string, Promise<unknown>>();
+
+export function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const method = (options.method || "GET").toUpperCase();
+  if (method !== "GET" || options.signal || options.body) return fetchApiOnce<T>(endpoint, options);
+  const key = `${endpoint}|${getAuthToken()}|${getActiveBusinessId()}`;
+  let shared = inFlightReads.get(key) as Promise<T> | undefined;
+  if (!shared) {
+    shared = fetchApiOnce<T>(endpoint, options).finally(() => inFlightReads.delete(key));
+    inFlightReads.set(key, shared);
+  }
+  return shared.then((value) => (value !== null && typeof value === "object" ? structuredClone(value) : value));
+}
+
+async function fetchApiOnce<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {

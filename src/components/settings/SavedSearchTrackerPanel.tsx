@@ -72,7 +72,7 @@ export default function SavedSearchTrackerPanel() {
           <div className="space-y-5">
             {grouped.map((group) => (
               <div key={group.type}>
-                <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-2">
+                <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-2">
                   {group.label} &middot; {group.items.length}
                 </div>
                 <div className="space-y-1.5">

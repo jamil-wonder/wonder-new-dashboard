@@ -15,7 +15,7 @@ export default function TrainProfileSection({ business }: { business: Business |
     <div className="bg-white border border-[#ece3d1] rounded-[14px] p-5 md:p-[22px_24px] mt-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#9b927f]">Train your Wonder Score</div>
+          <div className="font-mono-spline text-[11px] tracking-[0.13em] uppercase text-[#6f6757]">Train your Wonder Score</div>
           <div className="font-spectral text-[19px] font-semibold text-[#23211b] mt-0.5">
             {percent === 100 ? "Profile complete" : `${percent}% complete`}
           </div>

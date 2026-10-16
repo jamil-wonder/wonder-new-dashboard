@@ -80,7 +80,7 @@ export default function ContactPage() {
         {/* LEFT: intro + who's asking, one card, stretched to match the form's height */}
         <div className="bg-[#15463b] rounded-[16px] p-6 text-[#eaf3ee] flex flex-col justify-between">
           <div>
-            <div className="font-mono-spline text-[10.5px] tracking-wider uppercase text-[#86b89f]">
+            <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#a9cdb9]">
               Talk to our team
             </div>
             <div className="font-spectral text-[24px] font-semibold text-white mt-1.5 leading-tight">
@@ -98,7 +98,7 @@ export default function ContactPage() {
 
           {activeBusiness?.name && (
             <div className="border-t border-white/15 pt-4 mt-6">
-              <div className="font-mono-spline text-[9.5px] tracking-[0.14em] uppercase text-[#86b89f] mb-2.5">
+              <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#a9cdb9] mb-2.5">
                 On behalf of
               </div>
               <div className="flex items-center gap-3">
@@ -150,7 +150,7 @@ export default function ContactPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">
+                  <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">
                     Your email
                   </label>
                   <input
@@ -164,7 +164,7 @@ export default function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">
+                  <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">
                     What&rsquo;s this about
                   </label>
                   <select
@@ -182,7 +182,7 @@ export default function ContactPage() {
               </div>
 
               <div>
-                <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">
+                <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">
                   Message
                 </label>
                 <textarea

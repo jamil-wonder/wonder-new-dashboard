@@ -223,7 +223,7 @@ export default function BusinessProfilesPanel() {
               { label: "Location", val: formLocation, set: setFormLocation, ph: "e.g. Austin, TX" },
             ].map(({ label, val, set, ph, req, select }: { label: string; val: string; set: (v: string) => void; ph: string; req?: boolean; select?: boolean }) => (
               <div key={label}>
-                <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">{label}</label>
+                <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">{label}</label>
                 {select ? (
                   <>
                     <select
@@ -259,23 +259,23 @@ export default function BusinessProfilesPanel() {
         <div className="space-y-3">
           <h4 className="font-spectral text-[15px] font-semibold text-[#15463b]">AI Description &amp; Details</h4>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">Business description</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">Business description</label>
             <textarea value={formDesc} onChange={(e) => setFormDesc(e.target.value)} rows={3} placeholder="What does this business do?"
               className="w-full text-[13.5px] p-3 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none resize-none" />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">AI Description</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">AI Description</label>
             <textarea value={formAiDesc} onChange={(e) => setFormAiDesc(e.target.value)} rows={3} placeholder="AI training prompt description..."
               className="w-full text-[13.5px] p-3 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none resize-none" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">Services</label>
+              <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">Services</label>
               <input value={formServices} onChange={(e) => setFormServices(e.target.value)} placeholder="Dining, boutique hotel rooms"
                 className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none" />
             </div>
             <div>
-              <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1.5">Target audience</label>
+              <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">Target audience</label>
               <input value={formAudience} onChange={(e) => setFormAudience(e.target.value)} placeholder="Couples, food lovers, travelers"
                 className="w-full text-[13.5px] p-2.5 border border-[#ece3d1] rounded-lg bg-[#fdfcf8] outline-none" />
             </div>
@@ -523,7 +523,7 @@ export default function BusinessProfilesPanel() {
                 {/* Clean Completeness Progress Bar */}
                 <div className="bg-[#f9f7f2] border border-[#efe7d6] rounded-xl p-3 mb-4">
                   <div className="flex items-center justify-between text-[11.5px] mb-1.5">
-                    <span className="font-mono-spline font-medium uppercase text-[#8a8273]">Profile Completeness</span>
+                    <span className="font-mono-spline font-medium uppercase text-[#6f6757]">Profile Completeness</span>
                     <span className="font-mono-spline font-bold text-[#15463b]">{pct}%</span>
                   </div>
                   <div className="w-full h-2 bg-[#e5ddd0] rounded-full overflow-hidden">
@@ -543,7 +543,7 @@ export default function BusinessProfilesPanel() {
 
               {/* Bottom AI Description Footer */}
               <div className="pt-3 border-t border-[#efe7d6] text-[12px]">
-                <span className="font-mono-spline text-[9.5px] uppercase font-bold text-[#9b927f] block mb-1">
+                <span className="font-mono-spline text-[11px] uppercase font-bold text-[#6f6757] block mb-1">
                   AI Context Description
                 </span>
                 <p className="line-clamp-2 leading-relaxed text-[#554e41]">

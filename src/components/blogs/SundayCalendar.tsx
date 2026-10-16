@@ -154,7 +154,7 @@ export default function SundayCalendar({
                   className="bg-white border border-[#d4e8dc] hover:border-[#15463b] rounded-md p-2.5 cursor-pointer transition-all group"
                 >
                   <div className="flex items-center justify-between gap-1.5 mb-1">
-                    <span className="font-mono-spline text-[8px] font-medium text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.2 rounded-sm uppercase tracking-wider">
+                    <span className="font-mono-spline text-[11px] font-medium text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.2 rounded-sm uppercase tracking-wider">
                       Blog {index + 1} · {index === 0 ? "Advisory" : "Strategic"}
                     </span>
                     {score !== null && <MiniScoreRing score={score} />}
@@ -270,7 +270,7 @@ export default function SundayCalendar({
           {/* Compact Weekly Limit Card */}
           <div className="flex items-center gap-2.5 bg-[#fdfcf8] border border-[#ece3d1] px-3 py-1 rounded-md h-9">
             <div>
-              <div className="font-mono-spline text-[8px] tracking-wider text-[#9b927f] uppercase font-medium">
+              <div className="font-mono-spline text-[11px] tracking-wider text-[#6f6757] uppercase font-medium">
                 Weekly Limit
               </div>
               <div className="flex items-baseline gap-1 mt-0.5">
@@ -311,8 +311,8 @@ export default function SundayCalendar({
             {DAY_LABELS.map((day, idx) => (
               <div
                 key={day}
-                className={`py-1.5 text-center font-mono-spline text-[9.5px] font-medium uppercase tracking-wider ${
-                  idx === 0 ? "text-[#15463b] bg-[#eef3f0]/80" : "text-[#9b927f]"
+                className={`py-1.5 text-center font-mono-spline text-[11px] font-medium uppercase tracking-wider ${
+                  idx === 0 ? "text-[#15463b] bg-[#eef3f0]/80" : "text-[#6f6757]"
                 }`}
               >
                 {day}

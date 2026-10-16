@@ -1,5 +1,6 @@
 "use client";
 
+import SiteIcon from "../../../components/ui/SiteIcon";
 import { classifyChange, noiseLabel } from "../../../lib/scoreChange";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -11,6 +12,8 @@ import { ScoreBreakdownTable } from "../../../components/ui/ScoreBreakdown";
 interface PublicReport {
   businessName: string;
   domain: string;
+  logoUrl?: string | null;
+  websiteUrl?: string | null;
   score: number | null;
   grade: string | null;
   // False when "score"/"grade" are only the Phase 1 technical crawl result
@@ -40,6 +43,20 @@ function modelIcon(model: string) {
   if (key.includes("gemini")) return "/icons/gemini.svg";
   if (key.includes("perplexity")) return "/icons/perplexity.svg";
   return null;
+}
+
+// the business's logo, or its first letter when there is none (or it fails to load)
+function BusinessMark({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  if (logoUrl && !failed) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logoUrl} alt="" onError={() => setFailed(true)} className="h-14 w-14 shrink-0 rounded-2xl border border-[#ece3d1] bg-white object-contain p-1.5" />;
+  }
+  return (
+    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#15463b] font-spectral text-[24px] text-[#a8d860]">
+      {(name || "?").trim().charAt(0).toUpperCase()}
+    </span>
+  );
 }
 
 export default function SharedReportPage() {
@@ -87,10 +104,24 @@ export default function SharedReportPage() {
 
   return (
     <div className="min-h-screen bg-[#fdfcf8] flex flex-col items-center px-4 py-10 md:py-16">
-      <header className="w-full max-w-[560px] flex items-center gap-2 mb-8">
-        <WonderscoreLogo size={26} color="#15463b" />
-        <span className="font-spectral text-[18px] font-medium text-[#15463b]">Wonderscore</span>
-        <span className="text-[11px] text-[#9b927f] ml-auto font-mono-spline uppercase tracking-wider">Shared report</span>
+      <header className="w-full max-w-[560px] mb-8">
+        <div className="flex items-center gap-2">
+          <WonderscoreLogo size={22} color="#15463b" />
+          <span className="font-spectral text-[16px] font-medium text-[#15463b]">Wonderscore</span>
+          <span className="text-[11px] text-[#6f6757] ml-auto font-mono-spline uppercase tracking-wider">Shared report</span>
+        </div>
+        <div className="mt-6 flex items-center gap-4">
+          <BusinessMark name={report.businessName || report.domain} logoUrl={report.logoUrl} />
+          <div className="min-w-0">
+            <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">Prepared for</div>
+            <h1 className="font-spectral text-[26px] leading-tight font-semibold text-[#15463b] truncate">{report.businessName || report.domain}</h1>
+            {report.domain && (
+              <a href={report.websiteUrl || `https://${report.domain}`} target="_blank" rel="noreferrer" className="text-[12.5px] text-[#6f6757] hover:text-[#15463b] hover:underline">
+                {report.domain}
+              </a>
+            )}
+          </div>
+        </div>
       </header>
 
       <main className="w-full max-w-[560px]">
@@ -116,10 +147,9 @@ export default function SharedReportPage() {
               </div>
             </div>
             <div>
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f]">
-                Wonder Score for
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757]">
+                Wonder Score
               </div>
-              <div className="font-spectral text-[19px] font-semibold text-[#23211b]">{report.businessName || report.domain}</div>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {report.visibilityVerified && delta !== null && (
                   <span className={`text-[12px] font-semibold ${change.kind === "up" ? "text-[#1e7d4f]" : change.kind === "down" ? "text-[#b1442a]" : "text-[#8a8273]"}`}>
@@ -146,7 +176,7 @@ export default function SharedReportPage() {
 
           {report.visibilityVerified && report.scoreBreakdown && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6]">
-              <div className="font-mono-spline text-[9.5px] uppercase tracking-wider text-[#9b927f] mb-2">
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-2">
                 How this score is calculated
               </div>
               <ScoreBreakdownTable inputs={report.scoreBreakdown} score={report.scoreExact ?? report.score} />
@@ -166,7 +196,7 @@ export default function SharedReportPage() {
 
           {report.perModel.length > 0 && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6]">
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">Where AI sees you</div>
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">Where AI sees you</div>
               <div className="space-y-2.5">
                 {report.perModel.map((m) => {
                   const icon = modelIcon(m.model);
@@ -195,16 +225,11 @@ export default function SharedReportPage() {
 
           {report.competitors.length > 0 && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6]">
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">Competitors AI surfaces</div>
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">Competitors AI surfaces</div>
               <div className="space-y-1.5">
                 {report.competitors.map((c) => (
                   <div key={c.domain} className="flex items-center gap-2.5 text-[13px] py-1.5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${c.domain}&sz=32`}
-                      alt=""
-                      className="w-4 h-4 rounded-full shrink-0"
-                    />
+                    <SiteIcon domain={c.domain} size={16} className="rounded-full" />
                     <span className="text-[#3a352b] flex-1 min-w-0 truncate">{c.name}</span>
                     <span className="font-semibold text-[#15463b] shrink-0">{c.score}/100</span>
                   </div>
@@ -215,7 +240,7 @@ export default function SharedReportPage() {
 
           {report.whatMoved.length > 0 && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6]">
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">What moved</div>
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">What moved</div>
               <div className="space-y-1.5">
                 {report.whatMoved.map((m, i) => (
                   <p key={i} className="text-[13px] text-[#3a352b] leading-relaxed">{m}</p>
@@ -226,7 +251,7 @@ export default function SharedReportPage() {
 
           {report.auditAreas.length > 0 && (
             <div className="mt-5 pt-5 border-t border-[#efe7d6]">
-              <div className="font-mono-spline text-[10px] uppercase tracking-wider text-[#9b927f] mb-3">Technical audit areas</div>
+              <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">Technical audit areas</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {report.auditAreas.map((area) => (
                   <div key={area.label} className="bg-[#fdfcf8] border border-[#ece3d1] rounded-xl p-3">
@@ -248,6 +273,12 @@ export default function SharedReportPage() {
         <p className="mt-6 text-center text-[12px] text-[#9b927f]">
           This is a snapshot from Wonderscore's AI visibility tracking. Numbers update automatically each week.
         </p>
+        <footer className="mt-8 border-t border-[#efe7d6] pt-5 text-center text-[12.5px] text-[#6f6757]">
+          Report by <span className="font-semibold text-[#15463b]">Wonderscore</span>.{" "}
+          <a href="/auth?signup=true" className="font-semibold text-[#15463b] underline underline-offset-2">
+            See how AI recommends your business
+          </a>
+        </footer>
       </main>
     </div>
   );

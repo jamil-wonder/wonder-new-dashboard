@@ -17,6 +17,8 @@ interface QueryFilterBarProps {
   onRunAudit?: () => void;
   // C7: a run is starting or in progress - the Run button is disabled and says so
   isRunning?: boolean;
+  // J9: the questions have been asked before - the button says Re-run
+  hasRun?: boolean;
   // B8: the 20 questions are locked in - Regenerate says it unlocks them (a confirm follows)
   isLocked?: boolean;
   onRegeneratePrompts?: () => void;
@@ -57,6 +59,7 @@ export default function QueryFilterBar({
   onOpenAddModal,
   onRunAudit,
   isRunning = false,
+  hasRun = false,
   isLocked = false,
   onRegeneratePrompts,
   showActions = true,
@@ -192,7 +195,7 @@ export default function QueryFilterBar({
                 className="inline-flex items-center gap-1.5 h-9 px-4.5 rounded-lg text-[13px] font-medium bg-[#1e7d4f] text-white border-none cursor-pointer hover:bg-[#166039] transition-colors shrink-0 shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                <span>{isRunning ? "Running…" : "Run"}</span>
+                <span>{isRunning ? "Running…" : hasRun ? "Re-run" : "Run"}</span>
               </button>
             </>
           )}

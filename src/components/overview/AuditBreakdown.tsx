@@ -37,7 +37,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
 
       {/* ── Six Audit Areas Card ── */}
       <div className="bg-[#fdeef1] border border-[#f6d9e0] rounded-[14px] p-3 sm:p-5 md:p-[22px_24px] flex flex-col">
-        <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#a86d7e]">
+        <div className="font-mono-spline text-[11px] tracking-[0.13em] uppercase text-[#a86d7e]">
           The full picture · six areas behind your score
         </div>
 
@@ -76,7 +76,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
           weakest audit areas, not a fixed generic roadmap ── */}
       <div className="bg-[#f6f1e8] border border-[#e8e1d0] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col justify-between">
         <div>
-          <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#9a8a5e]">The plan continues</div>
+          <div className="font-mono-spline text-[11px] tracking-[0.13em] uppercase text-[#9a8a5e]">The plan continues</div>
           <div className="font-spectral text-[21px] font-semibold text-[#23211b] mt-1">Coming up</div>
           {!hasAnalyserData || auditAreas.length === 0 ? (
             <div className="mt-4 p-4 rounded-lg bg-[#f2ebdb] text-center">
@@ -108,21 +108,22 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
       {/* ── Quick Wins & AI Insights ── */}
       <div className="bg-[#f4f6ff] border border-[#dde2f5] rounded-[14px] p-4 md:p-5 flex flex-col justify-between">
         <div>
-          <div className="font-mono-spline text-[10px] tracking-[0.13em] uppercase text-[#6470a8]">AI insights</div>
+          <div className="font-mono-spline text-[11px] tracking-[0.13em] uppercase text-[#6470a8]">AI insights</div>
           <div className="font-spectral text-[17px] font-semibold text-[#23211b] mt-0.5">Quick wins</div>
           <div className="flex flex-col gap-2.5 mt-3">
-            {(quickWins.length > 0 ? quickWins : aiInsights.slice(0, 3).map(t => ({ text: t, type: "boost" as const }))).slice(0, 3).map(({ text, type }, i) => {
+            {(quickWins.length > 0 ? quickWins : aiInsights.slice(0, 3).map(t => ({ text: t, type: "boost" as const, href: "/analyser" as string | undefined }))).slice(0, 3).map(({ text, type, href }, i) => {
               const Icon = QUICK_WIN_ICONS[i % QUICK_WIN_ICONS.length];
               const { color, bg } = QUICK_WIN_COLORS[type === "warn" ? 2 : type === "info" ? 1 : 0] || QUICK_WIN_COLORS[i % QUICK_WIN_COLORS.length];
               // Truncate long insight text to 90 chars max
               const truncated = typeof text === "string" && text.length > 90 ? text.slice(0, 87).trimEnd() + "…" : text;
               return (
-                <div key={i} className="flex items-start gap-2.5">
+                <Link key={i} href={href || "/plan"} className="group flex items-start gap-2.5 rounded-lg -mx-1.5 px-1.5 py-1 transition-colors hover:bg-white/70">
                   <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: bg }}>
                     <Icon className="w-3 h-3" style={{ color }} />
                   </div>
-                  <p className="text-[12px] text-[#3a352b] leading-snug">{truncated}</p>
-                </div>
+                  <p className="flex-1 text-[12px] text-[#3a352b] leading-snug">{truncated}</p>
+                  <ArrowRight className="mt-1 h-3 w-3 shrink-0 text-[#6470a8] opacity-0 transition-opacity group-hover:opacity-100" />
+                </Link>
               );
             })}
             {quickWins.length === 0 && aiInsights.length === 0 && (

@@ -15,8 +15,7 @@ export default function SettingsTabNav({ activeSub, onSelectSub }: SettingsTabNa
     { id: "entity", label: "Business Profiles", icon: "/icons/sidebar/business.svg" },
     { id: "voice", label: "AI Voice & Keywords", icon: "/icons/sidebar/ai.svg" },
     { id: "saved-queries", label: "Saved Search Tracker", icon: "/icons/sidebar/ai.svg" },
-    { id: "integrations", label: "Integrations", icon: "/icons/sidebar/integrate.svg" },
-    { id: "crawlers", label: "Crawlers", icon: "/icons/sidebar/browser.svg" },
+    { id: "roadmap", label: "Coming soon", icon: "/icons/sidebar/integrate.svg" },
   ];
 
   return (

@@ -32,7 +32,7 @@ export default function SourcesSection({ data }: { data: OverviewData }) {
   return (
     <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[14px] p-5 md:p-[22px_24px] flex flex-col justify-between">
       <div>
-        <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9a8a5e]">
+        <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#9a8a5e]">
           Sources snapshot
         </div>
         <div className="font-spectral text-[21px] font-semibold text-[#23211b] mt-1">
@@ -46,7 +46,7 @@ export default function SourcesSection({ data }: { data: OverviewData }) {
           <EmptyState variant="warm" message="No Search Tracker run yet - run it to see which sources get cited alongside you." href="/query" actionLabel="Open Queries" />
         ) : citedSources.length > 0 ? (
           <>
-            <div className="font-mono-spline text-[9px] tracking-wider uppercase text-[#9a8a5e] mt-4">
+            <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#9a8a5e] mt-4">
               You're cited alongside
             </div>
             <div className="flex flex-col gap-2.5 mt-2.5">

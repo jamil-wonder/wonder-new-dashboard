@@ -1,5 +1,6 @@
 "use client";
 
+import { checkOpeningHours } from "../../lib/hoursCheck";
 import Dialog from "../../components/ui/Dialog";
 import { areaBadge } from "../../lib/areaBadge";
 import { assessInsight, CONFIDENCE_STYLE, type InsightProfile } from "../../lib/aiConfidence";
@@ -14,6 +15,8 @@ import {
 } from "lucide-react";
 import { WonderscoreSpinner, WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
 import { AiDisclaimer } from "../../components/ui/AiDisclaimer";
+import ProgressScreen from "../../components/ui/ProgressScreen";
+import ScanProgressModal from "../../components/analyser/ScanProgressModal";
 import { useBusiness, isDomainString, isGenericName } from "../../context/BusinessContext";
 import { useToast } from "../../context/ToastContext";
 import { fetchApi, recordScanHistory } from "../../lib/api";
@@ -85,6 +88,14 @@ export default function AnalyserPage() {
   const { showToast } = useToast();
 
   const [isScanning, setIsScanning] = useState(false);
+  // J1: time so far on a crawl in progress
+  const [scanElapsed, setScanElapsed] = useState(0);
+  useEffect(() => {
+    if (!isScanning) { setScanElapsed(0); return; }
+    const started = Date.now();
+    const t = setInterval(() => setScanElapsed((Date.now() - started) / 1000), 1000);
+    return () => clearInterval(t);
+  }, [isScanning]);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [scanError, setScanError] = useState<string | null>(null);
 
@@ -566,14 +577,24 @@ export default function AnalyserPage() {
   // sat on the static "Not analysed yet" card for the full 1-5 minutes
   // with nothing but a toast, which is exactly what makes someone click
   // "Run Analysis" again thinking it didn't register.
-  if ((isLoadingInitial || isScanning) && !scanData) {
+  if (isScanning && !scanData) {
+    return (
+      <div className="my-8 flex justify-center">
+        <ProgressScreen
+          title={`Analysing ${domain}`}
+          subtitle="We are checking the website, AI visibility, and business signals."
+          stages={[{ id: "crawl", label: "Reading your website", status: "running", detail: "This can take 1-5 minutes" }]}
+          elapsedSeconds={scanElapsed}
+          footer={<p className="mt-1">You can leave this page - the crawl keeps going.</p>}
+        />
+      </div>
+    );
+  }
+
+  if (isLoadingInitial && !scanData) {
     return (
       <div className="bg-white border border-[#ece3d1] rounded-[22px] p-12 text-center shadow-xs my-8 flex flex-col items-center justify-center">
-        <WonderscoreSpinner
-          size={48}
-          label={`Analysing ${domain}`}
-          note="This can take 1-5 minutes. We are checking the website, AI visibility, and business signals."
-        />
+        <WonderscoreSpinner size={48} label={`Loading ${domain}`} />
       </div>
     );
   }
@@ -620,6 +641,8 @@ export default function AnalyserPage() {
   }
 
   const s = scanData || {};
+  // C4: one verdict on the opening hours for everything on this page that mentions them
+  const hoursVerdict = checkOpeningHours(s.openingHours, category, activeBusiness?.subType);
 
   // C2: re-derive confidence from the stored model answer every time, so
   // analyses saved before the checks existed show the same thing as new ones.
@@ -681,7 +704,7 @@ export default function AnalyserPage() {
 
             <div className="max-h-[calc(86vh-86px)] overflow-y-auto p-5 space-y-4">
               <section className="rounded-xl border border-[#ece3d1] bg-[#fdfcf8] p-4">
-                <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-2">Summary</div>
+                <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-2">Summary</div>
                 <p className="text-[14px] leading-relaxed text-[#3a352b] whitespace-pre-wrap">
                   {selectedAiInsight.summary || "No summary returned for this model."}
                 </p>
@@ -689,7 +712,7 @@ export default function AnalyserPage() {
 
               {selectedAiInsight.discrepancy && (
                 <section className="rounded-xl border border-[#f0c5ba] bg-[#fff0ec] p-4">
-                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#b1442a] mb-1.5">Discrepancy</div>
+                  <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#b1442a] mb-1.5">Discrepancy</div>
                   <p className="text-[13.5px] font-semibold text-[#8f2f1a] leading-snug">{selectedAiInsight.discrepancy.message}</p>
                   <div className="mt-2 text-[12.5px] text-[#3a352b] leading-snug">
                     <strong className="text-[#15463b]">Quick win:</strong> {selectedAiInsight.discrepancy.quickWin}
@@ -699,7 +722,7 @@ export default function AnalyserPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <section className="rounded-xl border border-[#d7eedf] bg-[#f3fbf6] p-4">
-                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#1e7d4f] mb-2">Detected</div>
+                  <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#1e7d4f] mb-2">Detected</div>
                   <div className="flex flex-wrap gap-1.5">
                     {(selectedAiInsight.verifiedFields?.length ? selectedAiInsight.verifiedFields : ["No detected fields"]).map((field: string) => (
                       <span key={field} className="text-[11px] font-semibold text-[#1e7d4f] bg-white border border-[#c7ead3] px-2 py-1 rounded-md">
@@ -710,7 +733,7 @@ export default function AnalyserPage() {
                 </section>
 
                 <section className="rounded-xl border border-[#f3d2c9] bg-[#fff6f3] p-4">
-                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#b1442a] mb-2">Missing or weak</div>
+                  <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#b1442a] mb-2">Missing or weak</div>
                   <div className="flex flex-wrap gap-1.5">
                     {(selectedAiInsight.missingFields?.length ? selectedAiInsight.missingFields : ["No obvious gaps returned"]).map((field: string) => (
                       <span key={field} className="text-[11px] font-semibold text-[#b1442a] bg-white border border-[#f0c5ba] px-2 py-1 rounded-md">
@@ -723,7 +746,7 @@ export default function AnalyserPage() {
 
               {selectedAiInsight.raw && (
                 <section className="rounded-xl border border-[#ece3d1] bg-[#0b1020] p-4">
-                  <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#b8c1e8] mb-2">Raw AI data</div>
+                  <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#b8c1e8] mb-2">Raw AI data</div>
                   <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-[#eef3ff]">
                     {JSON.stringify(selectedAiInsight.raw, null, 2)}
                   </pre>
@@ -735,13 +758,15 @@ export default function AnalyserPage() {
         </Dialog>
       )}
 
+      <ScanProgressModal isOpen={isScanning} onClose={() => {}} title="Reading your website" loadingTextOverride="Checking the website, AI visibility, and business signals." />
+
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="bg-white border border-[#ece3d1] rounded-[18px] p-4 sm:p-6 md:p-[28px_32px] shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#ece3d1] pb-5 mb-5">
           <div>
-            <h1 className="font-spectral text-[22px] sm:text-[28px] font-semibold text-[#15463b]">AI Visibility Analyzer</h1>
+            <h1 className="font-spectral text-[22px] sm:text-[28px] font-semibold text-[#15463b]">Website health</h1>
             <p className="text-[14px] text-[#6f6757] mt-1 max-w-[520px] leading-relaxed">
-              Sitemaps, schema, entity signals, crawler permissions, and how each AI model sees your business.
+              What we found on your website, how each AI model describes you, and the six areas that make up your health score.
             </p>
           </div>
           <button
@@ -798,7 +823,7 @@ export default function AnalyserPage() {
                       <Icon className="w-4 h-4 text-[#9b927f] shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="font-mono-spline text-[9.5px] tracking-wider uppercase text-[#9b927f]">{item.label}</div>
+                      <div className="font-mono-spline text-[11px] tracking-wider uppercase text-[#6f6757]">{item.label}</div>
                       <div className="text-[14px] font-bold text-[#23211b] mt-0.5 truncate">{item.value}</div>
                     </div>
                   </div>
@@ -807,6 +832,68 @@ export default function AnalyserPage() {
             </div>
           );
         })()}
+      </div>
+
+      {/* ── AI Model Insights ───────────────────────────────────────────── */}
+      <div className={`bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
+        <div className="flex items-center gap-2 mb-5">
+          <BrainCircuit className="w-4 h-4 text-[#15463b]" />
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">
+            How AI describes you
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {insightsView.map((ai) => {
+            return (
+              <button
+                key={ai.model}
+                type="button"
+                onClick={() => setSelectedAiInsight(ai)}
+                className="text-left border border-[#ece3d1] rounded-xl p-4 flex flex-col gap-3 bg-[#fdfcf8] hover:border-[#b8cdfd] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 transition-all"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 shrink-0 flex items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ai.icon} alt={ai.model} className="w-6 h-6 object-contain" />
+                    </div>
+                    <span className="font-semibold text-[13.5px] text-[#23211b]">{ai.model}</span>
+                  </div>
+                  <span className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0"
+                    style={{ color: ai.confidenceColor, backgroundColor: ai.confidenceBg }}>
+                    {ai.confidence}
+                  </span>
+                </div>
+                <p className="text-[12px] text-[#6f6757] leading-relaxed min-h-[72px] line-clamp-4">{ai.summary}</p>
+                {ai.discrepancy && (
+                  <p className="text-[11.5px] font-semibold text-[#b1442a] bg-[#fdeeea] border border-[#f0c5ba] rounded-md px-2 py-1.5 leading-snug">
+                    Discrepancy: {ai.discrepancy.message}
+                  </p>
+                )}
+                
+                {/* Verified vs Missing Entity parameters */}
+                {!ai.unavailable && (
+                <div className="border-t border-[#f0ebe0] pt-2.5 mt-auto">
+                  <div className="text-[11px] uppercase font-mono-spline text-[#6f6757] tracking-wide mb-1.5">Verified Parameters</div>
+                  <div className="flex flex-wrap gap-1">
+                    {ai.verifiedFields?.map((field: string) => (
+                      <span key={field} className="text-[10px] font-semibold text-[#1e7d4f] bg-[#dcefe2] px-1.5 py-0.5 rounded">
+                        ✓ {field}
+                      </span>
+                    ))}
+                    {ai.missingFields?.slice(0, 2).map((field: string) => (
+                      <span key={field} className="text-[10px] font-semibold text-[#c0513a] bg-[#f6dcd5] px-1.5 py-0.5 rounded">
+                        ✗ {field}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <AiDisclaimer className="mt-4" />
       </div>
 
       {/* ── Overall Score + Area Breakdown ──────────────────────────────── */}
@@ -827,7 +914,7 @@ export default function AnalyserPage() {
           return (
             <div className="bg-[#15463b] rounded-[18px] p-6 text-white flex flex-col justify-between">
               <div>
-                <div className="font-mono-spline text-[10px] tracking-[0.16em] uppercase text-[#86b89f]">Website health</div>
+                <div className="font-mono-spline text-[11px] tracking-[0.16em] uppercase text-[#a9cdb9]">Website health</div>
                 
                 <div className="flex items-center justify-between gap-2 mt-3.5">
                   <div className="flex items-baseline gap-0.5">
@@ -901,7 +988,7 @@ export default function AnalyserPage() {
 
         {/* 6 Audit Area bars */}
         <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-[18px] p-3 sm:p-5 md:p-[22px_26px]">
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f] mb-5">
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-5">
             Score Breakdown · 6 Weighted Audit Areas
           </div>
           <div className="flex flex-col gap-4">
@@ -946,68 +1033,6 @@ export default function AnalyserPage() {
         </div>
       </div>
 
-      {/* ── AI Model Insights ───────────────────────────────────────────── */}
-      <div className={`bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
-        <div className="flex items-center gap-2 mb-5">
-          <BrainCircuit className="w-4 h-4 text-[#15463b]" />
-          <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">
-            AI Model Insights · How each model sees this business
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {insightsView.map((ai) => {
-            return (
-              <button
-                key={ai.model}
-                type="button"
-                onClick={() => setSelectedAiInsight(ai)}
-                className="text-left border border-[#ece3d1] rounded-xl p-4 flex flex-col gap-3 bg-[#fdfcf8] hover:border-[#b8cdfd] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 transition-all"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 shrink-0 flex items-center justify-center overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ai.icon} alt={ai.model} className="w-6 h-6 object-contain" />
-                    </div>
-                    <span className="font-semibold text-[13.5px] text-[#23211b]">{ai.model}</span>
-                  </div>
-                  <span className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0"
-                    style={{ color: ai.confidenceColor, backgroundColor: ai.confidenceBg }}>
-                    {ai.confidence}
-                  </span>
-                </div>
-                <p className="text-[12px] text-[#6f6757] leading-relaxed min-h-[72px] line-clamp-4">{ai.summary}</p>
-                {ai.discrepancy && (
-                  <p className="text-[11.5px] font-semibold text-[#b1442a] bg-[#fdeeea] border border-[#f0c5ba] rounded-md px-2 py-1.5 leading-snug">
-                    Discrepancy: {ai.discrepancy.message}
-                  </p>
-                )}
-                
-                {/* Verified vs Missing Entity parameters */}
-                {!ai.unavailable && (
-                <div className="border-t border-[#f0ebe0] pt-2.5 mt-auto">
-                  <div className="text-[9.5px] uppercase font-mono-spline text-[#9b927f] tracking-wide mb-1.5">Verified Parameters</div>
-                  <div className="flex flex-wrap gap-1">
-                    {ai.verifiedFields?.map((field: string) => (
-                      <span key={field} className="text-[10px] font-semibold text-[#1e7d4f] bg-[#dcefe2] px-1.5 py-0.5 rounded">
-                        ✓ {field}
-                      </span>
-                    ))}
-                    {ai.missingFields?.slice(0, 2).map((field: string) => (
-                      <span key={field} className="text-[10px] font-semibold text-[#c0513a] bg-[#f6dcd5] px-1.5 py-0.5 rounded">
-                        ✗ {field}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <AiDisclaimer className="mt-4" />
-      </div>
-
       {/* ── Entity & Contact Signals + Technical Readiness ─────────────── */}
       <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
 
@@ -1015,7 +1040,7 @@ export default function AnalyserPage() {
         <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-4 h-4 text-[#15463b]" />
-            <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Entity &amp; Contact Signals</div>
+            <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">Entity &amp; Contact Signals</div>
           </div>
           <div className="space-y-3">
             {[
@@ -1025,7 +1050,13 @@ export default function AnalyserPage() {
               { icon: Phone,      label: "Phone",            value: s.phones?.[0] || "Not found on site", ok: !!s.phones?.[0], warn: !s.phones?.[0] },
               { icon: Mail,       label: "Email",            value: s.emails?.[0] || "Not found on site", ok: !!s.emails?.[0], warn: !s.emails?.[0] },
               { icon: MapPin,     label: "Address",          value: s.addresses?.[0] || "Not found on site", ok: !!s.addresses?.[0], warn: !s.addresses?.[0] },
-              { icon: Clock,      label: "Opening hours",    value: s.openingHours?.[0] || "Not found on site", ok: !!s.openingHours?.[0], warn: !s.openingHours?.[0] },
+              // C4: found is not the same as right - this and the schema checklist read the same verdict
+              {
+                icon: Clock, label: "Opening hours",
+                value: hoursVerdict.status === "suspicious" ? `${s.openingHours?.[0]} - looks wrong` : (s.openingHours?.[0] || "Not found on site"),
+                ok: hoursVerdict.status === "ok", warn: hoursVerdict.status !== "ok",
+                note: hoursVerdict.status === "suspicious" ? hoursVerdict.reason : undefined,
+              },
               // C5: each social link is shown as the real link that was found
               {
                 icon: Link2, label: "Social links",
@@ -1040,7 +1071,7 @@ export default function AnalyserPage() {
                 ok: Object.keys(s.socialLinks || {}).length > 0, warn: Object.keys(s.socialLinks || {}).length === 0,
               },
               { icon: Contact,    label: "Contact path",     value: s.hasContactPath ? "Found" : "Not detected", ok: s.hasContactPath, warn: !s.hasContactPath },
-            ].map(({ icon: Icon, label, value, ok, warn }) => (
+            ].map(({ icon: Icon, label, value, ok, warn, note }: { icon: any; label: string; value: React.ReactNode; ok?: boolean; warn?: boolean; note?: string }) => (
               <div key={label} className="flex items-start gap-3 py-2 border-b border-[#f0ebe0] last:border-0">
                 <div className="w-7 h-7 rounded-lg bg-[#f5f0e6] flex items-center justify-center shrink-0 mt-0.5">
                   <Icon className="w-3.5 h-3.5 text-[#7a7363]" />
@@ -1048,6 +1079,7 @@ export default function AnalyserPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] font-semibold text-[#23211b]">{label}</div>
                   <div className="text-[12px] text-[#8a8273] truncate mt-0.5">{value}</div>
+                  {note && <div className="text-[11.5px] text-[#9a6a12] mt-1 leading-snug">{note}</div>}
                 </div>
                 <StatusIcon ok={ok} warn={warn} />
               </div>
@@ -1062,7 +1094,7 @@ export default function AnalyserPage() {
           <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <ShieldCheck className="w-4 h-4 text-[#15463b]" />
-              <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Technical Readiness</div>
+              <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">Technical Readiness</div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1107,7 +1139,7 @@ export default function AnalyserPage() {
           <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <FileCode2 className="w-4 h-4 text-[#15463b]" />
-              <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Schema / Structured Data</div>
+              <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">Schema / Structured Data</div>
             </div>
             {(() => {
               const schemaList: any[] = Array.isArray(s.schemas) ? s.schemas : [];
@@ -1121,7 +1153,7 @@ export default function AnalyserPage() {
                 typeof item?.["@type"] === "string" && /business|organization|localbusiness|store|restaurant|service/i.test(item["@type"])
               );
               const hasNameField = schemaList.some((item) => typeof item?.name === "string" && item.name.trim().length > 0);
-              const hasHoursSpec = (s.openingHours?.length || 0) > 0;
+              const hasHoursSpec = hoursVerdict.status === "ok";
 
               return (
             <div className="space-y-2.5">
@@ -1148,7 +1180,7 @@ export default function AnalyserPage() {
           <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-[18px] p-5 md:p-[18px_22px] shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <Cpu className="w-4 h-4 text-[#15463b]" />
-              <div className="font-mono-spline text-[10px] tracking-[0.14em] uppercase text-[#9b927f]">Technologies detected</div>
+              <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">Technologies detected</div>
             </div>
             <div className="flex flex-wrap gap-2">
               {(s.technologies || []).length > 0 ? (

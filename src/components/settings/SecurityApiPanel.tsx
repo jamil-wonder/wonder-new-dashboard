@@ -52,7 +52,7 @@ export default function SecurityApiPanel() {
         <h3 className="font-spectral text-[20px] font-medium text-[#15463b]">Security &amp; Password</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1">Current Password</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1">Current Password</label>
             <input
               type="password"
               value={currentPassword}
@@ -62,7 +62,7 @@ export default function SecurityApiPanel() {
             />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1">New Password</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1">New Password</label>
             <input
               type="password"
               value={newPassword}
@@ -72,7 +72,7 @@ export default function SecurityApiPanel() {
             />
           </div>
           <div>
-            <label className="font-mono-spline text-[10px] uppercase text-[#8a8273] block mb-1">Confirm New Password</label>
+            <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1">Confirm New Password</label>
             <input
               type="password"
               value={confirmPassword}
