@@ -290,7 +290,7 @@ export default function OverviewPage() {
       {!isRunActive && (
         <div className="flex items-start justify-between gap-3">
           <p className="text-[12.5px] text-[#8a8273] flex-1">
-            <span className="font-semibold text-[#4d4636]">Next automatic update: Sunday night.</span>{" "}Run it now if you don&apos;t want to wait - once a day, takes 10 to 20 minutes, and you can close this page.
+            <span className="font-semibold text-[#4d4636]">Next automatic update: Sunday night.</span>{" "}Or update now (once a day).
           </p>
           <button
             onClick={() => setConfirmingRun(true)}
@@ -327,8 +327,7 @@ export default function OverviewPage() {
           <div className="contents">
             <div id="run-now-title" className="font-spectral text-[18px] font-semibold text-[#15463b]">Update your score now?</div>
             <p className="text-[13.5px] text-[#4a4437] mt-2 leading-relaxed">
-              This uses today&apos;s one update. It scans your website and asks the four AI models all your questions again, which takes 10 to 20 minutes.
-              Otherwise it updates by itself on Sunday night.
+              This uses today&apos;s one update. It scans your website and asks the four AI models all your questions again, which takes 10 to 20 minutes. You can close this page while it runs.
             </p>
             <div className="flex items-center gap-3 mt-5">
               <button

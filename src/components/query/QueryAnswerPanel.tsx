@@ -105,7 +105,7 @@ function formatModelReplyText(
 
   const mentionLine = mentioned
     ? `- Status: Mentioned${position ? ` (approx rank #${position})` : ""}`
-    : "- Status: Not Mentioned in top returned results";
+    : "- Status: Not named or cited in this answer";
   // B1: show both ways a mention can happen, with the evidence for each
   const namedLine = result?.namedInAnswer
     ? `- Named in the answer: yes${result?.namedEvidence ? ` - "${cleanText(result.namedEvidence)}"` : ""}`

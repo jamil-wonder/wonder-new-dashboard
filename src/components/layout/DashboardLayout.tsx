@@ -42,7 +42,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // /verify-email must work for someone who isn't signed in on this device
   // at all - signup and login both end with an emailed code and no token
   // exists until it's entered, so this page has to be reachable pre-auth.
-  const isPublicPage = isAuthPage || isVerifyPage || isScanPage || isSharedReportPage;
+  // /terms and /privacy must be readable by someone who has not signed up yet
+  const isLegalPage = pathname === "/terms" || pathname === "/privacy";
+  const isPublicPage = isAuthPage || isVerifyPage || isScanPage || isSharedReportPage || isLegalPage;
 
   const needsVerification = isAuthenticated && !isUserLoading && !!user && !user.email_verified;
   const isAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");

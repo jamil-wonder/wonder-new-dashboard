@@ -267,6 +267,13 @@ function AuthPageContent() {
               </>
             )}
           </button>
+          {mode === "signup" && (
+            <p className="mt-3 text-center text-[12px] leading-relaxed text-[#6f6757]">
+              By creating an account you agree to the{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#15463b] underline">Terms</a> and{" "}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#15463b] underline">Privacy Policy</a>.
+            </p>
+          )}
         </form>
 
         {canUseGoogleAuth && (

@@ -220,7 +220,7 @@ export default function BusinessProfilesPanel() {
               { label: "Website URL", val: formUrl, set: setFormUrl, ph: "https://example.com/", req: true },
               { label: "Category", val: formCategory, set: setFormCategory, ph: "", select: true },
               { label: "Specific type (optional)", val: formSubType, set: setFormSubType, ph: "e.g. Indian, Italian, Tax advisory" },
-              { label: "Location", val: formLocation, set: setFormLocation, ph: "e.g. Austin, TX" },
+              { label: "Location", val: formLocation, set: setFormLocation, ph: "e.g. Soho, London" },
             ].map(({ label, val, set, ph, req, select }: { label: string; val: string; set: (v: string) => void; ph: string; req?: boolean; select?: boolean }) => (
               <div key={label}>
                 <label className="font-mono-spline text-[11px] uppercase text-[#6f6757] block mb-1.5">{label}</label>
@@ -391,7 +391,7 @@ export default function BusinessProfilesPanel() {
 
         <div className="flex items-center gap-3 self-start sm:self-auto">
           <span className="text-[12px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-3 py-1 rounded-full">
-            {businesses.length} / 3 SAVED
+            {businesses.length} of 3 businesses (included in your plan)
           </span>
           <button
             onClick={() => router.push("/onboarding?add=1")}
