@@ -171,7 +171,7 @@ export default function QueryAnswerPanel({ query, selectedModel, onClose }: Quer
   const formattedText = formatModelReplyText(rawAnswer, modelRes);
 
   return (
-    <div className="-mt-1 rounded-xl border border-[#ece3d1] bg-[#faf8f3] min-w-[720px]">
+    <div className="-mt-1 rounded-xl border border-[#ece3d1] bg-[#faf8f3] min-w-[760px]">
       <div className="flex items-center justify-between border-b border-[#efe7d6] px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Image src={cfg.icon} width={18} height={18} alt={cfg.name} className="object-contain" />

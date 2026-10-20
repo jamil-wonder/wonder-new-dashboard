@@ -1491,7 +1491,7 @@ export default function QueryPage() {
                 Showing <strong className="text-[#15463b] font-semibold">{selectedModel}</strong>&apos;s answers
               </div>
               {/* Table Header */}
-              <div className={`grid ${showRankColumn ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px]"} min-w-[720px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[11px] font-medium uppercase text-[#6f6757] border-b border-[#efe7d6]`}>
+              <div className={`grid ${showRankColumn ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px_40px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px_40px]"} min-w-[760px] items-center gap-2 px-4 pb-2.5 font-mono-spline text-[11px] font-medium uppercase text-[#6f6757] border-b border-[#efe7d6]`}>
                 <div>No.</div>
                 <div>Type</div>
                 <div>Generated Search Query</div>
@@ -1505,6 +1505,7 @@ export default function QueryPage() {
                 >
                   Sources
                 </button>
+                <div aria-hidden />
               </div>
 
               <QueryTable

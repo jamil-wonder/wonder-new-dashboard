@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Globe } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
 import QueryAnswerPanel from "./QueryAnswerPanel";
 import QuestionCell from "./QuestionCell";
-import { getSourcesForModel } from "../../lib/querySources";
+import RowMenu from "./RowMenu";
+import SiteIcon from "../ui/SiteIcon";
+import { getSourcesForModel, normalizeDomain } from "../../lib/querySources";
 
 interface QueryTableProps {
   queries: SearchQueryItem[];
@@ -38,6 +41,10 @@ export default function QueryTable({
   onRewriteQuery,
   showRank = true,
 }: QueryTableProps) {
+  // J8: the question being edited (opened from its row's menu) and the one being reworded
+  const [editing, setEditing] = useState<{ id: string | number; text: string } | null>(null);
+  const [rewritingId, setRewritingId] = useState<string | number | null>(null);
+
   if (queries.length === 0) {
     return (
       <div className="text-center py-10 text-[#8a8273] text-[13.5px]">
@@ -123,7 +130,7 @@ export default function QueryTable({
                   onSelectQuery(q);
                 }
               }}
-              className={`row-hover grid ${showRank ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px]"} min-w-[720px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
+              className={`row-hover grid ${showRank ? "grid-cols-[40px_86px_minmax(0,1fr)_118px_54px_200px_40px]" : "grid-cols-[40px_86px_minmax(0,1fr)_118px_200px_40px]"} min-w-[760px] items-center gap-2 border border-[#efe7d6] rounded-xl px-4 py-3.5 bg-[#fdfcf8] transition-all ${
                 isAudited ? "hover:border-[#d9cbaf] hover:shadow-xs cursor-pointer" : "cursor-default opacity-90"
               }`}
             >
@@ -146,7 +153,17 @@ export default function QueryTable({
               </span>
 
               <div className="min-w-0 pr-2">
-                <QuestionCell query={q} onEdit={onEditQuery} onRemove={onRemoveQuery} onRewrite={onRewriteQuery} />
+                <QuestionCell
+                  query={q}
+                  editingText={editing?.id === q.id ? editing.text : null}
+                  onEditingTextChange={(text) => setEditing({ id: q.id, text })}
+                  onSave={() => {
+                    const text = (editing?.text || "").trim();
+                    if (text && text !== q.query) onEditQuery?.(q, text);
+                    setEditing(null);
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
               </div>
 
               {/* Light & Crisp Distinct Status Pills */}
@@ -200,7 +217,7 @@ export default function QueryTable({
               <div className="text-right flex gap-1.5 justify-end items-center flex-wrap">
                 {isAudited ? (
                   <>
-                    {/* B4: one chip with the count; it opens the sidebar with the full list */}
+                    {/* One chip: the first few sites' icons, the count, and whether your own site is among them. */}
                     {sourcesVal.length > 0 ? (
                       <button
                         type="button"
@@ -208,11 +225,20 @@ export default function QueryTable({
                           e.stopPropagation();
                           if (onOpenSources) onOpenSources(q);
                         }}
-                        className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-1 rounded-md cursor-pointer hover:underline"
-                        title={targetSiteStatus === "matched" ? "Includes your website - click to view the sources" : "Click to view the sources"}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#d0e4d6] bg-[#eef3f0] py-1 pl-1.5 pr-2.5 text-[11.5px] font-semibold text-[#15463b] transition-colors hover:border-[#15463b]"
+                        title={targetSiteStatus === "matched" ? "Includes your website - click to see every source" : "Click to see every source"}
                       >
-                        <Globe className="w-3 h-3" />
-                        {sourcesVal.length} {sourcesVal.length === 1 ? "source" : "sources"}
+                        <span className="flex -space-x-1.5">
+                          {sourcesVal.slice(0, 3).map((d, idx) => (
+                            <span key={`${d}-${idx}`} className="rounded-full ring-2 ring-[#eef3f0]">
+                              <SiteIcon domain={normalizeDomain(d) || d} size={16} className="rounded-full bg-white" />
+                            </span>
+                          ))}
+                        </span>
+                        <span>
+                          {sourcesVal.length} {sourcesVal.length === 1 ? "source" : "sources"}
+                        </span>
+                        {targetSiteStatus === "matched" && <span className="rounded bg-[#dcfce7] px-1 py-px text-[10px] font-bold text-[#15803d]">You</span>}
                       </button>
                     ) : (
                       <span className="text-[12px] text-[#8a8273]">No sources</span>
@@ -222,6 +248,25 @@ export default function QueryTable({
                   <span className="text-[13px] font-medium text-[#c2b69c]">-</span>
                 )}
               </div>
+
+              {isAudited || onEditQuery || onRemoveQuery ? (
+                <RowMenu
+                  label={q.query}
+                  rewriting={rewritingId === q.id}
+                  onEdit={onEditQuery ? () => setEditing({ id: q.id, text: q.query }) : undefined}
+                  onRewrite={
+                    onRewriteQuery
+                      ? async () => {
+                          setRewritingId(q.id);
+                          const text = await onRewriteQuery(q);
+                          setRewritingId(null);
+                          if (text) setEditing({ id: q.id, text });
+                        }
+                      : undefined
+                  }
+                  onRemove={onRemoveQuery ? () => onRemoveQuery(q) : undefined}
+                />
+              ) : <span />}
             </div>
             {expandedId === q.id && isAudited && (
               <QueryAnswerPanel query={q} selectedModel={selectedModel} onClose={() => onCloseAnswer?.()} />
