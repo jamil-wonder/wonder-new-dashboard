@@ -165,3 +165,20 @@ export const CONFIDENCE_STYLE: Record<Confidence, { color: string; bg: string }>
   Low: { color: "#b1442a", bg: "#f6dcd5" },
   Failed: { color: "#92400e", bg: "#fef3c7" },
 };
+
+/**
+ * C5: a "verified" field gets a tick only when the crawl found a real page that backs it - and the tick
+ * links to that page. Anything else is shown as a plain label with no tick.
+ * Name -> the home page; Location -> the contact page; Category -> the about page (or the home page).
+ */
+export function verifiedFieldLinks(
+  fields: string[] | undefined,
+  scan: { homePageUrl?: string; contactPageUrl?: string; aboutPageUrl?: string; addresses?: unknown[] } | null | undefined,
+): Array<{ field: string; href: string | null }> {
+  const page: Record<string, string | undefined> = {
+    Name: scan?.homePageUrl,
+    Location: scan?.contactPageUrl || undefined,
+    Category: scan?.aboutPageUrl || scan?.homePageUrl,
+  };
+  return (fields || []).map((field) => ({ field, href: /^https?:\/\//.test(page[field] || "") ? (page[field] as string) : null }));
+}

@@ -427,6 +427,8 @@ function OnboardingContent() {
 
   const [name, setName] = useState("");
   const [nameWasSuggested, setNameWasSuggested] = useState(false);
+  // L7: false when the website could not be read, so suggestions come from the business name alone
+  const [siteRead, setSiteRead] = useState(true);
   const [category, setCategory] = useState("");
   // True only while the selected category is the one we inferred from the site,
   // so the hint disappears the moment the user picks something themselves.
@@ -663,6 +665,7 @@ function OnboardingContent() {
       setCategorySuggested(Boolean(detectedCategory));
       setUrl(cleanUrl);
       lastScrapedUrlRef.current = cleanUrl;
+      setSiteRead(Boolean(scrapedName || scrapedDesc));
       dispatchScan({ type: "SUCCESS" });
       setStepIndex(0);
       fetchSuggestions(cleanUrl, scrapedName, scrapedDesc, { location: detectedLocation, category: detectedCategory });
@@ -688,6 +691,7 @@ function OnboardingContent() {
     setLocation("");
     setCategory("");
     setCategorySuggested(false);
+    setSiteRead(false);
     setUrl(cleanUrl);
     lastScrapedUrlRef.current = "";
     setErrorMsg("");
@@ -859,7 +863,7 @@ function OnboardingContent() {
     name: { title: "What's your business called?", sub: "We found this on your site - keep it or fix it." },
     category: {
       title: "What category best fits?",
-      sub: categorySuggested ? "We picked this from your site - change it if it's not right." : "Pick the closest match.",
+      sub: categorySuggested ? (siteRead ? "We picked this from your site - change it if it's not right." : "We picked this from your business name - change it if it's not right.") : "Pick the closest match.",
     },
     location: {
       title: "Where are you based?",
@@ -996,6 +1000,7 @@ function OnboardingContent() {
                   <div className="flex-1 min-w-0">
                     {nameWasSuggested ? (
                       <AcceptOrEditText
+                      suggestedLabel={siteRead ? "AI-suggested from your site" : "AI-suggested from your business name"}
                         value={name}
                         onChange={setName}
                         rows={1}
@@ -1053,6 +1058,7 @@ function OnboardingContent() {
                 ) : (
                   <>
                     <AcceptOrEditText
+                      suggestedLabel={siteRead ? "AI-suggested from your site" : "AI-suggested from your business name"}
                       value={description}
                       onChange={setDescription}
                       rows={4}

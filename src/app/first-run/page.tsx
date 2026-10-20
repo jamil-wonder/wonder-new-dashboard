@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2, Pencil, X } from "lucide-react";
+import { ArrowRight, Loader2, Pencil, Wand2, X } from "lucide-react";
 import { useBusiness } from "../../context/BusinessContext";
 import { fetchApi, parseApiError } from "../../lib/api";
 import { WonderscoreLogo } from "../../components/ui/WonderscoreSpinner";
@@ -32,6 +32,8 @@ export default function FirstRunPage() {
   // J8: which question is being edited, and the text in the box
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draftText, setDraftText] = useState("");
+  const [rewritingId, setRewritingId] = useState<number | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
   const initRef = useRef(false);
   const failuresRef = useRef(0);
 
@@ -78,6 +80,61 @@ export default function FirstRunPage() {
     }
   }, [business, questions]);
 
+  const keptQuestions = questions.filter((q) => q.keep !== false);
+
+  // J8: ask for a more human wording; it lands in the edit box so the owner decides
+  const rewriteQuestion = async (q: FirstRunQuestion) => {
+    if (!business || rewritingId !== null) return;
+    setRewritingId(q.id);
+    try {
+      const res = await fetchApi<{ rewritten: string | null }>("/api/phase5/rewrite-question", {
+        method: "POST",
+        body: JSON.stringify({ question: q.query, businessName: business.name, category: business.category, location: business.location, branded: q.type === "branded" }),
+      });
+      if (res.rewritten) {
+        setEditingId(q.id);
+        setDraftText(res.rewritten);
+      }
+    } catch {
+      /* the original stays as it is */
+    } finally {
+      setRewritingId(null);
+    }
+  };
+
+  // J8: more candidates, set aside by default, so the owner can swap some in and keep exactly 20
+  const suggestMore = async () => {
+    if (!business || suggesting) return;
+    setSuggesting(true);
+    try {
+      const services = Array.isArray(business.services)
+        ? business.services
+        : String(business.services || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const res = await fetchApi<any>("/api/phase5/generate-questions", {
+        method: "POST",
+        body: JSON.stringify({
+          url: business.url.startsWith("http") ? business.url : `https://${business.url}`,
+          business_id: business.id,
+          businessName: business.name,
+          category: business.category,
+          location: business.location,
+          description: business.description || business.aiDescription,
+          services,
+          questionGeneration: business.questionGeneration,
+          avoidQuestions: questions.map((q) => q.query),
+        }),
+      });
+      const have = new Set(questions.map((q) => q.query.toLowerCase()));
+      const fresh = questionsFromGeneration(res).filter((q) => !have.has(q.query.toLowerCase())).slice(0, 10);
+      let next = Math.max(0, ...questions.map((q) => q.id)) + 1;
+      setQuestions((qs) => [...qs, ...fresh.map((q) => ({ ...q, id: next++, keep: false }))]);
+    } catch {
+      /* nothing added */
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   const saveEdit = () => {
     const text = draftText.trim();
     setQuestions((qs) =>
@@ -102,7 +159,7 @@ export default function FirstRunPage() {
     try {
       const res = await fetchApi<{ run_id: string }>(`/api/user/businesses/${business.id}/first-run`, {
         method: "POST",
-        body: JSON.stringify({ questions: questions.map(({ type, label, query }, i) => ({ id: i + 1, type, label, query: query.trim() })) }),
+        body: JSON.stringify({ questions: keptQuestions.map(({ type, label, query }, i) => ({ id: i + 1, type, label, query: query.trim() })) }),
       });
       failuresRef.current = 0;
       setStatus(null);
@@ -210,7 +267,7 @@ export default function FirstRunPage() {
               <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-1.5">{label}</div>
               <ol className="space-y-1.5 list-decimal list-inside text-[13px] text-[#23211b]">
                 {questions.filter((q) => q.label === label).map((q) => (
-                  <li key={q.id} className="leading-snug marker:text-[#9b927f]">
+                  <li key={q.id} className={`leading-snug marker:text-[#9b927f] ${q.keep === false ? "opacity-55" : ""}`}>
                     {editingId === q.id ? (
                       <span className="inline-flex w-[calc(100%-2rem)] items-center gap-2 align-middle">
                         <input
@@ -225,8 +282,20 @@ export default function FirstRunPage() {
                       </span>
                     ) : (
                       <span className="group inline-flex w-[calc(100%-2rem)] items-start justify-between gap-2 align-top">
-                        <span>{q.query}</span>
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={q.keep !== false}
+                            onChange={(e) => setQuestions((qs) => qs.map((x) => (x.id === q.id ? { ...x, keep: e.target.checked } : x)))}
+                            aria-label="Keep this question"
+                            className="mt-0.5 h-4 w-4 shrink-0 accent-[#15463b]"
+                          />
+                          <span>{q.query}</span>
+                        </label>
                         <span className="flex shrink-0 gap-2">
+                          <button type="button" aria-label="Make this question sound more human" title="Make it sound more human" disabled={rewritingId !== null} onClick={() => rewriteQuestion(q)} className="cursor-pointer text-[#6f6757] hover:text-[#15463b] disabled:opacity-50">
+                            {rewritingId === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                          </button>
                           <button type="button" aria-label="Edit this question" onClick={() => { setEditingId(q.id); setDraftText(q.query); }} className="cursor-pointer text-[#6f6757] hover:text-[#15463b]"><Pencil className="h-3.5 w-3.5" /></button>
                           <button type="button" aria-label="Remove this question" onClick={() => setQuestions((qs) => qs.filter((x) => x.id !== q.id))} className="cursor-pointer text-[#6f6757] hover:text-[#b1442a]"><X className="h-3.5 w-3.5" /></button>
                         </span>
@@ -239,12 +308,17 @@ export default function FirstRunPage() {
           ))}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
-          <span className={questions.length === 20 ? "font-semibold text-[#1e7d4f]" : "font-semibold text-[#9a6a12]"}>
-            {questions.length === 20 ? "20 of 20 questions" : questions.length < 20 ? `${questions.length} of 20 - add ${20 - questions.length} more to continue` : `${questions.length} of 20 - remove ${questions.length - 20} to continue`}
+          <span className={keptQuestions.length === 20 ? "font-semibold text-[#1e7d4f]" : "font-semibold text-[#9a6a12]"}>
+            {keptQuestions.length === 20 ? "20 of 20 questions kept" : keptQuestions.length < 20 ? `${keptQuestions.length} of 20 kept - tick ${20 - keptQuestions.length} more to continue` : `${keptQuestions.length} of 20 kept - untick ${keptQuestions.length - 20} to continue`}
           </span>
-          <button type="button" onClick={addOwn} disabled={questions.length >= 20} className="cursor-pointer font-semibold text-[#15463b] underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40">
-            + Add your own question
-          </button>
+          <span className="flex gap-4">
+            <button type="button" onClick={suggestMore} disabled={suggesting} className="cursor-pointer font-semibold text-[#15463b] underline underline-offset-2 disabled:opacity-40">
+              {suggesting ? "Writing more..." : "Suggest more"}
+            </button>
+            <button type="button" onClick={addOwn} className="cursor-pointer font-semibold text-[#15463b] underline underline-offset-2">
+              + Add your own question
+            </button>
+          </span>
         </div>
         <div className="mt-5 flex flex-col sm:flex-row gap-3">
           <button
@@ -257,7 +331,7 @@ export default function FirstRunPage() {
           <button
             type="button"
             onClick={startRun}
-            disabled={starting || questions.length !== 20 || questions.some((q) => !q.query.trim())}
+            disabled={starting || keptQuestions.length !== 20 || keptQuestions.some((q) => !q.query.trim())}
             className="sm:flex-[2] h-11 rounded-xl bg-[#15463b] text-white text-[13.5px] font-bold hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}

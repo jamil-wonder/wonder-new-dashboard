@@ -145,6 +145,7 @@ function ScanContent() {
   const [ownKind, setOwnKind] = useState("");
   const [ownPlace, setOwnPlace] = useState("");
   const [ownQuestion, setOwnQuestion] = useState("");
+  const [entryStep, setEntryStep] = useState(0);
 
   const [email, setEmail] = useState("");
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -379,50 +380,61 @@ function ScanContent() {
               exit={{ opacity: 0 }}
               className="w-full max-w-[480px]"
             >
-              {/* No sell copy here - the pitch already happened on the real
-                  landing page. This is just the working input for someone
-                  who's already decided to check. */}
-              <form onSubmit={handleScan} className="flex gap-2.5">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9b927f]" />
-                  <input
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="yourbusiness.com"
-                    required
-                    autoFocus
-                    className="w-full text-[14px] pl-10 pr-4 py-3 border border-[#ece3d1] rounded-xl bg-white outline-none focus:border-[#15463b] transition-colors"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="shrink-0 inline-flex items-center justify-center gap-2 py-3 px-5 bg-[#15463b] text-white text-[14px] font-bold rounded-xl hover:bg-[#1a5c44] transition-colors cursor-pointer"
-                >
-                  Scan <ArrowRight className="w-4 h-4" />
-                </button>
-              </form>
-
-              <details className="mt-4 rounded-xl border border-[#ece3d1] bg-white px-4 py-3 text-[13px] text-[#4a4437]">
-                <summary className="cursor-pointer font-semibold text-[#15463b]">Tell us a bit more for a sharper check (optional)</summary>
-                <div className="mt-3 space-y-2.5">
-                  {[
-                    { v: ownName, set: setOwnName, label: "What's the business called?", ph: "e.g. Cafe Rio" },
-                    { v: ownKind, set: setOwnKind, label: "What kind of business is it?", ph: "e.g. restaurant, dentist, hotel" },
-                    { v: ownPlace, set: setOwnPlace, label: "Where are you based?", ph: "e.g. Leeds, UK" },
-                    { v: ownQuestion, set: setOwnQuestion, label: "One question a customer might ask an AI about you", ph: "e.g. Where can I get a good vegan brunch in Leeds?" },
-                  ].map((f) => (
-                    <label key={f.label} className="block">
-                      <span className="mb-1 block text-[12px] font-medium text-[#6f6757]">{f.label}</span>
-                      <input
-                        value={f.v}
-                        onChange={(e) => f.set(e.target.value)}
-                        placeholder={f.ph}
-                        className="w-full rounded-lg border border-[#ece3d1] bg-[#fdfcf8] px-3 py-2 text-[13px] outline-none focus:border-[#15463b]"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </details>
+              {/* J2/J3: five questions, one per screen: website, name, kind, where, one customer question. */}
+              {(() => {
+                const steps = [
+                  { label: "What's your website?", ph: "yourbusiness.com", v: url, set: setUrl, required: true },
+                  { label: "What's the business called?", ph: "e.g. Cafe Rio", v: ownName, set: setOwnName },
+                  { label: "What kind of business is it?", ph: "e.g. restaurant, dentist, hotel", v: ownKind, set: setOwnKind },
+                  { label: "Where are you based?", ph: "e.g. Leeds, UK", v: ownPlace, set: setOwnPlace },
+                  { label: "What's one question a customer might ask an AI about you?", ph: "e.g. Where can I get a good vegan brunch in Leeds?", v: ownQuestion, set: setOwnQuestion },
+                ];
+                const step = steps[entryStep];
+                const last = entryStep === steps.length - 1;
+                const next = (e: React.FormEvent) => {
+                  e.preventDefault();
+                  if (step.required && !step.v.trim()) return;
+                  if (last) runScan(url);
+                  else setEntryStep((n) => n + 1);
+                };
+                return (
+                  <form onSubmit={next}>
+                    <div className="mb-2 text-[12px] font-medium text-[#6f6757]">Question {entryStep + 1} of {steps.length}</div>
+                    <label className="block font-spectral text-[22px] font-semibold leading-snug text-[#15463b]" htmlFor="scan-step-input">{step.label}</label>
+                    <input
+                      id="scan-step-input"
+                      key={entryStep}
+                      value={step.v}
+                      onChange={(e) => step.set(e.target.value)}
+                      placeholder={step.ph}
+                      autoFocus
+                      className="mt-3 w-full rounded-xl border border-[#ece3d1] bg-white px-4 py-3 text-[14px] outline-none transition-colors focus:border-[#15463b]"
+                    />
+                    <div className="mt-4 flex items-center gap-3">
+                      <button
+                        type="submit"
+                        className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#15463b] px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#1a5c44]"
+                      >
+                        {last ? "Scan my website" : "Next"} <ArrowRight className="h-4 w-4" />
+                      </button>
+                      {!step.required && (
+                        <button
+                          type="button"
+                          onClick={() => (last ? runScan(url) : setEntryStep((n) => n + 1))}
+                          className="cursor-pointer text-[13px] font-semibold text-[#6f6757] underline underline-offset-2"
+                        >
+                          Skip
+                        </button>
+                      )}
+                      {entryStep > 0 && (
+                        <button type="button" onClick={() => setEntryStep((n) => n - 1)} className="cursor-pointer text-[13px] font-semibold text-[#6f6757] hover:underline">
+                          Back
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                );
+              })()}
 
               {errorMsg && (
                 <div className="mt-4 p-3 bg-[#fdf2f0] border border-[#f6dcd5] rounded-xl text-[12.5px] font-medium text-[#b1442a]">
@@ -490,6 +502,11 @@ function ScanContent() {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-[#efe7d6]">
+                  {fixCount !== null && fixCount > 0 && (
+                    <h2 className="mb-4 font-spectral text-[22px] font-semibold leading-snug text-[#15463b]">
+                      We found {fixCount} way{fixCount === 1 ? "" : "s"} to improve how AI recommends you
+                    </h2>
+                  )}
                   <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">What we found</div>
                   {findingsLoading ? (
                     <div className="flex items-center gap-2 text-[13px] text-[#8a8273]">

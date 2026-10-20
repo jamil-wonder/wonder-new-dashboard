@@ -244,6 +244,9 @@ function QueryGenerationLoader({
   );
 }
 
+// J8: the tracked set is always exactly this many questions
+const TRACKED_QUESTION_TARGET = 20;
+
 export default function QueryPage() {
   const { activeBusiness, liveDeepCompetitors, setLiveDeepCompetitors, refetchBusinesses } = useBusiness();
   const { showToast } = useToast();
@@ -670,12 +673,16 @@ export default function QueryPage() {
   const isLocked = Boolean(activeBusiness?.questionsLocked);
 
   const requestOpenAddModal = useCallback(() => {
+    if (queriesList.length >= TRACKED_QUESTION_TARGET) {
+      showToast(`You already have ${TRACKED_QUESTION_TARGET} questions. Remove one first, or edit one to change what it asks.`, "info");
+      return;
+    }
     if (isLocked) {
       setPendingLockedAction("add");
     } else {
       setIsAddModalOpen(true);
     }
-  }, [isLocked]);
+  }, [isLocked, queriesList.length, showToast]);
 
   const requestRegenerate = useCallback(() => {
     if (isLocked) {
@@ -954,7 +961,7 @@ export default function QueryPage() {
     else if (category === "broad-seo") label = "Broad SEO";
 
     const newQuery: SearchQueryItem = {
-      id: queriesList.length + 1,
+      id: Math.max(0, ...queriesList.map((q) => Number(q.id) || 0)) + 1,
       type: category,
       label,
       query: queryText,
@@ -971,6 +978,44 @@ export default function QueryPage() {
     saveCachedQueries(domain, updated);
     persistTrackedQuestions(updated);
     showToast("New prompt added to list! Click 'Run' to analyze.");
+  };
+
+  // J8: change the words of a question. Its old answers no longer apply, so they are cleared until the next run.
+  const handleEditQuery = (q: SearchQueryItem, text: string) => {
+    const updated = queriesList.map((x) =>
+      x.id === q.id
+        ? { ...x, query: text, status: "Pending" as any, rank: null, sources: [], resultsByModel: undefined, answerSnippet: `Edited question. Click "Run" to see the answers.` }
+        : x,
+    );
+    setQueriesList(updated);
+    saveCachedQueries(domain, updated);
+    persistTrackedQuestions(updated);
+    showToast("Question changed. Run again to see how the AI models answer it.");
+  };
+
+  // J8: take a question out of the tracked set
+  const handleRemoveQuery = (q: SearchQueryItem) => {
+    const updated = queriesList.filter((x) => x.id !== q.id);
+    setQueriesList(updated);
+    setSelectedQuery((cur) => (cur?.id === q.id ? null : cur));
+    saveCachedQueries(domain, updated);
+    persistTrackedQuestions(updated);
+    showToast(updated.length === TRACKED_QUESTION_TARGET ? "Question removed." : `Question removed. You now have ${updated.length} - keep exactly ${TRACKED_QUESTION_TARGET}.`);
+  };
+
+  // J8: a more human wording from the AI; the owner still has to save it
+  const handleRewriteQuery = async (q: SearchQueryItem): Promise<string | null> => {
+    try {
+      const res = await fetchApi<{ rewritten: string | null }>("/api/phase5/rewrite-question", {
+        method: "POST",
+        body: JSON.stringify({ question: q.query, businessName, category, location, branded: q.type === "branded" }),
+      });
+      if (!res.rewritten) showToast("Couldn't find a better wording for this one - it's fine as it is.", "info");
+      return res.rewritten;
+    } catch (err) {
+      showToast(parseApiError(err, "Couldn't reword that question. Please try again."), "error");
+      return null;
+    }
   };
 
   // Helper to process job results into queriesList with target site match resolution
@@ -1079,6 +1124,11 @@ export default function QueryPage() {
     if (isScanning) return; // C7: a second click while a run is starting does nothing
     if (queriesList.length === 0) {
       showToast("No questions available to analyze. Please click Regenerate first.", "info");
+      return;
+    }
+
+    if (queriesList.length !== TRACKED_QUESTION_TARGET) {
+      showToast(`Keep exactly ${TRACKED_QUESTION_TARGET} questions before running - you have ${queriesList.length}.`, "info");
       return;
     }
 
@@ -1408,6 +1458,13 @@ export default function QueryPage() {
           showActions={queriesList.length > 0}
         />
 
+        {queriesList.length > 0 && queriesList.length !== TRACKED_QUESTION_TARGET && (
+          <div role="status" className="mt-3 rounded-xl border border-[#f0dfae] bg-[#fff8e6] px-4 py-2.5 text-[13px] text-[#4a4437]">
+            You have <strong>{queriesList.length}</strong> questions. Keep exactly {TRACKED_QUESTION_TARGET} so every week is measured the same way -{" "}
+            {queriesList.length < TRACKED_QUESTION_TARGET ? `add ${TRACKED_QUESTION_TARGET - queriesList.length} more` : `remove ${queriesList.length - TRACKED_QUESTION_TARGET}`}.
+          </div>
+        )}
+
         {/* Question generation state or Query Table */}
         {isLoadingQuestions || queriesList.length === 0 ? (
           <div className="py-9 md:py-10 px-4 border border-dashed border-[#ece3d1] rounded-xl bg-[#fcfaf5] my-3">
@@ -1458,6 +1515,9 @@ export default function QueryPage() {
                 onCloseAnswer={() => setSelectedQuery(null)}
                 locations={[activeBusiness?.location || "", ...(activeBusiness?.extraLocations || [])].filter(Boolean)}
                 onOpenSources={handleOpenQuerySources}
+                onEditQuery={handleEditQuery}
+                onRemoveQuery={handleRemoveQuery}
+                onRewriteQuery={handleRewriteQuery}
                 showRank={showRankColumn}
               />
             </div>

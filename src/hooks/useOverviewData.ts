@@ -1,5 +1,6 @@
 "use client";
 
+import { areasToImprove } from "../lib/areaBadge";
 import { useEffect, useMemo, useState } from "react";
 import { fetchApi, getScanHistory, type ScanPoint } from "../lib/api";
 import { getAllSourcesForQueries } from "../lib/querySources";
@@ -532,19 +533,18 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
       const d = item && typeof item === "object" ? item.discrepancy : null;
       if (d?.quickWin) quickWins.push({ text: `${item.model || "An AI model"}: ${d.quickWin}`, type: "warn", href: "/analyser" });
     });
-    if (aiInsights.length > 0) {
-      aiInsights.slice(0, 2).forEach(t => quickWins.push({ text: t, type: "boost", href: "/analyser" }));
+    // D3: then the same items the Plan opens with - the capped or weakest area, and the top gap in the Tracker
+    const cappedArea = auditAreas.find((x: any) => x.capped);
+    const weakestArea = areasToImprove(auditAreas.filter((x: any) => !x.capped) as Array<{ score: number; label: string }>)[0];
+    if (cappedArea) {
+      quickWins.push({ text: "Add LocalBusiness schema to your website", type: "warn", href: "/plan" });
+    } else if (weakestArea) {
+      quickWins.push({ text: `Fix: ${weakestArea.label} (${weakestArea.score}/100)`, type: "boost", href: "/plan" });
     }
+    const topGap = queryEvidence.find((q) => q.missing.length > 0);
+    if (topGap) quickWins.push({ text: `Close a gap: "${topGap.query}"`, type: "boost", href: "/query?status=not-mentioned" });
     // The "points behind" quick win now lives in overview/page.tsx, computed
     // from useCompetitorRanking() once real nearestAbove data is merged in.
-    // D2: weakest model among those that answered, by its own answered count
-    const weakestModel = insightsAcrossModels.weakest;
-    if (weakestModel && weakestModel.total > 0 && weakestModel.mentioned / weakestModel.total < 0.3) {
-      quickWins.push({ text: `${weakestModel.model} mentions you in only ${weakestModel.mentioned} of the ${weakestModel.total} questions it answered - a priority to fix.`, type: "warn", href: "/query?status=not-mentioned" });
-    }
-    if (insightsAcrossModels.noneMention && insightsAcrossModels.compared > 0) {
-      quickWins.push({ text: "None of the AI models that answered have mentioned you yet - start with the gaps in your Search Tracker.", type: "warn", href: "/query?status=not-mentioned" });
-    }
 
     // The trend CHART must plot the same score the headline number above
     // it claims - otherwise the big number and the chart's own latest

@@ -111,22 +111,20 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
           <div className="font-mono-spline text-[11px] tracking-[0.13em] uppercase text-[#6470a8]">AI insights</div>
           <div className="font-spectral text-[17px] font-semibold text-[#23211b] mt-0.5">Quick wins</div>
           <div className="flex flex-col gap-2.5 mt-3">
-            {(quickWins.length > 0 ? quickWins : aiInsights.slice(0, 3).map(t => ({ text: t, type: "boost" as const, href: "/analyser" as string | undefined }))).slice(0, 3).map(({ text, type, href }, i) => {
+            {quickWins.slice(0, 3).map(({ text, type, href }, i) => {
               const Icon = QUICK_WIN_ICONS[i % QUICK_WIN_ICONS.length];
               const { color, bg } = QUICK_WIN_COLORS[type === "warn" ? 2 : type === "info" ? 1 : 0] || QUICK_WIN_COLORS[i % QUICK_WIN_COLORS.length];
-              // Truncate long insight text to 90 chars max
-              const truncated = typeof text === "string" && text.length > 90 ? text.slice(0, 87).trimEnd() + "…" : text;
               return (
                 <Link key={i} href={href || "/plan"} className="group flex items-start gap-2.5 rounded-lg -mx-1.5 px-1.5 py-1 transition-colors hover:bg-white/70">
                   <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5" style={{ background: bg }}>
                     <Icon className="w-3 h-3" style={{ color }} />
                   </div>
-                  <p className="flex-1 text-[12px] text-[#3a352b] leading-snug">{truncated}</p>
+                  <p className="flex-1 text-[12px] text-[#3a352b] leading-snug">{text}</p>
                   <ArrowRight className="mt-1 h-3 w-3 shrink-0 text-[#6470a8] opacity-0 transition-opacity group-hover:opacity-100" />
                 </Link>
               );
             })}
-            {quickWins.length === 0 && aiInsights.length === 0 && (
+            {quickWins.length === 0 && (
               <p className="text-[11.5px] text-[#8a8273]">Run the Analyzer to generate personalised quick wins.</p>
             )}
           </div>

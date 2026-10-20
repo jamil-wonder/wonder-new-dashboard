@@ -8,12 +8,15 @@ export interface RunLeg {
   error?: string | null;
   http_status?: number | null;
   score?: number | null;
+  pages?: number | null;
 }
 
 export interface RunStatus {
   run_id: string;
   status: "running" | "complete" | "incomplete" | "failed" | string;
   legs: { crawl?: RunLeg; tracker?: RunLeg };
+  models?: Record<string, { answered: number; mentioned: number; failed: number }> | null;
+  competitors_found?: number | null;
   tracker_progress: { processed: number; total: number; status?: string | null; error?: string | null } | null;
   wonder_score: number | null;
 }
@@ -23,6 +26,8 @@ export interface FirstRunQuestion {
   type: "branded" | "non-branded" | "local-seo" | "broad-seo";
   label: string;
   query: string;
+  // J8: false = set aside (not one of the 20); anything else = kept
+  keep?: boolean;
 }
 
 const GROUPS: Array<[string, FirstRunQuestion["type"], string]> = [
@@ -59,21 +64,29 @@ export function failureMessage(status: RunStatus): string {
 }
 
 /** The three stages for a run's status. `onRetry` is attached to whichever stage failed. */
+const MODELS: Array<[string, string]> = [
+  ["chatgpt", "ChatGPT"],
+  ["claude", "Claude"],
+  ["perplexity", "Perplexity"],
+  ["gemini", "Gemini"],
+];
+
+// J1: one stage for the website, one per AI model (with "Mentioned in 7 of 20"), competitors, the score and the plan.
 export function deriveStages(status: RunStatus | null, onRetry: () => void): ProgressStage[] {
   const crawl = status?.legs.crawl?.status;
   const tracker = status?.legs.tracker?.status;
   const tp = status?.tracker_progress;
-  const finished = status && status.status !== "running";
+  const complete = status?.status === "complete";
+  const finished = Boolean(status && status.status !== "running");
 
+  const pages = status?.legs.crawl?.pages;
   const crawlStage: ProgressStage = {
     id: "crawl",
     label: "Scanning your website",
     status: crawl === "ok" ? "done" : crawl === "failed" ? "failed" : "running",
     detail:
       crawl === "ok"
-        ? typeof status?.legs.crawl?.score === "number"
-          ? `Website health: ${Math.round(status.legs.crawl.score)}/100`
-          : "Website scanned"
+        ? [typeof pages === "number" && pages > 0 ? `Found ${pages} page${pages === 1 ? "" : "s"}` : "", typeof status?.legs.crawl?.score === "number" ? `Website health: ${Math.round(status.legs.crawl.score)}/100` : ""].filter(Boolean).join(" - ") || "Website scanned"
         : crawl === "failed"
           ? failureMessage(status as RunStatus)
           : "Reading your pages, contact details and structure",
@@ -81,28 +94,56 @@ export function deriveStages(status: RunStatus | null, onRetry: () => void): Pro
   if (crawlStage.status === "failed") crawlStage.onRetry = onRetry;
 
   const crawlOk = crawl === "ok";
-  const trackerFailed = crawlOk && Boolean(finished) && status?.status !== "complete";
-  const percent = tp && tp.total > 0 ? (100 * tp.processed) / tp.total : 0;
-  const trackerStage: ProgressStage = {
-    id: "tracker",
-    label: "Asking ChatGPT, Claude, Perplexity and Gemini",
-    status: !crawlOk ? "pending" : trackerFailed ? "failed" : tracker === "ok" || status?.status === "complete" ? "done" : "running",
-    percent,
-    detail: !crawlOk
-      ? undefined
-      : trackerFailed
-        ? failureMessage(status as RunStatus)
-        : tp && tp.total > 0
-          ? `${tp.processed} of ${tp.total} questions answered${tp.processed === tp.total ? "" : " - this is the long part, usually 5 to 15 minutes"}`
-          : "Queuing your questions",
+  const trackerDone = tracker === "ok" || complete;
+  const trackerFailed = crawlOk && finished && !complete;
+  const total = tp?.total || 20;
+
+  const modelStages: ProgressStage[] = MODELS.map(([key, label]) => {
+    const m = status?.models?.[key];
+    const answered = m?.answered ?? 0;
+    const failed = m?.failed ?? 0;
+    const allIn = trackerDone || (answered + failed >= total && total > 0);
+    const stage: ProgressStage = {
+      id: `model-${key}`,
+      label: `Asking ${label}`,
+      status: !crawlOk ? "pending" : failed > 0 && answered === 0 && allIn ? "failed" : allIn ? "done" : "running",
+      percent: crawlOk && !allIn && total > 0 ? (100 * (answered + failed)) / total : undefined,
+      detail: !crawlOk
+        ? undefined
+        : failed > 0 && answered === 0 && allIn
+          ? `${label} could not be reached`
+          : allIn
+            ? `Mentioned in ${m?.mentioned ?? 0} of ${answered}${failed > 0 ? ` (${failed} not answered)` : ""}`
+            : answered > 0 ? `${answered} of ${total} answered` : "Waiting for answers",
+    };
+    if (stage.status === "failed" || (trackerFailed && stage.status === "running")) {
+      stage.status = "failed";
+      stage.detail = stage.detail || failureMessage(status as RunStatus);
+      stage.onRetry = onRetry;
+    }
+    return stage;
+  });
+
+  const competitorsStage: ProgressStage = {
+    id: "competitors",
+    label: "Finding who you compete with",
+    status: !crawlOk ? "pending" : complete || (trackerDone && (status?.competitors_found ?? 0) > 0) ? "done" : trackerDone ? "running" : "pending",
+    detail: typeof status?.competitors_found === "number" && status.competitors_found > 0 ? `Found ${status.competitors_found} competitor${status.competitors_found === 1 ? "" : "s"}` : complete ? "No competitors found" : undefined,
   };
-  if (trackerStage.status === "failed") trackerStage.onRetry = onRetry;
 
   const scoreStage: ProgressStage = {
     id: "score",
     label: "Working out your Wonder Score",
-    status: status?.status === "complete" ? "done" : trackerStage.status === "done" ? "running" : "pending",
-    detail: status?.status === "complete" && typeof status.wonder_score === "number" ? `Your score: ${Math.round(status.wonder_score)}/100` : undefined,
+    status: complete ? "done" : trackerDone ? "running" : "pending",
+    detail: complete && typeof status?.wonder_score === "number" ? `Your score: ${Math.round(status.wonder_score)}/100` : undefined,
   };
-  return [crawlStage, trackerStage, scoreStage];
+
+  const planStage: ProgressStage = {
+    id: "plan",
+    label: "Building your plan",
+    status: complete ? "done" : "pending",
+    detail: complete ? "Your first actions are ready" : undefined,
+  };
+
+  return [crawlStage, ...modelStages, competitorsStage, scoreStage, planStage];
 }

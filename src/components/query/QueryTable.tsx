@@ -1,11 +1,11 @@
 "use client";
 
-import SiteIcon from "../ui/SiteIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Globe } from "lucide-react";
 import { SearchQueryItem } from "../../types/dashboard";
 import QueryAnswerPanel from "./QueryAnswerPanel";
-import { getSourcesForModel, normalizeDomain } from "../../lib/querySources";
+import QuestionCell from "./QuestionCell";
+import { getSourcesForModel } from "../../lib/querySources";
 
 interface QueryTableProps {
   queries: SearchQueryItem[];
@@ -17,16 +17,12 @@ interface QueryTableProps {
   // G4: every place the business is tracked in (main + extra); with 2+, local questions show which place they are about
   locations?: string[];
   onOpenSources?: (query: SearchQueryItem) => void;
+  // J8: change, remove, or reword a question
+  onEditQuery?: (query: SearchQueryItem, text: string) => void;
+  onRemoveQuery?: (query: SearchQueryItem) => void;
+  onRewriteQuery?: (query: SearchQueryItem) => Promise<string | null>;
   // I6: the Rank column is only there once some answer has a rank
   showRank?: boolean;
-}
-
-const VISIBLE_SOURCE_COUNT = 3;
-
-function Favicon({ domain }: { domain: string }) {
-  const clean = normalizeDomain(domain);
-  if (!clean) return null;
-  return <SiteIcon domain={clean} size={14} className="border border-[#ece3d1] bg-white" />;
 }
 
 export default function QueryTable({
@@ -37,6 +33,9 @@ export default function QueryTable({
   onCloseAnswer,
   locations = [],
   onOpenSources,
+  onEditQuery,
+  onRemoveQuery,
+  onRewriteQuery,
   showRank = true,
 }: QueryTableProps) {
   if (queries.length === 0) {
@@ -92,7 +91,6 @@ export default function QueryTable({
 
           // B4: the sources THIS model cited (the tab selected above), not the union of all four
           const sourcesVal = getSourcesForModel(q, selectedModel);
-          const visibleSources = sourcesVal.slice(0, VISIBLE_SOURCE_COUNT);
 
           // Target Site Match Status Badge (Site matched, Partial match, Not matched)
           const targetSiteData = modelRes?.targetSite;
@@ -148,9 +146,7 @@ export default function QueryTable({
               </span>
 
               <div className="min-w-0 pr-2">
-                <span className="block text-[14px] font-medium text-[#1c1a16] tracking-tight leading-snug whitespace-normal break-words">
-                  &ldquo;{q.query}&rdquo;
-                </span>
+                <QuestionCell query={q} onEdit={onEditQuery} onRemove={onRemoveQuery} onRewrite={onRewriteQuery} />
               </div>
 
               {/* Light & Crisp Distinct Status Pills */}
@@ -204,73 +200,22 @@ export default function QueryTable({
               <div className="text-right flex gap-1.5 justify-end items-center flex-wrap">
                 {isAudited ? (
                   <>
-                    {/* Target Site Match Status Badge */}
-                    {targetSiteStatus === "matched" && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
-                        className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#15803d] bg-[#dcfce7] border border-[#bbf7d0] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
-                        title="Target website matched this query prompt"
-                      >
-                        <Globe className="w-3 h-3 text-[#15803d]" />
-                        <span>Site matched</span>
-                      </button>
-                    )}
-
-                    {targetSiteStatus === "partial" && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
-                        className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
-                        title="Target website partially matched this query"
-                      >
-                        <Globe className="w-3 h-3 text-[#92400e]" />
-                        <span>Partial match</span>
-                      </button>
-                    )}
-
-                    {targetSiteStatus === "no_match" && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); if (onOpenSources) onOpenSources(q); }}
-                        className="inline-flex items-center gap-1 text-[10.5px] font-medium text-[#6b7280] bg-[#f3f4f6] border border-[#e5e7eb] px-2 py-0.5 rounded-md cursor-pointer hover:underline"
-                        title="Target website did not rank directly in organic top results"
-                      >
-                        <span>Not matched</span>
-                      </button>
-                    )}
-
-                    {/* Third-Party Domain Favicon Pills - top 3, then a +N
-                        overflow badge, both opening the sidebar with the
-                        FULL list so the count shown here is never a lie. */}
-                    {visibleSources.map((sItem, idx) => (
-                      <button
-                        type="button"
-                        key={idx}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onOpenSources) onOpenSources(q);
-                        }}
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3a352b] bg-[#f6f3ec] border border-[#ece3d1] px-2 py-0.5 rounded hover:underline hover:border-[#15463b] transition-colors cursor-pointer"
-                        title="Click to view all extracted sources"
-                      >
-                        <Favicon domain={sItem} />
-                        <span>{sItem}</span>
-                      </button>
-                    ))}
-
-                    {sourcesVal.length > 0 && (
+                    {/* B4: one chip with the count; it opens the sidebar with the full list */}
+                    {sourcesVal.length > 0 ? (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onOpenSources) onOpenSources(q);
                         }}
-                        className="inline-flex items-center text-[11px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2 py-0.5 rounded cursor-pointer hover:underline"
-                        title="Click to view the sources"
+                        className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-1 rounded-md cursor-pointer hover:underline"
+                        title={targetSiteStatus === "matched" ? "Includes your website - click to view the sources" : "Click to view the sources"}
                       >
+                        <Globe className="w-3 h-3" />
                         {sourcesVal.length} {sourcesVal.length === 1 ? "source" : "sources"}
                       </button>
+                    ) : (
+                      <span className="text-[12px] text-[#8a8273]">No sources</span>
                     )}
                   </>
                 ) : (

@@ -3,7 +3,7 @@
 import { checkOpeningHours } from "../../lib/hoursCheck";
 import Dialog from "../../components/ui/Dialog";
 import { areaBadge } from "../../lib/areaBadge";
-import { assessInsight, CONFIDENCE_STYLE, type InsightProfile } from "../../lib/aiConfidence";
+import { assessInsight, CONFIDENCE_STYLE, verifiedFieldLinks, type InsightProfile } from "../../lib/aiConfidence";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
@@ -634,7 +634,7 @@ export default function AnalyserPage() {
           className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#15463b] hover:bg-[#1a5c44] px-4 py-2.5 rounded-lg transition-colors cursor-pointer border-none"
         >
           <Sparkles className="w-4 h-4" />
-          Run Analysis
+          Scan my website <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     );
@@ -724,11 +724,17 @@ export default function AnalyserPage() {
                 <section className="rounded-xl border border-[#d7eedf] bg-[#f3fbf6] p-4">
                   <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#1e7d4f] mb-2">Detected</div>
                   <div className="flex flex-wrap gap-1.5">
-                    {(selectedAiInsight.verifiedFields?.length ? selectedAiInsight.verifiedFields : ["No detected fields"]).map((field: string) => (
-                      <span key={field} className="text-[11px] font-semibold text-[#1e7d4f] bg-white border border-[#c7ead3] px-2 py-1 rounded-md">
-                        ✓ {field}
-                      </span>
-                    ))}
+                    {verifiedFieldLinks(selectedAiInsight.verifiedFields?.length ? selectedAiInsight.verifiedFields : ["No detected fields"], s).map(({ field, href }) =>
+                      href ? (
+                        <a key={field} href={href} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-[#1e7d4f] bg-white border border-[#c7ead3] px-2 py-1 rounded-md underline decoration-dotted">
+                          ✓ {field}
+                        </a>
+                      ) : (
+                        <span key={field} className="text-[11px] font-semibold text-[#6f6757] bg-white border border-[#e5ddd0] px-2 py-1 rounded-md">
+                          {field}
+                        </span>
+                      ),
+                    )}
                   </div>
                 </section>
 
@@ -781,7 +787,7 @@ export default function AnalyserPage() {
             ) : (
               <WonderscoreLogo size={16} color="white" />
             )}
-            {isScanning ? "Crawling Site..." : "Re-run crawl"}
+            {isScanning ? "Scanning..." : "Re-scan"}
           </button>
         </div>
         {analysedAt && !Number.isNaN(Date.parse(analysedAt)) && (
@@ -832,205 +838,6 @@ export default function AnalyserPage() {
             </div>
           );
         })()}
-      </div>
-
-      {/* ── AI Model Insights ───────────────────────────────────────────── */}
-      <div className={`bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
-        <div className="flex items-center gap-2 mb-5">
-          <BrainCircuit className="w-4 h-4 text-[#15463b]" />
-          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">
-            How AI describes you
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {insightsView.map((ai) => {
-            return (
-              <button
-                key={ai.model}
-                type="button"
-                onClick={() => setSelectedAiInsight(ai)}
-                className="text-left border border-[#ece3d1] rounded-xl p-4 flex flex-col gap-3 bg-[#fdfcf8] hover:border-[#b8cdfd] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 transition-all"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 shrink-0 flex items-center justify-center overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ai.icon} alt={ai.model} className="w-6 h-6 object-contain" />
-                    </div>
-                    <span className="font-semibold text-[13.5px] text-[#23211b]">{ai.model}</span>
-                  </div>
-                  <span className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0"
-                    style={{ color: ai.confidenceColor, backgroundColor: ai.confidenceBg }}>
-                    {ai.confidence}
-                  </span>
-                </div>
-                <p className="text-[12px] text-[#6f6757] leading-relaxed min-h-[72px] line-clamp-4">{ai.summary}</p>
-                {ai.discrepancy && (
-                  <p className="text-[11.5px] font-semibold text-[#b1442a] bg-[#fdeeea] border border-[#f0c5ba] rounded-md px-2 py-1.5 leading-snug">
-                    Discrepancy: {ai.discrepancy.message}
-                  </p>
-                )}
-                
-                {/* Verified vs Missing Entity parameters */}
-                {!ai.unavailable && (
-                <div className="border-t border-[#f0ebe0] pt-2.5 mt-auto">
-                  <div className="text-[11px] uppercase font-mono-spline text-[#6f6757] tracking-wide mb-1.5">Verified Parameters</div>
-                  <div className="flex flex-wrap gap-1">
-                    {ai.verifiedFields?.map((field: string) => (
-                      <span key={field} className="text-[10px] font-semibold text-[#1e7d4f] bg-[#dcefe2] px-1.5 py-0.5 rounded">
-                        ✓ {field}
-                      </span>
-                    ))}
-                    {ai.missingFields?.slice(0, 2).map((field: string) => (
-                      <span key={field} className="text-[10px] font-semibold text-[#c0513a] bg-[#f6dcd5] px-1.5 py-0.5 rounded">
-                        ✗ {field}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <AiDisclaimer className="mt-4" />
-      </div>
-
-      {/* ── Overall Score + Area Breakdown ──────────────────────────────── */}
-      <div className={`grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
-
-        {/* Score card */}
-        {(() => {
-          // Website health only ever comes from the crawl (never the Wonder Score, never a made-up default)
-          const currentTotalScore = typeof s.scores?.total === "number" ? s.scores.total : (activeBusiness?.latestPhase1Score ?? 0);
-          const { grade: dynamicGrade, visibilityText, bg: pillBg, text: pillText } = getVisibilityInfo(currentTotalScore, s.scores?.grade);
-          const ringCircumference = 207.34;
-          const strokeDashLength = Math.max(0, Math.min(207.34, (currentTotalScore / 100) * 207.34));
-          const ringColor = currentTotalScore >= 70 ? "#a8d860" : currentTotalScore >= 50 ? "#f0d878" : "#dc6b6b";
-
-          const hasTrend = s.scoreChange !== undefined && s.scoreChange !== null;
-          const isTrendUp = typeof s.scoreChange === "number" ? s.scoreChange > 0 : String(s.scoreChange || "").startsWith("+");
-
-          return (
-            <div className="bg-[#15463b] rounded-[18px] p-6 text-white flex flex-col justify-between">
-              <div>
-                <div className="font-mono-spline text-[11px] tracking-[0.16em] uppercase text-[#a9cdb9]">Website health</div>
-                
-                <div className="flex items-center justify-between gap-2 mt-3.5">
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="font-spectral text-[48px] sm:text-[72px] leading-none font-semibold">{currentTotalScore}</span>
-                    <span className="font-spectral text-[13px] sm:text-[17px] text-[#7fae97]">/100</span>
-                  </div>
-
-                  {/* Dynamic circle progress ring */}
-                  <div className="relative w-[56px] h-[56px] sm:w-[80px] sm:h-[80px] shrink-0">
-                    <svg width="80" height="80" viewBox="0 0 80 80" className="block w-full h-full">
-                      <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="33"
-                        fill="none"
-                        stroke={ringColor}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={`${strokeDashLength.toFixed(1)} 207.3`}
-                        transform="rotate(-90 40 40)"
-                      />
-                    </svg>
-                    {hasTrend && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        {isTrendUp ? (
-                          <TrendingUp className="w-6 h-6 text-[#a8d860]" />
-                        ) : (
-                          <TrendingDown className="w-6 h-6 text-[#dc6b6b]" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <span
-                    className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1 rounded-full transition-colors"
-                    style={{ backgroundColor: pillBg, color: pillText }}
-                  >
-                    Grade {dynamicGrade} · {visibilityText}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-2.5">
-                {[
-                  { label: "Core Identity",  val: s.scores?.coreIdentity?.total },
-                  { label: "Contact Info",   val: s.scores?.contact?.total },
-                  { label: "Schema",         val: s.scores?.schema?.total },
-                  { label: "Technical",      val: s.scores?.technical?.total },
-                ].map(({ label, val: raw }) => {
-                  // I4: a part that wasn't measured says so - it never shows a made-up percentage.
-                  const val = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
-                  return (
-                  <div key={label}>
-                    <div className="flex justify-between text-[11.5px] mb-1">
-                      <span className="text-[#86b89f]">{label}</span>
-                      <span className="font-bold text-white">{val === null ? "Not measured" : `${val}%`}</span>
-                    </div>
-                    <div className="h-[4px] bg-white/15 rounded-full overflow-hidden">
-                      {val !== null && <div className="h-full bg-[#a8d860] rounded-full" style={{ width: `${val}%` }} />}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 6 Audit Area bars */}
-        <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-[18px] p-3 sm:p-5 md:p-[22px_26px]">
-          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-5">
-            Score Breakdown · 6 Weighted Audit Areas
-          </div>
-          <div className="flex flex-col gap-4">
-            {auditAreas.map((item) => {
-              const IconComponent = ICON_MAP[item.iconName] || FileCode2;
-              const badge = areaBadge(item.score);
-              return (
-                <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
-                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: badge.bg }}>
-                    <IconComponent className="w-4 h-4" style={{ color: badge.color }} />
-                  </div>
-                  <div className="group relative flex items-center gap-1 flex-1 min-w-0">
-                    <span className="text-[11.5px] sm:text-[13.5px] text-[#23211b] font-medium truncate">{item.label}</span>
-                    {item.capped && (
-                      <span title={item.cappedReason} className="shrink-0 text-[9.5px] font-semibold text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.5 rounded">
-                        Capped at 50
-                      </span>
-                    )}
-                    <Info className="hidden sm:block w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
-
-                    {/* Floating Tooltip Popover */}
-                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-[240px] bg-[#15463b] text-white text-[11.5px] leading-snug p-2.5 rounded-xl shadow-xl z-30 pointer-events-none transition-all">
-                      <div className="font-semibold text-[#a8d860] mb-0.5">{item.label}</div>
-                      {AUDIT_AREA_DESCRIPTIONS[item.id] || "Part of your 6-area AI visibility audit score."}
-                      <div className="absolute left-2 -bottom-1 w-2 h-2 bg-[#15463b] rotate-45"></div>
-                    </div>
-                  </div>
-                  <div className="w-[70px] sm:w-[140px] md:w-[200px] h-[7px] bg-[#eee9de] rounded-full overflow-hidden shrink-0">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${item.score}%`, backgroundColor: badge.bar }} />
-                  </div>
-                  <span className="num text-[11px] sm:text-[13px] font-bold text-[#23211b] w-9 sm:w-[50px] text-right shrink-0">
-                    {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
-                  </span>
-                  <span className="hidden sm:inline-block font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[68px] shrink-0"
-                    style={{ color: badge.color, backgroundColor: badge.bg }}>
-                    {badge.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* ── Entity & Contact Signals + Technical Readiness ─────────────── */}
@@ -1194,6 +1001,219 @@ export default function AnalyserPage() {
           </div>
         </div>
       </div>
+      {/* ── AI Model Insights ───────────────────────────────────────────── */}
+      <div className={`bg-white border border-[#ece3d1] rounded-[18px] p-5 md:p-[22px_26px] shadow-sm transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
+        <div className="flex items-center gap-2 mb-5">
+          <BrainCircuit className="w-4 h-4 text-[#15463b]" />
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757]">
+            How AI describes you
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {insightsView.map((ai) => {
+            return (
+              <button
+                key={ai.model}
+                type="button"
+                onClick={() => setSelectedAiInsight(ai)}
+                className="text-left border border-[#ece3d1] rounded-xl p-4 flex flex-col gap-3 bg-[#fdfcf8] hover:border-[#b8cdfd] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 transition-all"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 shrink-0 flex items-center justify-center overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ai.icon} alt={ai.model} className="w-6 h-6 object-contain" />
+                    </div>
+                    <span className="font-semibold text-[13.5px] text-[#23211b]">{ai.model}</span>
+                  </div>
+                  <span className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0"
+                    style={{ color: ai.confidenceColor, backgroundColor: ai.confidenceBg }}>
+                    {ai.confidence}
+                  </span>
+                </div>
+                <p className="text-[12px] text-[#6f6757] leading-relaxed min-h-[72px] line-clamp-4">{ai.summary}</p>
+                {ai.discrepancy && (
+                  <p className="text-[11.5px] font-semibold text-[#b1442a] bg-[#fdeeea] border border-[#f0c5ba] rounded-md px-2 py-1.5 leading-snug">
+                    Discrepancy: {ai.discrepancy.message}
+                  </p>
+                )}
+                
+                {/* Verified vs Missing Entity parameters */}
+                {!ai.unavailable && (
+                <div className="border-t border-[#f0ebe0] pt-2.5 mt-auto">
+                  <div className="text-[11px] uppercase font-mono-spline text-[#6f6757] tracking-wide mb-1.5">Verified Parameters</div>
+                  <div className="flex flex-wrap gap-1">
+                    {verifiedFieldLinks(ai.verifiedFields, s).map(({ field, href }) =>
+                      href ? (
+                        <a
+                          key={field}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title={`Found on your site: ${href}`}
+                          className="text-[10px] font-semibold text-[#1e7d4f] bg-[#dcefe2] px-1.5 py-0.5 rounded underline decoration-dotted"
+                        >
+                          ✓ {field}
+                        </a>
+                      ) : (
+                        <span key={field} className="text-[10px] font-semibold text-[#6f6757] bg-[#f0ebe0] px-1.5 py-0.5 rounded" title="No page on your site was found for this">
+                          {field}
+                        </span>
+                      ),
+                    )}
+                    {ai.missingFields?.slice(0, 2).map((field: string) => (
+                      <span key={field} className="text-[10px] font-semibold text-[#c0513a] bg-[#f6dcd5] px-1.5 py-0.5 rounded">
+                        ✗ {field}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <AiDisclaimer className="mt-4" />
+      </div>
+
+      {/* ── Overall Score + Area Breakdown ──────────────────────────────── */}
+      <div className={`grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 transition-all duration-300 ${isScanning ? "opacity-75 blur-[1px]" : ""}`}>
+
+        {/* Score card */}
+        {(() => {
+          // Website health only ever comes from the crawl (never the Wonder Score, never a made-up default)
+          const currentTotalScore = typeof s.scores?.total === "number" ? s.scores.total : (activeBusiness?.latestPhase1Score ?? 0);
+          const { grade: dynamicGrade, visibilityText, bg: pillBg, text: pillText } = getVisibilityInfo(currentTotalScore, s.scores?.grade);
+          const ringCircumference = 207.34;
+          const strokeDashLength = Math.max(0, Math.min(207.34, (currentTotalScore / 100) * 207.34));
+          const ringColor = currentTotalScore >= 70 ? "#a8d860" : currentTotalScore >= 50 ? "#f0d878" : "#dc6b6b";
+
+          const hasTrend = s.scoreChange !== undefined && s.scoreChange !== null;
+          const isTrendUp = typeof s.scoreChange === "number" ? s.scoreChange > 0 : String(s.scoreChange || "").startsWith("+");
+
+          return (
+            <div className="bg-[#15463b] rounded-[18px] p-6 text-white flex flex-col justify-between">
+              <div>
+                <div className="font-mono-spline text-[11px] tracking-[0.16em] uppercase text-[#a9cdb9]">Website health</div>
+                
+                <div className="flex items-center justify-between gap-2 mt-3.5">
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="font-spectral text-[48px] sm:text-[72px] leading-none font-semibold">{currentTotalScore}</span>
+                    <span className="font-spectral text-[13px] sm:text-[17px] text-[#7fae97]">/100</span>
+                  </div>
+
+                  {/* Dynamic circle progress ring */}
+                  <div className="relative w-[56px] h-[56px] sm:w-[80px] sm:h-[80px] shrink-0">
+                    <svg width="80" height="80" viewBox="0 0 80 80" className="block w-full h-full">
+                      <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="8" />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="33"
+                        fill="none"
+                        stroke={ringColor}
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${strokeDashLength.toFixed(1)} 207.3`}
+                        transform="rotate(-90 40 40)"
+                      />
+                    </svg>
+                    {hasTrend && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        {isTrendUp ? (
+                          <TrendingUp className="w-6 h-6 text-[#a8d860]" />
+                        ) : (
+                          <TrendingDown className="w-6 h-6 text-[#dc6b6b]" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1 rounded-full transition-colors"
+                    style={{ backgroundColor: pillBg, color: pillText }}
+                  >
+                    Grade {dynamicGrade} · {visibilityText}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-2.5">
+                {[
+                  { label: "Core Identity",  val: s.scores?.coreIdentity?.total },
+                  { label: "Contact Info",   val: s.scores?.contact?.total },
+                  { label: "Schema",         val: s.scores?.schema?.total },
+                  { label: "Technical",      val: s.scores?.technical?.total },
+                ].map(({ label, val: raw }) => {
+                  // I4: a part that wasn't measured says so - it never shows a made-up percentage.
+                  const val = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+                  return (
+                  <div key={label}>
+                    <div className="flex justify-between text-[11.5px] mb-1">
+                      <span className="text-[#86b89f]">{label}</span>
+                      <span className="font-bold text-white">{val === null ? "Not measured" : `${val}%`}</span>
+                    </div>
+                    <div className="h-[4px] bg-white/15 rounded-full overflow-hidden">
+                      {val !== null && <div className="h-full bg-[#a8d860] rounded-full" style={{ width: `${val}%` }} />}
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 6 Audit Area bars */}
+        <div className="bg-[#fdfcf8] border border-[#ece3d1] rounded-[18px] p-3 sm:p-5 md:p-[22px_26px]">
+          <div className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#6f6757] mb-5">
+            Score Breakdown · 6 Weighted Audit Areas
+          </div>
+          <div className="flex flex-col gap-4">
+            {auditAreas.map((item) => {
+              const IconComponent = ICON_MAP[item.iconName] || FileCode2;
+              const badge = areaBadge(item.score);
+              return (
+                <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
+                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: badge.bg }}>
+                    <IconComponent className="w-4 h-4" style={{ color: badge.color }} />
+                  </div>
+                  <div className="group relative flex items-center gap-1 flex-1 min-w-0">
+                    <span className="text-[11.5px] sm:text-[13.5px] text-[#23211b] font-medium truncate">{item.label}</span>
+                    {item.capped && (
+                      <span title={item.cappedReason} className="shrink-0 text-[9.5px] font-semibold text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.5 rounded">
+                        Capped at 50
+                      </span>
+                    )}
+                    <Info className="hidden sm:block w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
+
+                    {/* Floating Tooltip Popover */}
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-[240px] bg-[#15463b] text-white text-[11.5px] leading-snug p-2.5 rounded-xl shadow-xl z-30 pointer-events-none transition-all">
+                      <div className="font-semibold text-[#a8d860] mb-0.5">{item.label}</div>
+                      {AUDIT_AREA_DESCRIPTIONS[item.id] || "Part of your 6-area AI visibility audit score."}
+                      <div className="absolute left-2 -bottom-1 w-2 h-2 bg-[#15463b] rotate-45"></div>
+                    </div>
+                  </div>
+                  <div className="w-[70px] sm:w-[140px] md:w-[200px] h-[7px] bg-[#eee9de] rounded-full overflow-hidden shrink-0">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${item.score}%`, backgroundColor: badge.bar }} />
+                  </div>
+                  <span className="num text-[11px] sm:text-[13px] font-bold text-[#23211b] w-9 sm:w-[50px] text-right shrink-0">
+                    {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
+                  </span>
+                  <span className="hidden sm:inline-block font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[68px] shrink-0"
+                    style={{ color: badge.color, backgroundColor: badge.bg }}>
+                    {badge.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

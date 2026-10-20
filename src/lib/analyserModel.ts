@@ -94,6 +94,10 @@ export function buildAnalysis(scrapeRes: any, ctx: AnalysisContext): { scan: any
     schemas: scrapeRes.schemas || [],
     aiBotAccess: scrapeRes.aiBotAccess || {},
     hasContactPath: scrapeRes.hasContactPath ?? false,
+    // C5: real pages found by the crawl, used to back the "verified" ticks
+    homePageUrl: scrapeRes.canonicalUrl || ctx.cleanUrl || "",
+    contactPageUrl: scrapeRes.contactPageUrl || "",
+    aboutPageUrl: scrapeRes.aboutPageUrl || "",
     logoFound: Boolean(scrapeRes.logoUrl),
     technologies: scrapeRes.technologies || [],
     warnings: scrapeRes.warnings || [],
