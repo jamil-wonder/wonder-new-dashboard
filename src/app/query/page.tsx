@@ -7,7 +7,7 @@ import Dialog from "../../components/ui/Dialog";
 import { mapProviderResults } from "../../lib/trackerResults";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Loader2 } from "lucide-react";
+import { ArrowRight, Building2, Loader2, Lock } from "lucide-react";
 import ModelSwitcher from "../../components/query/ModelSwitcher";
 import QueryFilterBar from "../../components/query/QueryFilterBar";
 import QueryTable from "../../components/query/QueryTable";
@@ -1329,97 +1329,110 @@ export default function QueryPage() {
         </div>
       )}
 
-      {/* Say plainly what the numbers are based on, and when it was last asked */}
-      {!isLoadingQuestions && queriesList.length > 0 && answersCollectedAt && (
-        <div className="text-[12px] text-[#6f6757] bg-[#fdfcf8] border border-[#ece3d1] rounded-xl px-4 py-2.5">
-          Last checked{" "}
-          <strong className="text-[#3a352b]">
-            {new Date(answersCollectedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-          </strong>
-          {" "}with ChatGPT, Claude, Perplexity and Gemini. The models answer a little differently each time, so small score changes can be noise.
-        </div>
-      )}
-
-      {/* Top summary - "appeared X/20, rank, closing N gaps could help you
-          catch the competitor right above you" per the platform-flow spec's
-          Search Tracker section. Every number here is real: appearedCount
-          from each query's own aggregate status, rank + the next-rank-up
-          competitor's name from this session's actual deep_competitors -
-          no fabricated predicted score/rank jump, since we have no scoring
-          simulation to back a specific "you'd become #2" claim. */}
+      {/* One results card: what the numbers are based on, the headline figures, and the locked baseline.
+          Every number is real: appearedCount from each question's own aggregate status, the rank and the
+          competitor above you from this run's competitors. "Pending" (never run) is not "Not mentioned". */}
       {!isLoadingQuestions && queriesList.length > 0 && (() => {
         const totalQ = queriesList.length;
-        // "Pending" (never run) is not the same thing as "Not Mentioned"
-        // (actually checked and genuinely missing) - conflating the two
-        // claims you're absent from questions nobody has asked yet, which
-        // isn't true. Gaps can only be counted among questions that have
-        // real results.
         const runCount = queriesList.filter((q) => (q.status as string) !== "Pending" && (q.status as string) !== "Unavailable").length;
         const appearedCount = queriesList.filter((q) => q.status === "Mentioned").length;
         const gapsCount = runCount - appearedCount;
         const userRow = competitorRows.find((c) => c.isUser);
         const aboveRow = userRow ? competitorRows.find((c) => c.rank === userRow.rank - 1) : null;
-
-        if (runCount === 0) {
-          return (
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 text-[13px]">
-              <span className="text-[#6f6757]">
-                None of your {totalQ} questions have been run yet - click <strong className="text-[#15463b]">Run</strong> to see how AI models actually respond.
-              </span>
-            </div>
-          );
-        }
+        const pct = runCount > 0 ? Math.round((100 * appearedCount) / runCount) : 0;
+        const checkedOn = answersCollectedAt
+          ? new Date(answersCollectedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+          : null;
 
         return (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#f6f3ec] border border-[#ece3d1] rounded-xl px-4 py-3 text-[13px]">
-            <span className="font-semibold text-[#23211b]">
-              Mentioned on at least one model: <span className="text-[#15463b]">{appearedCount}/{runCount}</span>
-              {runCount < totalQ && <span className="text-[#9b927f] font-normal"> ({totalQ - runCount} not run or unavailable)</span>}
-            </span>
-            {userRow && (
-              <span className="font-semibold text-[#23211b]">
-                Rank <span className="text-[#15463b]">#{userRow.rank}</span>
-              </span>
+          <section aria-label="Your latest results" className="overflow-hidden rounded-[18px] border border-[#ece3d1] bg-white shadow-[0_1px_2px_rgba(60,48,28,0.04)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f0e9d8] bg-[#fdfcf8] px-5 py-3">
+              <div>
+                <div className="font-mono-spline text-[11px] uppercase tracking-[0.14em] text-[#6f6757]">Your latest results</div>
+                {checkedOn && (
+                  <div className="mt-0.5 text-[12.5px] text-[#6f6757]" title="The models answer a little differently each time, so small score changes can be noise.">
+                    Checked <strong className="font-semibold text-[#3a352b]">{checkedOn}</strong> with ChatGPT, Claude, Perplexity and Gemini
+                  </div>
+                )}
+              </div>
+              {isLocked ? (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d0e4d6] bg-[#eef3f0] px-3 py-1 text-[12px] font-semibold text-[#15463b]"
+                  title="These questions are your stable weekly baseline, so every week is measured the same way."
+                >
+                  <Lock className="h-3.5 w-3.5" /> {totalQ} questions locked
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLockQuestions}
+                  disabled={isLocking}
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-[#15463b] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#1a5c44] disabled:opacity-50"
+                  title="Lock these in as your stable baseline - your score is measured against the same set every week."
+                >
+                  <Lock className="h-3.5 w-3.5" /> {isLocking ? "Locking…" : "Lock in my questions"}
+                </button>
+              )}
+            </div>
+
+            {runCount === 0 ? (
+              <p className="px-5 py-4 text-[13.5px] text-[#6f6757]">
+                None of your {totalQ} questions have been run yet - click <strong className="text-[#15463b]">Run</strong> to see how the AI models actually respond.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 divide-y divide-[#f0e9d8] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <div className="px-5 py-4">
+                  <div className="text-[12px] font-medium text-[#6f6757]">Named by at least one AI</div>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span className="font-spectral text-[34px] font-semibold leading-none text-[#15463b]">{appearedCount}</span>
+                    <span className="text-[14px] text-[#6f6757]">of {runCount} questions</span>
+                  </div>
+                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#eee9de]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Share of questions where an AI named you">
+                    <div className="h-full rounded-full bg-[#2e9e5b]" style={{ width: `${pct}%` }} />
+                  </div>
+                  {runCount < totalQ && <div className="mt-1.5 text-[11.5px] text-[#6f6757]">{totalQ - runCount} not run or unavailable</div>}
+                </div>
+
+                <div className="px-5 py-4">
+                  <div className="text-[12px] font-medium text-[#6f6757]">Your rank</div>
+                  {userRow ? (
+                    <>
+                      <div className="mt-1 flex items-baseline gap-1.5">
+                        <span className="font-spectral text-[34px] font-semibold leading-none text-[#15463b]">#{userRow.rank}</span>
+                        <span className="text-[14px] text-[#6f6757]">of {competitorRows.length}</span>
+                      </div>
+                      <div className="mt-2.5 text-[12.5px] leading-snug text-[#6f6757]">
+                        {aboveRow ? <>Next up: <strong className="text-[#3a352b]">#{aboveRow.rank} {aboveRow.name}</strong></> : "You are ahead of every tracked competitor."}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-2 text-[13px] text-[#6f6757]">Appears once competitors have been measured.</div>
+                  )}
+                </div>
+
+                <div className="px-5 py-4">
+                  <div className="text-[12px] font-medium text-[#6f6757]">Gaps to close</div>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span className={`font-spectral text-[34px] font-semibold leading-none ${gapsCount > 0 ? "text-[#b1442a]" : "text-[#1e7d4f]"}`}>{gapsCount}</span>
+                    <span className="text-[14px] text-[#6f6757]">{gapsCount === 1 ? "question" : "questions"}</span>
+                  </div>
+                  {gapsCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveStatus("not-mentioned")}
+                      className="mt-2.5 inline-flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-[#15463b] hover:underline"
+                    >
+                      Show them <ArrowRight className="h-3 w-3" />
+                    </button>
+                  ) : (
+                    <div className="mt-2.5 text-[12.5px] text-[#6f6757]">Every answered question names you.</div>
+                  )}
+                </div>
+              </div>
             )}
-            {gapsCount > 0 && (
-              <span className="text-[#6f6757]">
-                {aboveRow
-                  ? <>Closing <strong className="text-[#15463b]">{gapsCount}</strong> gap{gapsCount === 1 ? "" : "s"} could help you catch <strong className="text-[#15463b]">#{aboveRow.rank} {aboveRow.name}</strong></>
-                  : <>Closing <strong className="text-[#15463b]">{gapsCount}</strong> gap{gapsCount === 1 ? "" : "s"} would strengthen every AI answer you're missing from</>
-                }
-              </span>
-            )}
-          </div>
+          </section>
         );
       })()}
-
-      {/* Locked-20 mechanic (Part 3): the core set is the stable baseline
-          the Wonder Score is measured against week to week - same basis
-          for every customer, so it stays comparable. Once locked, editing
-          isn't blocked, just never silent (see the warning modal below). */}
-      {!isLoadingQuestions && queriesList.length > 0 && (
-        isLocked ? (
-          <div className="flex items-center gap-2 bg-[#eef3f0] border border-[#d0e4d6] rounded-xl px-4 py-3 text-[13px]">
-            <span className="text-[#1e7d4f] font-bold">🔒</span>
-            <span className="text-[#15463b] font-semibold">Your 20 questions are locked in</span>
-            <span className="text-[#6f6757]">- this is your stable weekly baseline.</span>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#fdf8ec] border border-[#f0e2b8] rounded-xl px-4 py-3">
-            <div className="text-[13px] text-[#6f6757]">
-              <span className="font-semibold text-[#23211b]">Happy with these 20?</span> Lock them in as your stable baseline - your score gets measured against the same set every week.
-            </div>
-            <button
-              type="button"
-              onClick={handleLockQuestions}
-              disabled={isLocking}
-              className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-semibold bg-[#15463b] text-white hover:bg-[#1a5c44] transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isLocking ? "Locking…" : "🔒 Lock in my 20 questions"}
-            </button>
-          </div>
-        )
-      )}
 
       {/* J9: before anything has been asked, the one thing to do is the biggest thing on the page */}
       {!isLoadingQuestions && queriesList.length > 0 && !hasRunBefore && (
