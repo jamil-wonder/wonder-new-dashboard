@@ -71,7 +71,7 @@ function MiniScoreRing({ score }: { score: number }) {
           transform="rotate(-90 14 14)"
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-spectral font-medium text-[10px] text-[#15463b]">
+      <span className="absolute inset-0 flex items-center justify-center font-spectral font-medium text-[11px] text-[#15463b]">
         {safeScore}
       </span>
     </div>
@@ -168,7 +168,7 @@ export default function SundayCalendar({
                     {draft.excerpt || draft.metaDescription || "Structured AI article"}
                   </p>
 
-                  <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-[#f0f7f2] text-[10.5px] text-[#6f6757]">
+                  <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-[#f0f7f2] text-[11px] text-[#6f6757]">
                     <span className="font-normal">{wordCnt !== null ? `${wordCnt} words` : ""}</span>
                     <span className="text-[#1e7d4f] font-medium inline-flex items-center gap-1">
                       Read article <ArrowRight className="w-3 h-3" />
@@ -190,18 +190,18 @@ export default function SundayCalendar({
 
       {isFutureSunday && (
         <div className="p-2 rounded-md border border-dashed border-[#e6d3a8] bg-[#fcfaf5] text-center">
-          <div className="flex items-center justify-center gap-1 text-[9.5px] font-medium text-[#9a6a12] uppercase tracking-wider mb-0.5">
+          <div className="flex items-center justify-center gap-1 text-[11px] font-medium text-[#9a6a12] uppercase tracking-wider mb-0.5">
             <Lock className="w-3 h-3" />
             <span>Locked</span>
           </div>
-          <span className="block text-[10px] text-[#8a8273] font-normal leading-tight">
+          <span className="block text-[11px] text-[#6f6757] font-normal leading-tight">
             2 articles unlock Sun {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           </span>
         </div>
       )}
 
       {isPastSunday && inMonth && (
-        <div className="p-1.5 rounded-md border border-[#efe7d6] bg-[#fdfcf8] text-center text-[10px] text-[#9b927f]">
+        <div className="p-1.5 rounded-md border border-[#efe7d6] bg-[#fdfcf8] text-center text-[11px] text-[#6f6757]">
           <BookOpen className="w-3 h-3 text-[#b3a98f] mx-auto mb-0.5 opacity-60" />
           <span>Completed Cycle</span>
         </div>
@@ -277,7 +277,7 @@ export default function SundayCalendar({
                 <span className="font-spectral text-[16px] font-medium text-[#15463b] leading-none">
                   {Math.min(usageInfo.used, usageInfo.total)}
                 </span>
-                <span className="text-[10.5px] text-[#9b927f] font-normal">/ {usageInfo.total}</span>
+                <span className="text-[11px] text-[#6f6757] font-normal">/ {usageInfo.total}</span>
               </div>
             </div>
           </div>
@@ -356,7 +356,7 @@ export default function SundayCalendar({
 
                     {isSunday && (
                       <span
-                        className={`text-[8px] font-medium uppercase tracking-wider px-1.5 py-0.2 rounded-sm ${
+                        className={`text-[11px] font-medium uppercase tracking-wider px-1.5 py-0.2 rounded-sm ${
                           isCurrentSundayWeek
                             ? "bg-[#15463b] text-white"
                             : isFutureSunday
@@ -375,7 +375,7 @@ export default function SundayCalendar({
                       renderSundayCellContent(day, isCurrentSundayWeek, isFutureSunday, isPastSunday, inMonth)
                     ) : (
                       <div className="h-full flex items-center justify-center">
-                        <span className="text-[10px] text-[#d8cfbd] font-normal italic">-</span>
+                        <span className="text-[11px] text-[#d8cfbd] font-normal italic">-</span>
                       </div>
                     )}
                   </div>
@@ -407,7 +407,7 @@ export default function SundayCalendar({
                       Sun, {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                     <span
-                      className={`text-[8.5px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
+                      className={`text-[11px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
                         isCurrentSundayWeek
                           ? "bg-[#15463b] text-white"
                           : isFutureSunday

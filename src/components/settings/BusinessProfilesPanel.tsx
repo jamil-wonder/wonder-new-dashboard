@@ -325,7 +325,7 @@ export default function BusinessProfilesPanel() {
                     </span>
                   ))}
                 </div>
-                <p className="text-[10.5px] text-[#9b927f] mt-1.5">
+                <p className="text-[11px] text-[#6f6757] mt-1.5">
                   Updates automatically from your Search Tracker runs - not editable here.
                 </p>
                 <details className="mt-2 text-[11.5px] text-[#6f6757]">
@@ -438,7 +438,7 @@ export default function BusinessProfilesPanel() {
             >
               {/* Sleek Top Badge for Active Card */}
               {isActive && (
-                <div className="absolute -top-3 left-6 bg-[#15463b] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs flex items-center gap-1.5">
+                <div className="absolute -top-3 left-6 bg-[#15463b] text-white text-[11px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
                   Active Profile
                 </div>

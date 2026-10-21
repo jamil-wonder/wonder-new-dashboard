@@ -20,7 +20,7 @@ export default function RoadmapPanel() {
         <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-spectral text-[17px] font-semibold text-[#15463b]">AI bot crawler recommendations</h3>
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#9a6a12] bg-[#faf1da] px-2.5 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#9a6a12] bg-[#faf1da] px-2.5 py-0.5 rounded-full">
               <Clock className="w-3 h-3" /> Coming soon
             </span>
           </div>
@@ -32,7 +32,7 @@ export default function RoadmapPanel() {
         <div className="bg-white border border-[#ece3d1] rounded-[18px] p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-spectral text-[17px] font-semibold text-[#15463b]">Geo radius</h3>
-            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#9a6a12] bg-[#faf1da] px-2.5 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#9a6a12] bg-[#faf1da] px-2.5 py-0.5 rounded-full">
               <Clock className="w-3 h-3" /> Coming soon
             </span>
           </div>

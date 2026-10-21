@@ -114,7 +114,7 @@ export default function NotificationBell() {
       >
         <Bell className="w-5 h-5" />
         {unread > 0 && (
-          <span className="num absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#15463b] text-white text-[9.5px] font-medium flex items-center justify-center">
+          <span className="num absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#15463b] text-white text-[11px] font-medium flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -169,7 +169,7 @@ export default function NotificationBell() {
                         {!item.read && <span className="sr-only"> (unread)</span>}
                       </span>
                       <span className="block text-[12px] text-[#6f6757] leading-snug mt-0.5">{item.body}</span>
-                      <span className="block text-[10.5px] text-[#9b927f] mt-1">{ago(item.created_at)}</span>
+                      <span className="block text-[11px] text-[#6f6757] mt-1">{ago(item.created_at)}</span>
                     </span>
                   </button>
                 </li>

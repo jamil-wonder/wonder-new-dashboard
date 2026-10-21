@@ -215,7 +215,7 @@ export default function BlogReaderModal({ blog, onClose, onChanged }: BlogReader
             {keywords.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap max-w-[360px]">
                 {keywords.slice(0, 4).map((kw: string, i: number) => (
-                  <span key={i} className="text-[10.5px] font-medium text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2 py-0.5 rounded">
+                  <span key={i} className="text-[11px] font-medium text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2 py-0.5 rounded">
                     {kw}
                   </span>
                 ))}

@@ -284,6 +284,20 @@ export default function OverviewPage() {
           onRetry={enrichedData.retryTrackerLoad}
         />
       )}
+      {/* J5: after a scan that didn't finish, say so (and why) instead of only offering a first scan again */}
+      {!isRunActive && activeBusiness?.scanRunLastProblem && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#f0c5ba] bg-[#fff0ec] px-4 py-3 text-[13.5px] text-[#4a4437]">
+          <span>
+            <strong className="text-[#b1442a]">{activeBusiness.hasVisibilityScore ? "Your last update didn't finish." : "Your first scan didn't finish."}</strong>{" "}
+            {activeBusiness.scanRunLastProblem.reason || "Some of the AI models couldn't be reached."} Nothing was counted against you.
+          </span>
+          {!activeBusiness.hasVisibilityScore && (
+            <Link href="/first-run" className="inline-flex h-9 shrink-0 items-center rounded-lg bg-[#15463b] px-4 text-[13px] font-semibold text-white hover:bg-[#1a5c44]">
+              Try the scan again
+            </Link>
+          )}
+        </div>
+      )}
       {/* Part 5 of the flow spec: "No manual runs required (a 'run now'
           exists for the impatient)." Triggers the same full weekly pipeline
           the Sunday scheduler runs for this one business, on demand. */}

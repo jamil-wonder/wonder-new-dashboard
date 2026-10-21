@@ -1,6 +1,7 @@
 "use client";
 
 import { checkOpeningHours } from "../../lib/hoursCheck";
+import { hasLocalBusinessSchema } from "../../lib/schemaType";
 import Dialog from "../../components/ui/Dialog";
 import { areaBadge } from "../../lib/areaBadge";
 import { assessInsight, CONFIDENCE_STYLE, verifiedFieldLinks, type InsightProfile } from "../../lib/aiConfidence";
@@ -666,6 +667,8 @@ export default function AnalyserPage() {
       discrepancy: a.discrepancy,
     };
   });
+  // I4: at least one model actually answered
+  const hasAiData = insightsView.some((ai) => !ai?.unavailable);
 
   return (
     <div className="space-y-5 pb-12 relative">
@@ -684,7 +687,7 @@ export default function AnalyserPage() {
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span
-                      className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full"
+                      className="text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full"
                       style={{ color: selectedAiInsight.confidenceColor, backgroundColor: selectedAiInsight.confidenceBg }}
                     >
                       {selectedAiInsight.confidence}
@@ -726,7 +729,7 @@ export default function AnalyserPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {verifiedFieldLinks(selectedAiInsight.verifiedFields?.length ? selectedAiInsight.verifiedFields : ["No detected fields"], s).map(({ field, href }) =>
                       href ? (
-                        <a key={field} href={href} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-[#1e7d4f] bg-white border border-[#c7ead3] px-2 py-1 rounded-md underline decoration-dotted">
+                        <a key={field} href={href} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-[#15463b] bg-white border border-[#e5ddd0] px-2 py-1 rounded-md underline decoration-dotted">
                           ✓ {field}
                         </a>
                       ) : (
@@ -956,9 +959,8 @@ export default function AnalyserPage() {
               // regardless of the business's real category), so every
               // audit report claimed a fully valid schema even for a site
               // with no JSON-LD, or the wrong business type, at all.
-              const hasBusinessType = schemaList.some((item) =>
-                typeof item?.["@type"] === "string" && /business|organization|localbusiness|store|restaurant|service/i.test(item["@type"])
-              );
+              // C3: the same rule the schema score uses (any LocalBusiness-family type, e.g. ProfessionalService)
+              const hasBusinessType = typeof s.hasLocalBusinessType === "boolean" ? s.hasLocalBusinessType : hasLocalBusinessSchema(schemaList);
               const hasNameField = schemaList.some((item) => typeof item?.name === "string" && item.name.trim().length > 0);
               const hasHoursSpec = hoursVerdict.status === "ok";
 
@@ -1009,6 +1011,23 @@ export default function AnalyserPage() {
             How AI describes you
           </div>
         </div>
+        {insightsView.length === 0 && (
+          <div className="rounded-xl border border-dashed border-[#e0d8c8] bg-[#fdfcf8] px-6 py-8 text-center">
+            <BrainCircuit className="mx-auto h-6 w-6 text-[#6f6757]" />
+            <p className="mt-2 font-spectral text-[17px] font-semibold text-[#23211b]">No AI model has described {businessName || "your business"} yet</p>
+            <p className="mx-auto mt-1 max-w-[460px] text-[13px] leading-relaxed text-[#6f6757]">
+              We ask ChatGPT, Claude, Perplexity and Gemini who you are and what you do, then show what each one says. Until then this part of the score isn&apos;t measured.
+            </p>
+            <button
+              type="button"
+              onClick={handleStartScan}
+              disabled={isScanning}
+              className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#15463b] px-5 py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#1a5c44] disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4" /> Run AI analysis
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {insightsView.map((ai) => {
             return (
@@ -1026,7 +1045,7 @@ export default function AnalyserPage() {
                     </div>
                     <span className="font-semibold text-[13.5px] text-[#23211b]">{ai.model}</span>
                   </div>
-                  <span className="text-[9.5px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0"
+                  <span className="text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0"
                     style={{ color: ai.confidenceColor, backgroundColor: ai.confidenceBg }}>
                     {ai.confidence}
                   </span>
@@ -1052,18 +1071,18 @@ export default function AnalyserPage() {
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           title={`Found on your site: ${href}`}
-                          className="text-[10px] font-semibold text-[#1e7d4f] bg-[#dcefe2] px-1.5 py-0.5 rounded underline decoration-dotted"
+                          className="text-[11px] font-semibold text-[#15463b] bg-[#f0ebe0] px-1.5 py-0.5 rounded underline decoration-dotted"
                         >
                           ✓ {field}
                         </a>
                       ) : (
-                        <span key={field} className="text-[10px] font-semibold text-[#6f6757] bg-[#f0ebe0] px-1.5 py-0.5 rounded" title="No page on your site was found for this">
+                        <span key={field} className="text-[11px] font-semibold text-[#6f6757] bg-[#f0ebe0] px-1.5 py-0.5 rounded" title="No page on your site was found for this">
                           {field}
                         </span>
                       ),
                     )}
                     {ai.missingFields?.slice(0, 2).map((field: string) => (
-                      <span key={field} className="text-[10px] font-semibold text-[#c0513a] bg-[#f6dcd5] px-1.5 py-0.5 rounded">
+                      <span key={field} className="text-[11px] font-semibold text-[#6f6757] bg-[#f6f3ec] px-1.5 py-0.5 rounded">
                         ✗ {field}
                       </span>
                     ))}
@@ -1176,16 +1195,29 @@ export default function AnalyserPage() {
             {auditAreas.map((item) => {
               const IconComponent = ICON_MAP[item.iconName] || FileCode2;
               const badge = areaBadge(item.score);
+              // I4/C2: "How AI describes you" is only a score once a model has actually described the business
+              const unmeasured = item.id === "sentiment" && !hasAiData;
+              if (unmeasured) {
+                return (
+                  <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
+                    <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0 bg-[#f0ebe0]">
+                      <IconComponent className="w-4 h-4 text-[#6f6757]" />
+                    </div>
+                    <span className="flex-1 min-w-0 truncate text-[11.5px] sm:text-[13.5px] font-medium text-[#23211b]">{item.label}</span>
+                    <span className="text-[12px] text-[#6f6757]">Not measured yet - run the AI analysis</span>
+                  </div>
+                );
+              }
               return (
                 <div key={item.id} className="flex items-center gap-1.5 sm:gap-3">
-                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: badge.bg }}>
-                    <IconComponent className="w-4 h-4" style={{ color: badge.color }} />
+                  <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0 bg-[#f0ebe0]">
+                    <IconComponent className="w-4 h-4 text-[#4a4437]" />
                   </div>
                   <div className="group relative flex items-center gap-1 flex-1 min-w-0">
                     <span className="text-[11.5px] sm:text-[13.5px] text-[#23211b] font-medium truncate">{item.label}</span>
                     {item.capped && (
-                      <span title={item.cappedReason} className="shrink-0 text-[9.5px] font-semibold text-[#9a6a12] bg-[#f7e7c4] px-1.5 py-0.5 rounded">
-                        Capped at 50
+                      <span title={item.cappedReason} className="shrink-0 text-[11px] font-medium text-[#6f6757]">
+                        (capped at 50)
                       </span>
                     )}
                     <Info className="hidden sm:block w-3.5 h-3.5 text-[#9b927f] hover:text-[#15463b] transition-colors cursor-pointer shrink-0" />
@@ -1203,7 +1235,7 @@ export default function AnalyserPage() {
                   <span className="num text-[11px] sm:text-[13px] font-bold text-[#23211b] w-9 sm:w-[50px] text-right shrink-0">
                     {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
                   </span>
-                  <span className="hidden sm:inline-block font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[68px] shrink-0"
+                  <span className="hidden sm:inline-block font-mono-spline text-[11px] font-semibold tracking-wider px-2 py-1 rounded text-center w-[88px] shrink-0"
                     style={{ color: badge.color, backgroundColor: badge.bg }}>
                     {badge.label}
                   </span>

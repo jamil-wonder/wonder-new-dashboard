@@ -173,7 +173,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
                 {card.kind === "query" ? <SearchCheck className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                 {card.tag}
               </span>
-              <span className={`text-[9px] font-bold tracking-wider uppercase px-2 py-1 rounded-full whitespace-nowrap ${
+              <span className={`text-[11px] font-bold tracking-wider uppercase px-2 py-1 rounded-full whitespace-nowrap ${
                 card.kind === "query" ? "text-[#9a6a12] bg-[#f7e7c4]" : "text-[#1e7d4f] bg-[#dcefe2]"
               }`}>
                 {card.badge}
@@ -187,11 +187,11 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-lg bg-[#fff8f6] border border-[#f0d4ce] px-2.5 py-2">
                   <div className="num text-[17px] font-semibold text-[#8f2f22]">{totalUniqueMissing || missingCount}</div>
-                  <div className="text-[10.5px] text-[#8a8273]">missing</div>
+                  <div className="text-[11px] text-[#6f6757]">missing</div>
                 </div>
                 <div className="rounded-lg bg-[#f6fbf8] border border-[#d0e4d6] px-2.5 py-2">
                   <div className="num text-[17px] font-semibold text-[#1e7d4f]">{topModelGap?.model || "AI"}</div>
-                  <div className="text-[10.5px] text-[#8a8273]">top gap</div>
+                  <div className="text-[11px] text-[#6f6757]">top gap</div>
                 </div>
               </div>
             )}
@@ -285,7 +285,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
 
                         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                           <div className="overflow-hidden rounded-[12px] border border-[#ece3d1]">
-                            <div className="grid grid-cols-[38px_minmax(0,1fr)] border-b border-[#ece3d1] bg-[#fdfcf8] text-[10px] font-semibold uppercase tracking-[0.12em]">
+                            <div className="grid grid-cols-[38px_minmax(0,1fr)] border-b border-[#ece3d1] bg-[#fdfcf8] text-[11px] font-semibold uppercase tracking-[0.12em]">
                               <div className="border-r border-[#ece3d1] px-2 py-2 text-[#8a8273]">SL</div>
                               <div className="px-3 py-2 text-[#8f2f22]">Missing</div>
                             </div>
@@ -293,7 +293,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
                               {group.uniqueMissing.length > 0 ? (
                                 group.uniqueMissing.map((text, index) => (
                                   <div key={`${group.model}-missing-${index}`} className="grid grid-cols-[38px_minmax(0,1fr)] border-b border-[#f1eadf] last:border-b-0 text-[12.5px] leading-relaxed">
-                                    <div className="border-r border-[#f1eadf] px-2 py-2 font-mono-spline text-[10.5px] text-[#9b927f]">{index + 1}</div>
+                                    <div className="border-r border-[#f1eadf] px-2 py-2 font-mono-spline text-[11px] text-[#6f6757]">{index + 1}</div>
                                     <div className="px-3 py-2 text-[#8f2f22]">{text}</div>
                                   </div>
                                 ))
@@ -304,7 +304,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
                           </div>
 
                           <div className="overflow-hidden rounded-[12px] border border-[#ece3d1]">
-                            <div className="grid grid-cols-[38px_minmax(0,1fr)] border-b border-[#ece3d1] bg-[#fdfcf8] text-[10px] font-semibold uppercase tracking-[0.12em]">
+                            <div className="grid grid-cols-[38px_minmax(0,1fr)] border-b border-[#ece3d1] bg-[#fdfcf8] text-[11px] font-semibold uppercase tracking-[0.12em]">
                               <div className="border-r border-[#ece3d1] px-2 py-2 text-[#8a8273]">SL</div>
                               <div className="px-3 py-2 text-[#1e7d4f]">Found</div>
                             </div>
@@ -312,7 +312,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
                               {group.uniqueFound.length > 0 ? (
                                 group.uniqueFound.map((text, index) => (
                                   <div key={`${group.model}-found-${index}`} className="grid grid-cols-[38px_minmax(0,1fr)] border-b border-[#f1eadf] last:border-b-0 text-[12.5px] leading-relaxed">
-                                    <div className="border-r border-[#f1eadf] px-2 py-2 font-mono-spline text-[10.5px] text-[#9b927f]">{index + 1}</div>
+                                    <div className="border-r border-[#f1eadf] px-2 py-2 font-mono-spline text-[11px] text-[#6f6757]">{index + 1}</div>
                                     <div className="px-3 py-2 text-[#1e7d4f]">{text}</div>
                                   </div>
                                 ))

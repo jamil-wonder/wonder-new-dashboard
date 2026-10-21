@@ -49,7 +49,7 @@ export default function PlatformVisSection({ data }: { data: OverviewData }) {
                       {MODEL_ICONS[model] ? (
                         <Image src={MODEL_ICONS[model]} width={18} height={18} alt={model} className="object-contain" />
                       ) : (
-                        <span className="text-[10px] font-bold text-[#9b927f]">{model[0]}</span>
+                        <span className="text-[11px] font-bold text-[#6f6757]">{model[0]}</span>
                       )}
                     </div>
                     <span className="w-[74px] text-[13.5px] text-[#23211b]">{model}</span>

@@ -7,6 +7,7 @@ import { SearchQueryItem } from "../../types/dashboard";
 import QueryAnswerPanel from "./QueryAnswerPanel";
 import QuestionCell from "./QuestionCell";
 import RowMenu from "./RowMenu";
+import Badge from "../ui/Badge";
 import SiteIcon from "../ui/SiteIcon";
 import { getSourcesForModel, normalizeDomain } from "../../lib/querySources";
 
@@ -67,11 +68,6 @@ export default function QueryTable({
     <div className="flex flex-col gap-2.5 mt-2.5 relative">
       <AnimatePresence mode="popLayout">
         {queries.map((q) => {
-          let typeColor = "#5b4f86";
-          let typeBg = "#efe9fb";
-          if (q.type === "non-branded") { typeColor = "#9a6a12"; typeBg = "#f7e7c4"; }
-          else if (q.type === "local-seo") { typeColor = "#1e7d4f"; typeBg = "#dcefe2"; }
-          else if (q.type === "broad-seo") { typeColor = "#a86d7e"; typeBg = "#fdeef1"; }
 
           // Resolve model specific status strictly for the selected model
           // tab - NO fallback to the aggregate q.status/q.rank/q.matchType
@@ -139,16 +135,10 @@ export default function QueryTable({
               </div>
               
               <span className="flex flex-col items-start gap-0.5 justify-self-start">
-                <span
-                  className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded shrink-0 max-w-[86px] truncate"
-                  style={{ color: typeColor, backgroundColor: typeBg }}
-                  title={q.label}
-                >
-                  {q.label}
-                </span>
+                <Badge kind="meta" title={q.label} className="max-w-[92px] truncate uppercase tracking-wide">{q.label}</Badge>
                 {q.type === "local-seo" && locations.length > 1 && (() => {
                   const place = locations.find((l) => q.query.toLowerCase().includes(l.split(",")[0].trim().toLowerCase()));
-                  return place ? <span className="max-w-[86px] truncate text-[10px] text-[#6f6757]" title={place}>{place.split(",")[0]}</span> : null;
+                  return place ? <span className="max-w-[86px] truncate text-[11px] text-[#6f6757]" title={place}>{place.split(",")[0]}</span> : null;
                 })()}
               </span>
 
@@ -176,7 +166,7 @@ export default function QueryTable({
                         <span>Mentioned</span>
                       </span>
                       {/* I6: why it counts - named in the answer text, cited as a source, or both */}
-                      <span className="text-[10px] text-[#8a8273] leading-none">
+                      <span className="text-[11px] text-[#6f6757] leading-none">
                         {modelRes?.namedInAnswer && modelRes?.citedAsSource ? "named + cited" : modelRes?.namedInAnswer ? "named in answer" : modelRes?.citedAsSource ? "cited as source" : ""}
                       </span>
                     </span>
@@ -204,7 +194,7 @@ export default function QueryTable({
               {showRank && (
                 <div className="text-center">
                   {isAudited && isMentioned && rankVal ? (
-                    <span className="text-[12px] font-bold text-[#15463b] bg-[#eef3f0] border border-[#d0e4d6] px-2.5 py-0.5 rounded-md">
+                    <span className="text-[13px] font-bold text-[#15463b]">
                       #{rankVal}
                     </span>
                   ) : (
@@ -225,12 +215,12 @@ export default function QueryTable({
                           e.stopPropagation();
                           if (onOpenSources) onOpenSources(q);
                         }}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#d0e4d6] bg-[#eef3f0] py-1 pl-1.5 pr-2.5 text-[11.5px] font-semibold text-[#15463b] transition-colors hover:border-[#15463b]"
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#e5ddd0] bg-[#f6f3ec] py-1 pl-1.5 pr-2.5 text-[11.5px] font-semibold text-[#3a352b] transition-colors hover:border-[#15463b]"
                         title={targetSiteStatus === "matched" ? "Includes your website - click to see every source" : "Click to see every source"}
                       >
                         <span className="flex -space-x-1.5">
                           {sourcesVal.slice(0, 3).map((d, idx) => (
-                            <span key={`${d}-${idx}`} className="rounded-full ring-2 ring-[#eef3f0]">
+                            <span key={`${d}-${idx}`} className="rounded-full ring-2 ring-[#f6f3ec]">
                               <SiteIcon domain={normalizeDomain(d) || d} size={16} className="rounded-full bg-white" />
                             </span>
                           ))}
@@ -238,7 +228,7 @@ export default function QueryTable({
                         <span>
                           {sourcesVal.length} {sourcesVal.length === 1 ? "source" : "sources"}
                         </span>
-                        {targetSiteStatus === "matched" && <span className="rounded bg-[#dcfce7] px-1 py-px text-[10px] font-bold text-[#15803d]">You</span>}
+                        {targetSiteStatus === "matched" && <span className="rounded bg-[#dcfce7] px-1 py-px text-[11px] font-bold text-[#15803d]">You</span>}
                       </button>
                     ) : (
                       <span className="text-[12px] text-[#8a8273]">No sources</span>

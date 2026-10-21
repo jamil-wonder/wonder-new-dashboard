@@ -59,8 +59,15 @@ const COUNTRY_ONLY = new Set([
   "india", "south africa", "singapore", "uae", "united arab emirates", "bangladesh",
 ]);
 
+// J3: "we work everywhere / online" - a real answer, with no place in the questions
+export const ONLINE_LOCATION = "Online / everywhere";
+export function isOnlineLocation(raw: string | null | undefined): boolean {
+  return ["online / everywhere", "online", "everywhere", "worldwide"].includes(String(raw || "").trim().toLowerCase());
+}
+
 export function validateLocationInput(raw: string): string | null {
   const value = raw.replace(/\s+/g, " ").trim();
+  if (isOnlineLocation(value)) return null;
   if (!value) return "Tell us where you're based so we can track the local searches your customers make.";
   if (value.length < 2) return "That location looks too short.";
   if (value.length > 80) return "Keep the location short - a city or area is enough.";

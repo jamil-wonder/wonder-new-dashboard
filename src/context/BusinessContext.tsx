@@ -63,6 +63,8 @@ export interface Business {
   blogLanguage?: string;
   // G4: other places this business is tracked in
   extraLocations?: string[];
+  // J5: the latest finished scan, when it failed or was incomplete
+  scanRunLastProblem?: { run_id: string; status: string; reason?: string; at?: string } | null;
   blogLanguageDetected?: { code: string; label: string; source: string };
   blogKeywords?: string[];
   // When each score type last updated - separate from `completeness`
@@ -339,6 +341,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             blogVoice: b.blogVoice || b.blog_voice || "",
             blogLanguage: b.blogLanguage || "",
             extraLocations: Array.isArray(b.extraLocations) ? b.extraLocations : [],
+            scanRunLastProblem: b.scan_run_last_problem && typeof b.scan_run_last_problem === "object" ? b.scan_run_last_problem : null,
             blogLanguageDetected: b.blogLanguageDetected || undefined,
             blogKeywords: Array.isArray(b.blogKeywords) ? b.blogKeywords : [],
           };

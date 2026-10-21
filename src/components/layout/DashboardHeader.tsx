@@ -265,7 +265,7 @@ export default function DashboardHeader() {
                     Pro
                   </span>
                 </div>
-                <div className="text-[10.5px] text-[#8a8273] truncate font-normal">
+                <div className="text-[11px] text-[#6f6757] truncate font-normal">
                   Active Subscription
                 </div>
               </div>

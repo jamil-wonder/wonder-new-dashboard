@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Info, MapPin, Pencil, TriangleAlert } from "lucide-react";
-import type { DetectedLocation } from "../../lib/onboardingLocation";
+import { isOnlineLocation, ONLINE_LOCATION, type DetectedLocation } from "../../lib/onboardingLocation";
 
 function LocationInput({
   value,
@@ -59,7 +59,7 @@ function Note({ tone, children }: { tone: "info" | "warn"; children: React.React
 //   none   -> say we found nothing, ask for a city
 //   one    -> show what we found (and how sure we are), editable
 //   several-> say so, let them pick the ONE the product will track
-export default function LocationStep({
+function LocationStepBody({
   detected,
   value,
   onChange,
@@ -186,6 +186,36 @@ export default function LocationStep({
         </label>
         <LocationInput value={value} onChange={onChange} onEnter={onEnter} placeholder="Your city or area" invalid={invalid} />
       </div>
+    </div>
+  );
+}
+
+// J3: besides a place, "we work everywhere / online" is a valid answer (no place goes into the questions)
+export default function LocationStep(props: {
+  detected: DetectedLocation[];
+  value: string;
+  onChange: (v: string) => void;
+  onEnter: () => void;
+  invalid: boolean;
+}) {
+  if (isOnlineLocation(props.value)) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-[#d0e4d6] bg-[#eef3f0] px-4 py-3 text-[13.5px] text-[#15463b]">
+          <strong>We work everywhere / online.</strong> We won&apos;t put a place name in your questions.
+        </div>
+        <button type="button" onClick={() => props.onChange("")} className="cursor-pointer text-[13px] font-semibold text-[#15463b] underline underline-offset-2">
+          Choose a place instead
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <LocationStepBody {...props} />
+      <button type="button" onClick={() => props.onChange(ONLINE_LOCATION)} className="cursor-pointer text-[13px] font-semibold text-[#15463b] underline underline-offset-2">
+        We work everywhere / online
+      </button>
     </div>
   );
 }

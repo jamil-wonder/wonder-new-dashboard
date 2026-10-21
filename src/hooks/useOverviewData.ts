@@ -433,7 +433,9 @@ export function useOverviewData(url: string, refreshSignal?: unknown, fallbackSc
     const nearestAboveGap: number | null = null;
 
     // Audit areas
-    const auditAreas = analyserCache?.auditAreas || [];
+    // I4/C2: "How AI describes you" has no score until a model has actually described the business
+    const hasAiDescription = Array.isArray(analyserCache?.aiInsights) && analyserCache.aiInsights.length > 0;
+    const auditAreas = (analyserCache?.auditAreas || []).filter((a: any) => !(a?.id === "sentiment" && !hasAiDescription));
 
     // AI insights - cached as objects { model, summary, ... } or plain strings
     const rawInsights: any[] = analyserCache?.aiInsights || [];

@@ -237,7 +237,7 @@ function TrendChart({ points }: { points: { score: number; timestamp: string; we
               }}
             >
               <div className="num font-spectral font-bold text-[17px]">{hovered.score}</div>
-              <div className="text-[10.5px] text-[#a8c4ae] mt-0.5">{formatPointTimestamp(hovered.timestamp, hovered.week_id)}</div>
+              <div className="text-[11px] text-[#a8c4ae] mt-0.5">{formatPointTimestamp(hovered.timestamp, hovered.week_id)}</div>
             </div>
           </>
         )}

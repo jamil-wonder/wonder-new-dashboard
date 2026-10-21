@@ -37,7 +37,7 @@ export default function AreaScoreBars() {
                 {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
               </span>
               <span
-                className="font-mono-spline text-[8px] font-semibold tracking-wider px-2 py-0.5 rounded text-center w-[64px] shrink-0"
+                className="font-mono-spline text-[11px] font-semibold tracking-wider px-2 py-0.5 rounded text-center w-[64px] shrink-0"
                 style={{ color: item.statusColor, backgroundColor: item.statusBg }}
               >
                 {item.statusText}

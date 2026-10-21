@@ -60,7 +60,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
                     {item.score}<span className="text-[#b3a98f] font-normal">/100</span>
                   </span>
                   <span
-                    className="font-mono-spline text-[7.5px] sm:text-[8.5px] font-medium tracking-wider px-1 sm:px-1.5 py-1 rounded text-center w-[42px] sm:w-[58px] shrink-0"
+                    className="font-mono-spline text-[7.5px] sm:text-[11px] font-medium tracking-wider px-1 sm:px-1.5 py-1 rounded text-center w-[42px] sm:w-[58px] shrink-0"
                     style={{ color: status.color, backgroundColor: status.bg }}
                   >
                     {status.text}
@@ -89,7 +89,7 @@ export default function AuditBreakdown({ data }: { data: OverviewData }) {
             <div className="flex flex-col mt-2.5">
               {[...auditAreas].sort((a, b) => a.score - b.score).slice(0, 4).map((area, i, arr) => (
                 <div key={area.id} className={`flex gap-4 items-baseline py-3 ${i < arr.length - 1 ? "border-b border-[#e8e1d0]" : ""}`}>
-                  <span className="num font-mono-spline text-[10px] tracking-wider w-[52px] shrink-0" style={{ color: i === 0 ? "#1e7d4f" : "#9b927f" }}>
+                  <span className="num font-mono-spline text-[11px] tracking-wider w-[52px] shrink-0" style={{ color: i === 0 ? "#1e7d4f" : "#9b927f" }}>
                     {area.score}/100
                   </span>
                   <span className="text-[14px] text-[#23211b]">Improve: {area.label}</span>

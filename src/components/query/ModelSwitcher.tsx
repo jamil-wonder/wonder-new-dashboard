@@ -139,7 +139,7 @@ export default function ModelSwitcher({ selectedModel, onSelectModel, modelScore
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.12 }}
-                  className="text-[10px] font-medium font-mono-spline"
+                  className="text-[11px] font-medium font-mono-spline"
                   style={{ color: cfg.color }}
                 >
                   {pctVal}%

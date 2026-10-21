@@ -51,7 +51,7 @@ export default function UserDropdownMenu() {
           <span className="text-[13.5px] font-semibold text-[#3a352b] group-hover:text-[#15463b] transition-colors">
             {name}
           </span>
-          <span className="text-[10.5px] text-[#9b927f] max-w-[130px] truncate">
+          <span className="text-[11px] text-[#6f6757] max-w-[130px] truncate">
             {email}
           </span>
         </div>
@@ -72,7 +72,7 @@ export default function UserDropdownMenu() {
             <div className="p-3 bg-[#faf8f3] rounded-xl border border-[#efe7d6] mb-1.5">
               <div className="font-semibold text-[13.5px] text-[#15463b] truncate">{name}</div>
               <div className="text-[11.5px] text-[#8a8273] truncate">{email}</div>
-              <span className="inline-block text-[9.5px] font-bold uppercase tracking-wider text-[#1e7d4f] bg-[#dcefe2] px-2 py-0.5 rounded-full mt-1.5">
+              <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-[#1e7d4f] bg-[#dcefe2] px-2 py-0.5 rounded-full mt-1.5">
                 {user?.role || "Active Account"}
               </span>
             </div>

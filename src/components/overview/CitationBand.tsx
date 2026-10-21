@@ -69,11 +69,11 @@ export default function CitationBand({ data }: { data: OverviewData }) {
                   <Icon className="w-[18px] h-[18px]" />
                 </div>
                 {listed ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#a8d860]/15 px-2 py-1 text-[10px] font-semibold text-[#a8d860]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#a8d860]/15 px-2 py-1 text-[11px] font-semibold text-[#a8d860]">
                     <CheckCircle2 className="h-3 w-3" /> Found
                   </span>
                 ) : (
-                  <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/55">
+                  <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/55">
                     Missing
                   </span>
                 )}

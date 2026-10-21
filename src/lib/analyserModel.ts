@@ -94,6 +94,8 @@ export function buildAnalysis(scrapeRes: any, ctx: AnalysisContext): { scan: any
     schemas: scrapeRes.schemas || [],
     aiBotAccess: scrapeRes.aiBotAccess || {},
     hasContactPath: scrapeRes.hasContactPath ?? false,
+    // C3: the same verdict the schema score used, so the checklist can never disagree with it
+    hasLocalBusinessType: hasLocalType,
     // C5: real pages found by the crawl, used to back the "verified" ticks
     homePageUrl: scrapeRes.canonicalUrl || ctx.cleanUrl || "",
     contactPageUrl: scrapeRes.contactPageUrl || "",

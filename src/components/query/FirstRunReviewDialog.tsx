@@ -43,7 +43,7 @@ export default function FirstRunReviewDialog({
           {questions.map((q) => (
             <li key={q.id} className="leading-snug">
               {q.query}
-              {q.label ? <span className="ml-2 text-[10.5px] font-semibold uppercase tracking-wide text-[#9b927f]">{q.label}</span> : null}
+              {q.label ? <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-[#6f6757]">{q.label}</span> : null}
             </li>
           ))}
         </ol>

@@ -143,7 +143,7 @@ export default function SharedReportPage() {
                 <span className="font-spectral font-bold text-[24px] text-[#15463b] leading-none">
                   {report.visibilityVerified ? report.score ?? "-" : "-"}
                 </span>
-                <span className="text-[9px] text-[#9b927f] mt-0.5">/100</span>
+                <span className="text-[11px] text-[#6f6757] mt-0.5">/100</span>
               </div>
             </div>
             <div>

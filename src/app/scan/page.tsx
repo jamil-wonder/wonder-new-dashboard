@@ -9,7 +9,7 @@ import { fetchApi, getNewScanId, parseApiError } from "../../lib/api";
 import { buildAnalysis } from "../../lib/analyserModel";
 import { areasToImprove } from "../../lib/areaBadge";
 import { getGrade, getVisibilityText } from "../../lib/scoreGrading";
-import { parseDetectedLocations, type DetectedLocation } from "../../lib/onboardingLocation";
+import { isOnlineLocation, ONLINE_LOCATION, parseDetectedLocations, type DetectedLocation } from "../../lib/onboardingLocation";
 
 type Stage = "entry" | "scanning" | "result" | "unlocked";
 
@@ -404,12 +404,24 @@ function ScanContent() {
                     <input
                       id="scan-step-input"
                       key={entryStep}
-                      value={step.v}
+                      value={entryStep === 3 && isOnlineLocation(ownPlace) ? "" : step.v}
+                      disabled={entryStep === 3 && isOnlineLocation(ownPlace)}
                       onChange={(e) => step.set(e.target.value)}
                       placeholder={step.ph}
                       autoFocus
-                      className="mt-3 w-full rounded-xl border border-[#ece3d1] bg-white px-4 py-3 text-[14px] outline-none transition-colors focus:border-[#15463b]"
+                      className="mt-3 w-full rounded-xl border border-[#ece3d1] bg-white px-4 py-3 text-[14px] outline-none transition-colors focus:border-[#15463b] disabled:bg-[#f6f3ec]"
                     />
+                    {entryStep === 3 && (
+                      <label className="mt-3 flex cursor-pointer items-center gap-2 text-[13.5px] text-[#4a4437]">
+                        <input
+                          type="checkbox"
+                          checked={isOnlineLocation(ownPlace)}
+                          onChange={(e) => setOwnPlace(e.target.checked ? ONLINE_LOCATION : "")}
+                          className="h-4 w-4 accent-[#15463b]"
+                        />
+                        We work everywhere / online
+                      </label>
+                    )}
                     <div className="mt-4 flex items-center gap-3">
                       <button
                         type="submit"
@@ -488,7 +500,7 @@ function ScanContent() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="font-spectral font-bold text-[24px] text-[#15463b] leading-none">{score}</span>
-                      <span className="text-[9px] text-[#9b927f] mt-0.5">/100</span>
+                      <span className="text-[11px] text-[#6f6757] mt-0.5">/100</span>
                     </div>
                   </div>
                   <div>
@@ -503,9 +515,19 @@ function ScanContent() {
 
                 <div className="mt-6 pt-6 border-t border-[#efe7d6]">
                   {fixCount !== null && fixCount > 0 && (
-                    <h2 className="mb-4 font-spectral text-[22px] font-semibold leading-snug text-[#15463b]">
-                      We found {fixCount} way{fixCount === 1 ? "" : "s"} to improve how AI recommends you
-                    </h2>
+                    <div className="mb-5">
+                      <h2 className="font-spectral text-[22px] font-semibold leading-snug text-[#15463b]">
+                        We found {fixCount} way{fixCount === 1 ? "" : "s"} to improve how AI recommends you
+                      </h2>
+                      <p className="mt-1 text-[13.5px] leading-relaxed text-[#6f6757]">Create a free account to see them. The list is kept behind sign-up.</p>
+                      <button
+                        type="button"
+                        onClick={handleCreateAccount}
+                        className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#15463b] px-4 py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#1a5c44]"
+                      >
+                        Create a free account <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   )}
                   <div className="font-mono-spline text-[11px] uppercase tracking-wider text-[#6f6757] mb-3">What we found</div>
                   {findingsLoading ? (
@@ -557,7 +579,7 @@ function ScanContent() {
                             <div className="flex items-start justify-between gap-3">
                               <p className="text-[13.5px] text-[#23211b] font-medium leading-snug">{q.query}</p>
                               <span
-                                className={`shrink-0 text-[10.5px] font-bold px-2 py-0.5 rounded-full ${
+                                className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
                                   q.mentioned ? "bg-[#e9f6ee] text-[#1e7d4f]" : "bg-[#fdf2f0] text-[#b1442a]"
                                 }`}
                               >

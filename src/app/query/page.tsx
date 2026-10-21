@@ -175,7 +175,7 @@ function QueryGenerationLoader({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-[24px] font-medium text-[#15463b] leading-none">{totalFound}</span>
-            <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#9b927f]">of {totalTarget}</span>
+            <span className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#6f6757]">of {totalTarget}</span>
           </div>
         </div>
 
@@ -226,13 +226,13 @@ function QueryGenerationLoader({
                           className={`transition-all duration-700 ease-out ${isGenerating ? "animate-pulse" : ""}`}
                         />
                       </svg>
-                      <div className="absolute inset-0 flex items-center justify-center text-[10.5px] font-medium text-[#15463b]">
+                      <div className="absolute inset-0 flex items-center justify-center text-[11px] font-medium text-[#15463b]">
                         {found}/{target}
                       </div>
                     </div>
                     <div>
                       <div className="text-[12.5px] font-medium text-[#2c2821]">{item.label}</div>
-                      <div className="mt-0.5 text-[10.5px] text-[#9b927f]">{item.hint}</div>
+                      <div className="mt-0.5 text-[11px] text-[#6f6757]">{item.hint}</div>
                     </div>
                   </div>
                 </div>
@@ -370,6 +370,13 @@ export default function QueryPage() {
 
     return scores;
   }, [queriesList]);
+
+  // J6/A4: models that were asked but returned nothing for some questions make this an incomplete run
+  const failedModelNames = useMemo(() => Object.entries(modelScores).filter(([, m]) => m.failed > 0).map(([name]) => name), [modelScores]);
+  const answeredModelNames = useMemo(() => Object.entries(modelScores).filter(([, m]) => m.total > 0 && m.failed < m.total).map(([name]) => name), [modelScores]);
+  const runIncomplete = failedModelNames.length > 0;
+  // A2/A3: a rank and a ladder only exist once competitors were measured (someone besides you) on a complete run
+  const hasCompetitorLadder = competitorRows.length >= 2 && !runIncomplete;
 
   const getCacheKey = useCallback((targetUrl: string) => {
     const clean = targetUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -1329,6 +1336,26 @@ export default function QueryPage() {
         </div>
       )}
 
+      {/* J6/A4: a model that returned nothing is said plainly, by name, with a way to retry */}
+      {!isLoadingQuestions && queriesList.length > 0 && runIncomplete && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#f0dfae] bg-[#fff8e6] px-4 py-3 text-[13px] text-[#4a4437]">
+          <span>
+            <strong>This run is incomplete.</strong>{" "}
+            {failedModelNames.join(", ").replace(/, ([^,]*)$/, " and $1")} didn&apos;t answer some of your questions, so we&apos;re not showing a rank or final score yet. Nothing is counted against you.
+          </span>
+          {lastJobId && (
+            <button
+              type="button"
+              onClick={handleRetryFailed}
+              disabled={isRetrying || isScanning}
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-lg bg-[#15463b] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#1a5c44] disabled:opacity-50"
+            >
+              {isRetrying ? "Retrying…" : "Retry the missing answers"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* One results card: what the numbers are based on, the headline figures, and the locked baseline.
           Every number is real: appearedCount from each question's own aggregate status, the rank and the
           competitor above you from this run's competitors. "Pending" (never run) is not "Not mentioned". */}
@@ -1351,7 +1378,8 @@ export default function QueryPage() {
                 <div className="font-mono-spline text-[11px] uppercase tracking-[0.14em] text-[#6f6757]">Your latest results</div>
                 {checkedOn && (
                   <div className="mt-0.5 text-[12.5px] text-[#6f6757]" title="The models answer a little differently each time, so small score changes can be noise.">
-                    Checked <strong className="font-semibold text-[#3a352b]">{checkedOn}</strong> with ChatGPT, Claude, Perplexity and Gemini
+                    Checked <strong className="font-semibold text-[#3a352b]">{checkedOn}</strong>
+                    {answeredModelNames.length > 0 ? ` with ${answeredModelNames.join(", ").replace(/, ([^,]*)$/, " and $1")}` : ""}
                   </div>
                 )}
               </div>
@@ -1395,7 +1423,7 @@ export default function QueryPage() {
 
                 <div className="px-5 py-4">
                   <div className="text-[12px] font-medium text-[#6f6757]">Your rank</div>
-                  {userRow ? (
+                  {userRow && hasCompetitorLadder ? (
                     <>
                       <div className="mt-1 flex items-baseline gap-1.5">
                         <span className="font-spectral text-[34px] font-semibold leading-none text-[#15463b]">#{userRow.rank}</span>
@@ -1406,7 +1434,9 @@ export default function QueryPage() {
                       </div>
                     </>
                   ) : (
-                    <div className="mt-2 text-[13px] text-[#6f6757]">Appears once competitors have been measured.</div>
+                    <div className="mt-2 text-[13px] leading-snug text-[#6f6757]">
+                      {runIncomplete ? "Shown once every model has answered." : "Shown once your competitors have been measured."}
+                    </div>
                   )}
                 </div>
 
@@ -1543,7 +1573,7 @@ export default function QueryPage() {
       {/* Competitor Score Comparison - read directly from this job's own
           deep_competitors, already computed as a side effect of the run
           above. No separate fetch, no extra AI call. */}
-      {!isLoadingQuestions && competitorRows.length > 0 && (
+      {!isLoadingQuestions && hasCompetitorLadder && (
         <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <span className="font-mono-spline text-[11px] tracking-[0.14em] uppercase text-[#9a8a5e]">
@@ -1581,7 +1611,7 @@ export default function QueryPage() {
                   <div className={`text-[13.5px] truncate ${comp.isUser ? "text-[#1a5c44] font-bold" : "text-[#23211b] font-medium"}`}>
                     {comp.name}
                     {comp.isUser && (
-                      <span className="font-mono-spline text-[9px] font-bold tracking-wider text-[#1e7d4f] bg-[#dcefe2] px-2 py-0.5 rounded ml-2 align-middle">
+                      <span className="font-mono-spline text-[11px] font-bold tracking-wider text-[#1e7d4f] bg-[#dcefe2] px-2 py-0.5 rounded ml-2 align-middle">
                         YOU
                       </span>
                     )}
@@ -1608,7 +1638,7 @@ export default function QueryPage() {
         </div>
       )}
 
-      {!isLoadingQuestions && competitorRows.length === 0 && (isScanning || processedCount > 0) && (
+      {!isLoadingQuestions && !hasCompetitorLadder && (isScanning || processedCount > 0) && (
         <div className="bg-[#faf3e2] border border-[#efe3c8] rounded-[18px] p-5 md:p-[22px_26px] shadow-xs">
           <span className="text-[12.5px] text-[#8a8273]">
             {isScanning ? "Competitor ranking will appear here once the analysis finishes." : "No competitor data was found in the latest run."}
