@@ -45,7 +45,7 @@ export function computeBreakdown(inputs: WonderInputs) {
 export function ScoreBreakdownTable({ inputs, score }: { inputs: WonderInputs; score: number | null | undefined }) {
   const b = computeBreakdown(inputs);
   if (!b) {
-    return <p className="text-[12px] text-[#8a8273]">The breakdown appears after your first complete scan.</p>;
+    return <p className="text-[12px] text-[#6f6757]">The breakdown appears after your first complete scan.</p>;
   }
   const shown = typeof score === "number" ? score : b.total;
   return (
@@ -55,7 +55,7 @@ export function ScoreBreakdownTable({ inputs, score }: { inputs: WonderInputs; s
           <div key={r.key} className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
               <span className="font-medium">{r.label}</span>
-              {r.note && <span className="block text-[11px] text-[#9b927f]">{r.note}</span>}
+              {r.note && <span className="block text-[11px] text-[#6f6757]">{r.note}</span>}
             </div>
             <div className="num shrink-0 text-[#6f6757]">
               {fmt(r.value)} × {Math.round(r.weight * 100)}% = <span className="font-semibold text-[#23211b]">{fmt(r.points)}</span>
@@ -67,11 +67,17 @@ export function ScoreBreakdownTable({ inputs, score }: { inputs: WonderInputs; s
         <span className="font-semibold">Wonder Score</span>
         <span className="num font-semibold text-[#15463b]">
           {fmt(shown)}
-          {Math.round(shown) !== shown && <span className="font-normal text-[#9b927f]"> → {Math.round(shown)}</span>}
+          {Math.round(shown) !== shown && <span className="font-normal text-[#6f6757]"> → {Math.round(shown)}</span>}
         </span>
       </div>
+      {!inputs?.market_measured && (
+        <p className="mt-2 text-[11.5px] leading-snug text-[#6f6757]">
+          <strong className="font-semibold text-[#3a352b]">Maximum 90 until a competitor is measured.</strong> Market position is 10% of the
+          score and counts as 0 until we have measured at least one competitor.
+        </p>
+      )}
       {typeof inputs?.score_margin === "number" && inputs.score_margin > 0 && (
-        <p className="mt-2 text-[11px] leading-snug text-[#8a8273]">
+        <p className="mt-2 text-[11px] leading-snug text-[#6f6757]">
           AI models answer differently each time, so this score can move by about ±{fmt(inputs.score_margin)} between
           two scans with nothing changed. Treat smaller changes as noise.
         </p>

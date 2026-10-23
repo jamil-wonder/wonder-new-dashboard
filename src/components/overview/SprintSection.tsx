@@ -1,5 +1,6 @@
 "use client";
 
+import Badge from "../ui/Badge";
 import Dialog from "../ui/Dialog";
 import { areasToImprove } from "../../lib/areaBadge";
 import { useMemo, useState } from "react";
@@ -19,7 +20,9 @@ const MODEL_ICONS: Record<string, string> = {
 type SprintCard = {
   kind: "blog" | "query" | "audit";
   tag: string;
-  badge: string;
+  // I2: only a real status is shown (a ready draft); impact is not a badge - the cards are sorted by it instead
+  ready?: boolean;
+  impact: number;
   title: string;
   desc: string;
   note: string;
@@ -55,11 +58,12 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
   const totalUniqueMissing = modelSummary.reduce((sum, group) => sum + group.uniqueMissing.length, 0);
   const topModelGap = [...modelSummary].sort((a, b) => b.uniqueMissing.length - a.uniqueMissing.length)[0];
 
-  const cards: SprintCard[] = [
+  const unsortedCards: SprintCard[] = [
     {
       kind: "blog",
       tag: "Publish",
-      badge: blogDrafts[0] ? "Ready" : "Weekly",
+      ready: Boolean(blogDrafts[0]),
+      impact: 45,
       title: blogDrafts[0]?.title || "Generate blog article 1",
       desc: blogDrafts[0]?.excerpt || "Create the first weekly article from your saved voice and keywords.",
       note: blogDrafts[0] ? "Blog draft ready" : "Not generated yet",
@@ -71,7 +75,8 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
     {
       kind: "blog",
       tag: "Publish",
-      badge: blogDrafts[1] ? "Ready" : "Weekly",
+      ready: Boolean(blogDrafts[1]),
+      impact: 40,
       title: blogDrafts[1]?.title || "Generate blog article 2",
       desc: blogDrafts[1]?.excerpt || "Create the second weekly article for another search opportunity.",
       note: blogDrafts[1] ? "Blog draft ready" : "Not generated yet",
@@ -83,7 +88,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
     {
       kind: "query",
       tag: "Answer gaps",
-      badge: totalQueries > 0 ? "Important" : "Run",
+      impact: totalQueries > 0 ? Math.round((100 * missingCount) / Math.max(1, totalQueries)) : 0,
       title: totalQueries > 0 ? "Improve the missing AI answers" : "Run AI query analysis",
       desc: totalQueries > 0
         ? topQuery?.query || `${missingCount} prompts need stronger evidence.`
@@ -97,7 +102,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
     {
       kind: "audit",
       tag: "Add to website",
-      badge: "Big win",
+      impact: weakArea ? 100 - weakArea.score : 0,
       title: weakArea ? `Fix: ${weakArea.label}` : "Review website scan",
       desc: weakArea
         ? `This area scored ${weakArea.score}/100. Improve it to strengthen AI visibility.`
@@ -109,6 +114,9 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
       btn: "View Analyzer",
     },
   ];
+
+  // I2: the biggest opportunity first (stable for ties), instead of labelling every card with an impact badge
+  const cards = [...unsortedCards].sort((a, b) => b.impact - a.impact);
 
   const readyCount = [
     Boolean(blogDrafts[0]),
@@ -173,11 +181,7 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
                 {card.kind === "query" ? <SearchCheck className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                 {card.tag}
               </span>
-              <span className={`text-[11px] font-bold tracking-wider uppercase px-2 py-1 rounded-full whitespace-nowrap ${
-                card.kind === "query" ? "text-[#9a6a12] bg-[#f7e7c4]" : "text-[#1e7d4f] bg-[#dcefe2]"
-              }`}>
-                {card.badge}
-              </span>
+              {card.ready && <Badge kind="status" tone="good">Ready</Badge>}
             </div>
 
             <div className="font-spectral text-[15px] leading-snug text-[#1b1733] line-clamp-2">{card.title}</div>
@@ -185,18 +189,18 @@ export default function SprintSection({ data }: { data: OverviewData; businessNa
 
             {card.kind === "query" && totalQueries > 0 && (
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-[#fff8f6] border border-[#f0d4ce] px-2.5 py-2">
-                  <div className="num text-[17px] font-semibold text-[#8f2f22]">{totalUniqueMissing || missingCount}</div>
+                <div className="rounded-lg bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-2">
+                  <div className="num text-[17px] font-semibold text-[#23211b]">{totalUniqueMissing || missingCount}</div>
                   <div className="text-[11px] text-[#6f6757]">missing</div>
                 </div>
-                <div className="rounded-lg bg-[#f6fbf8] border border-[#d0e4d6] px-2.5 py-2">
-                  <div className="num text-[17px] font-semibold text-[#1e7d4f]">{topModelGap?.model || "AI"}</div>
+                <div className="rounded-lg bg-[#f6f3ec] border border-[#ece3d1] px-2.5 py-2">
+                  <div className="num text-[17px] font-semibold text-[#23211b]">{topModelGap?.model || "AI"}</div>
                   <div className="text-[11px] text-[#6f6757]">top gap</div>
                 </div>
               </div>
             )}
 
-            <div className="num text-[11px] font-semibold text-[#1e7d4f] my-3">{card.note}</div>
+            <div className="num text-[11px] font-semibold text-[#6f6757] my-3">{card.note}</div>
             {opensModal ? (
               <button
                 type="button"

@@ -371,10 +371,22 @@ export default function QueryPage() {
     return scores;
   }, [queriesList]);
 
-  // J6/A4: models that were asked but returned nothing for some questions make this an incomplete run
-  const failedModelNames = useMemo(() => Object.entries(modelScores).filter(([, m]) => m.failed > 0).map(([name]) => name), [modelScores]);
-  const answeredModelNames = useMemo(() => Object.entries(modelScores).filter(([, m]) => m.total > 0 && m.failed < m.total).map(([name]) => name), [modelScores]);
-  const runIncomplete = failedModelNames.length > 0;
+  // A4 (decided): each model is judged on its own answers. A model counts if it answered at least 75% of
+  // the questions it was asked; the run is scored from the models that count, provided at least 3 of the
+  // models asked do (the backend applies the same rule).
+  const modelHealth = useMemo(() => {
+    const entries = Object.entries(modelScores).map(([name, m]) => {
+      const attempted = m.total + m.failed;
+      return { name, attempted, usable: m.total > 0 && m.failed / attempted <= 0.25 };
+    });
+    const asked = entries.filter((e) => e.attempted > 0);
+    const usable = asked.filter((e) => e.usable).map((e) => e.name);
+    const unusable = asked.filter((e) => !e.usable).map((e) => e.name);
+    return { asked: asked.length, usable, unusable, incomplete: asked.length > 0 && usable.length < Math.min(3, asked.length) };
+  }, [modelScores]);
+  const failedModelNames = modelHealth.unusable;
+  const answeredModelNames = modelHealth.usable;
+  const runIncomplete = modelHealth.incomplete;
   // A2/A3: a rank and a ladder only exist once competitors were measured (someone besides you) on a complete run
   const hasCompetitorLadder = competitorRows.length >= 2 && !runIncomplete;
 
@@ -1336,12 +1348,19 @@ export default function QueryPage() {
         </div>
       )}
 
-      {/* J6/A4: a model that returned nothing is said plainly, by name, with a way to retry */}
-      {!isLoadingQuestions && queriesList.length > 0 && runIncomplete && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#f0dfae] bg-[#fff8e6] px-4 py-3 text-[13px] text-[#4a4437]">
+      {/* J6/A4: a model that did not answer enough is said plainly, by name, with a way to retry */}
+      {!isLoadingQuestions && queriesList.length > 0 && failedModelNames.length > 0 && (
+        <div role="alert" className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-[13px] text-[#4a4437] ${runIncomplete ? "border-[#f0dfae] bg-[#fff8e6]" : "border-[#ece3d1] bg-[#fdfcf8]"}`}>
           <span>
-            <strong>This run is incomplete.</strong>{" "}
-            {failedModelNames.join(", ").replace(/, ([^,]*)$/, " and $1")} didn&apos;t answer some of your questions, so we&apos;re not showing a rank or final score yet. Nothing is counted against you.
+            {runIncomplete ? (
+              <>
+                <strong>This run is incomplete.</strong> {failedModelNames.join(", ").replace(/, ([^,]*)$/, " and $1")} didn&apos;t answer enough of your questions, so we&apos;re not showing a rank or final score yet. Nothing is counted against you.
+              </>
+            ) : (
+              <>
+                <strong>Based on {modelHealth.usable.length} of {modelHealth.asked} models.</strong> {failedModelNames.join(", ").replace(/, ([^,]*)$/, " and $1")} didn&apos;t answer enough of your questions, so it is left out of the score rather than counted as a miss.
+              </>
+            )}
           </span>
           {lastJobId && (
             <button
